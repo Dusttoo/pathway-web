@@ -21,7 +21,7 @@
     "date-fns": "^4.1.0",
     "gray-matter": "^4.0.3",
     "lucide-react": "^0.548.0",
-    "next": "16.0.0",
+    "next": "^16.2.4",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-hook-form": "^7.65.0",
@@ -32,6 +32,9 @@
     "sonner": "^2.0.7",
     "zod": "^4.1.12"
   },
+  "overrides": {
+    "postcss": "^8.5.12"
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
@@ -39,7 +42,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.0.0",
+    "eslint-config-next": "^16.2.4",
     "prettier": "^3",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
