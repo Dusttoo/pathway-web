@@ -1,0 +1,406 @@
+@import "tailwindcss";
+
+/* Pathway — Google Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+/* Pathway Theme — Light (parchment-navy) */
+:root {
+  /* Base Colors */
+  --background: #f4f3ef;
+  --foreground: #192448;
+  --card: #ffffff;
+  --card-foreground: #192448;
+  --popover: #ffffff;
+  --popover-foreground: #192448;
+
+  /* Primary (gold) & Secondary (steel blue) */
+  --primary: #c9a227;
+  --primary-foreground: #192448;
+  --secondary: #d8d5cf;
+  --secondary-foreground: #192448;
+
+  /* Muted & Accent (teal) */
+  --muted: #e8e6e1;
+  --muted-foreground: #3c5075;
+  --accent: #1d9db0;
+  --accent-foreground: #ffffff;
+
+  /* Destructive */
+  --destructive: #c0392b;
+  --destructive-foreground: #ffffff;
+
+  /* Borders & Inputs */
+  --border: rgba(25, 36, 72, 0.12);
+  --input: transparent;
+  --input-background: #edecea;
+  --ring: #c9a227;
+
+  /* Chart Colors */
+  --chart-1: #c9a227;
+  --chart-2: #4dbfb0;
+  --chart-3: #1d9db0;
+  --chart-4: #3d5a8a;
+  --chart-5: #2a3f82;
+
+  /* Radius */
+  --radius: 0.5rem;
+
+  /* Sidebar */
+  --sidebar: #edecea;
+  --sidebar-foreground: #192448;
+  --sidebar-primary: #c9a227;
+  --sidebar-primary-foreground: #192448;
+  --sidebar-accent: #e8e6e1;
+  --sidebar-accent-foreground: #192448;
+  --sidebar-border: rgba(25, 36, 72, 0.08);
+
+  /* Font Weights */
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+
+  /* Font Families */
+  --font-heading: "Cinzel", Georgia, serif;
+  --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-ui: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, Monaco, "Courier New", monospace;
+}
+
+/* Pathway Theme — Dark (deep navy) */
+[data-theme="dark"] {
+  /* Base Colors */
+  --background: #141830;
+  --foreground: #d8d5cf;
+  --card: #1c2348;
+  --card-foreground: #d8d5cf;
+  --popover: #1c2348;
+  --popover-foreground: #d8d5cf;
+
+  /* Primary (gold) & Secondary (steel blue) */
+  --primary: #c9a227;
+  --primary-foreground: #141830;
+  --secondary: #253668;
+  --secondary-foreground: #d8d5cf;
+
+  /* Muted & Accent (teal) */
+  --muted: #1c2348;
+  --muted-foreground: #8c9bc5;
+  --accent: #4dbfb0;
+  --accent-foreground: #141830;
+
+  /* Destructive */
+  --destructive: #c0392b;
+  --destructive-foreground: #ffffff;
+
+  /* Borders & Inputs */
+  --border: rgba(201, 162, 39, 0.15);
+  --input: transparent;
+  --input-background: #1c2348;
+  --ring: #c9a227;
+
+  /* Chart Colors */
+  --chart-1: #c9a227;
+  --chart-2: #4dbfb0;
+  --chart-3: #1d9db0;
+  --chart-4: #3d5a8a;
+  --chart-5: #8c9bc5;
+
+  /* Sidebar */
+  --sidebar: #111528;
+  --sidebar-foreground: #d8d5cf;
+  --sidebar-primary: #c9a227;
+  --sidebar-primary-foreground: #141830;
+  --sidebar-accent: #1c2348;
+  --sidebar-accent-foreground: #d8d5cf;
+  --sidebar-border: rgba(201, 162, 39, 0.1);
+}
+
+@theme inline {
+  /* Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+
+  /* Border Radius */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+      "Ubuntu", "Cantarell", sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+}
+
+/* Base Typography */
+@layer base {
+  h1 {
+    font-size: 1.5rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    @apply text-foreground;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    @apply text-foreground;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    @apply text-foreground;
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    @apply text-foreground;
+  }
+
+  p {
+    font-size: 1rem;
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: 1rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+}
+
+/* Links */
+a {
+  @apply text-primary underline-offset-4;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  @apply text-primary/80;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/50 rounded-lg;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary;
+}
+
+/* Card Component */
+.card {
+  @apply bg-card text-card-foreground rounded-xl border-2 border-border;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Button Variants */
+.btn-primary {
+  @apply bg-primary text-primary-foreground border-2 border-primary;
+  @apply rounded-md px-4 py-2 font-medium transition-all;
+  @apply inline-flex items-center justify-center gap-2;
+}
+
+.btn-primary:hover {
+  @apply bg-background text-primary;
+}
+
+.btn-secondary {
+  @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  @apply rounded-md px-4 py-2 font-medium transition-all;
+  @apply inline-flex items-center justify-center gap-2;
+}
+
+.btn-outline {
+  @apply border-2 border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground;
+  @apply rounded-md px-4 py-2 font-medium transition-all;
+  @apply inline-flex items-center justify-center gap-2;
+}
+
+/* Badge Styles */
+.badge {
+  @apply inline-flex items-center justify-center rounded-md border-2 px-2 py-0.5 text-xs font-medium;
+}
+
+.badge-default {
+  @apply border-transparent bg-primary text-primary-foreground;
+}
+
+.badge-secondary {
+  @apply border-transparent bg-secondary text-secondary-foreground;
+}
+
+.badge-outline {
+  @apply text-foreground border-border;
+}
+
+/* Loading Spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  @apply border-2 border-border border-t-primary rounded-full;
+  width: 2rem;
+  height: 2rem;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Form Controls */
+.input {
+  @apply w-full px-4 py-2 rounded-md border-2 border-border;
+  @apply bg-input-background text-foreground;
+  @apply transition-all duration-200;
+  @apply placeholder:text-muted-foreground;
+}
+
+.input:hover {
+  @apply border-primary/50;
+}
+
+.input:focus {
+  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  @apply border-primary;
+}
+
+.input:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+.checkbox {
+  @apply w-4 h-4 rounded border-2 border-border;
+  @apply bg-input-background text-primary;
+  @apply transition-all duration-200;
+  @apply cursor-pointer;
+}
+
+.checkbox:hover {
+  @apply border-primary/50;
+}
+
+.checkbox:focus {
+  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+}
+
+.checkbox:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+/* Accessibility - Focus Visible (Keyboard Navigation) */
+*:focus-visible {
+  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+}
+
+/* Remove focus ring for mouse users */
+*:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Button Focus States */
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-outline:focus-visible {
+  @apply ring-2 ring-ring ring-offset-2 ring-offset-background;
+}
+
+/* Link Focus States */
+a:focus-visible {
+  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background rounded;
+}
+
+/* Skip to Main Content Link (for keyboard users) */
+.skip-link {
+  @apply fixed z-50 bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium;
+  top: 1rem;
+  left: 1rem;
+  /* Completely hidden - only visible when focused by keyboard */
+  display: none;
+}
+
+.skip-link:focus {
+  /* Show only when focused */
+  display: block;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
