@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  eslint: {
+    // Linting runs locally via `npm run lint`. Skip during Vercel builds.
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
