@@ -52,7 +52,18 @@ export function useActiveEncounters() {
             if (payload.eventType === "UPDATE") {
               const updated = payload.new as Encounter;
               if (updated.status === "ended") {
-                return rows.filter((r) => r.id !== updated.id);
+                // Keep the ended encounter in cache for 30 s so players can
+                // see final standings before the combat page clears.
+                setTimeout(() => {
+                  queryClient.setQueryData(
+                    encounterKeys.active,
+                    (cur: Encounter[] | undefined) =>
+                      (cur ?? []).filter((r) => r.id !== updated.id)
+                  );
+                }, 30_000);
+                // Return the row with status "ended" — combat page renders
+                // it as a "final standings" card based on the status field.
+                return rows.map((r) => (r.id === updated.id ? updated : r));
               }
               return rows.map((r) => (r.id === updated.id ? updated : r));
             }

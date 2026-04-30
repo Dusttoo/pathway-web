@@ -11,6 +11,7 @@ import {
   Flame,
   Radio,
   Clock,
+  CheckCircle2,
 } from "lucide-react";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ function CombatantRow({
   isActive: boolean;
 }) {
   const hpPct = combatant.maxHp > 0
-    ? Math.max(0, Math.min(100, (combatant.hp / combatant.maxHp) * 100))
+    ? Math.max(0, Math.min(100, ((combatant.hp ?? 0) / combatant.maxHp) * 100))
     : 0;
 
   const conditions = combatant.effects?.filter((e) => e.duration !== 0) ?? [];
@@ -150,21 +151,28 @@ function CombatantRow({
 function EncounterCard({ encounter }: { encounter: Encounter }) {
   const pcs = encounter.combatants.filter((c) => !c.isNpc);
   const npcs = encounter.combatants.filter((c) => c.isNpc);
+  const ended = encounter.status === "ended";
 
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 transition-opacity duration-500 ${ended ? "opacity-60" : ""}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Swords size={18} className="text-primary" />
+          <div className={`p-2 rounded-lg ${ended ? "bg-muted" : "bg-primary/10"}`}>
+            <Swords size={18} className={ended ? "text-muted-foreground" : "text-primary"} />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-heading font-bold text-lg">Round {encounter.round}</h2>
-              <span className="flex items-center gap-1 text-xs text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full font-medium">
-                <Radio size={9} className="animate-pulse" /> Live
-              </span>
+              {ended ? (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-medium">
+                  <CheckCircle2 size={9} /> Ended
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-xs text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full font-medium">
+                  <Radio size={9} className="animate-pulse" /> Live
+                </span>
+              )}
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Clock size={11} />
@@ -174,6 +182,9 @@ function EncounterCard({ encounter }: { encounter: Encounter }) {
             </p>
           </div>
         </div>
+        {ended && (
+          <p className="text-xs text-muted-foreground italic">Final standings</p>
+        )}
       </div>
 
       {/* Combatant list */}
@@ -187,14 +198,15 @@ function EncounterCard({ encounter }: { encounter: Encounter }) {
             <CombatantRow
               key={`${c.name}-${i}`}
               combatant={c}
-              isActive={i === encounter.turn_index}
+              // No active turn highlight once combat is over
+              isActive={!ended && i === encounter.turn_index}
             />
           ))}
         </div>
       )}
 
-      {/* Turn pointer */}
-      {encounter.combatants.length > 0 && (
+      {/* Turn pointer — only when active */}
+      {!ended && encounter.combatants.length > 0 && (
         <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
           <ChevronRight size={14} className="text-primary" />
           <span>
