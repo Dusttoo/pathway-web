@@ -64,6 +64,24 @@ export interface EncounterEvent {
   created_at: string;
 }
 
+export interface BotCompanion {
+  displayName: string;
+  baseType: string;
+  form: "young" | "mature" | "nimble" | "savage" | string;
+  notes: string;
+  currentHp: number | null;
+  customStats?: {
+    hpPerLevel?: number;
+    hp?: number;
+    ac?: number;
+    abilities?: Record<string, number>;
+    size?: string;
+    speed?: string;
+    attacks?: unknown[];
+    fromBestiary?: string;
+  };
+}
+
 // Extended character row (adds columns from the bot-integration migration)
 export interface CharacterOverlay {
   spellbook?: Array<{ caster: string; spell: string; rank: number }>;
@@ -75,6 +93,7 @@ export interface CharacterOverlay {
     slots_used: Record<string, Record<string, number>>;
     last_rest_at: string | null;
   };
+  companions?: Record<string, BotCompanion>;
 }
 
 export interface CharacterLiveFields {

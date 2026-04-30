@@ -5,7 +5,8 @@ import { HealthBar } from "@/components/characters/HealthBar";
 import { useCharacterLive } from "@/lib/hooks/use-characters";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay } from "@/lib/types/bot-integration";
-import { ArrowLeft, Radio, Zap, Star, Heart, Flame } from "lucide-react";
+import type { BotCompanion } from "@/lib/types/bot-integration";
+import { ArrowLeft, Radio, Zap, Star, Heart, Flame, PawPrint } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -88,6 +89,72 @@ function PipRow({ count, max, color, label }: { count: number; max: number; colo
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+// Derive companion max HP when possible (custom companions only — standard
+// companions would need the full companion database for accurate per-level HP).
+function companionMaxHp(comp: BotCompanion, charLevel: number): number | null {
+  if (comp.baseType !== "custom" || !comp.customStats) return null;
+  const base = comp.customStats.hpPerLevel ?? 8;
+  const con = comp.customStats.abilities?.con ?? 0;
+  if (comp.form === "young") return base * charLevel;
+  if (comp.form === "mature") return (base + con) * charLevel;
+  return (base + con + 1) * charLevel; // nimble / savage
+}
+
+function CompanionCard({ comp, charLevel }: { comp: BotCompanion; charLevel: number }) {
+  const maxHp = companionMaxHp(comp, charLevel);
+  const currentHp = comp.currentHp;
+  const hpPercent = maxHp && currentHp !== null ? Math.max(0, Math.min(100, (currentHp / maxHp) * 100)) : null;
+
+  return (
+    <div className="p-3 bg-muted/40 rounded-lg space-y-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-sm">{comp.displayName}</p>
+          <p className="text-xs text-muted-foreground capitalize">
+            {comp.baseType.replace(/-/g, " ")} · {comp.form}
+          </p>
+        </div>
+        {currentHp !== null ? (
+          maxHp ? (
+            <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
+              currentHp === 0
+                ? "text-destructive bg-destructive/10"
+                : currentHp / maxHp < 0.3
+                  ? "text-orange-400 bg-orange-500/10"
+                  : "text-green-400 bg-green-500/10"
+            }`}>
+              {currentHp}/{maxHp} HP
+            </span>
+          ) : (
+            <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
+              currentHp === 0 ? "text-destructive bg-destructive/10" : "text-green-400 bg-green-500/10"
+            }`}>
+              {currentHp} HP
+            </span>
+          )
+        ) : (
+          <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted">
+            Not in combat
+          </span>
+        )}
+      </div>
+      {hpPercent !== null && (
+        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${
+              hpPercent === 0 ? "bg-destructive" : hpPercent < 30 ? "bg-orange-400" : "bg-green-400"
+            }`}
+            style={{ width: `${hpPercent}%` }}
+          />
+        </div>
+      )}
+      {comp.notes && (
+        <p className="text-xs text-muted-foreground italic">{comp.notes}</p>
+      )}
     </div>
   );
 }
@@ -327,6 +394,25 @@ export default function CharacterDetailPage() {
                 );
               })}
             </ul>
+          </Section>
+        )}
+
+        {/* ── Companions ── */}
+        {overlay.companions && Object.keys(overlay.companions).length > 0 && (
+          <Section
+            title="Companions"
+            badge={
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <PawPrint size={12} />
+                {Object.keys(overlay.companions).length}
+              </span>
+            }
+          >
+            <div className="space-y-2">
+              {Object.entries(overlay.companions).map(([key, comp]) => (
+                <CompanionCard key={key} comp={comp} charLevel={level} />
+              ))}
+            </div>
           </Section>
         )}
       </div>

@@ -272,9 +272,11 @@ export type Database = {
         Row: {
           ancestry_name: string | null
           background_name: string | null
+          char_key: string | null
           class_name: string | null
           created_at: string
           currency: Json
+          current_hp: number | null
           discord_guild_id: string
           dying: number
           experience: number
@@ -284,6 +286,7 @@ export type Database = {
           level: number
           name: string
           notes: string | null
+          overlay: Json
           pathbuilder_data: Json | null
           pathbuilder_id: number | null
           status: string
@@ -294,9 +297,11 @@ export type Database = {
         Insert: {
           ancestry_name?: string | null
           background_name?: string | null
+          char_key?: string | null
           class_name?: string | null
           created_at?: string
           currency?: Json
+          current_hp?: number | null
           discord_guild_id: string
           dying?: number
           experience?: number
@@ -306,6 +311,7 @@ export type Database = {
           level?: number
           name: string
           notes?: string | null
+          overlay?: Json
           pathbuilder_data?: Json | null
           pathbuilder_id?: number | null
           status?: string
@@ -316,9 +322,11 @@ export type Database = {
         Update: {
           ancestry_name?: string | null
           background_name?: string | null
+          char_key?: string | null
           class_name?: string | null
           created_at?: string
           currency?: Json
+          current_hp?: number | null
           discord_guild_id?: string
           dying?: number
           experience?: number
@@ -328,6 +336,7 @@ export type Database = {
           level?: number
           name?: string
           notes?: string | null
+          overlay?: Json
           pathbuilder_data?: Json | null
           pathbuilder_id?: number | null
           status?: string
