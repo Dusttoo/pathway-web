@@ -18,7 +18,7 @@ import * as path from "path";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-const DATA_DIR = path.resolve(__dirname, "../../../Pathway/data");
+const DATA_DIR = path.resolve(__dirname, "../../../Pathway/gamedata");
 const BATCH = 200;
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
@@ -120,47 +120,54 @@ async function seedAncestries() {
   if (await alreadySeeded("ancestries")) return console.log("  — ancestries: already seeded, skipping");
   const data = load<Record<string, Record<string, unknown>>>("ancestries.json");
 
-  const ancestryRows = Object.entries(data).map(([key, a]) => ({
-    name: String(a.name ?? key),
-    description: String(a.description ?? ""),
-    ancestry_hp: typeof a.hp === "number" ? a.hp : 8,
-    size: String(a.size ?? "Medium"),
-    speed: toSpeed(a.speed),
-    attribute_boosts: Array.isArray(a.attribute_boosts) ? a.attribute_boosts : [],
-    attribute_flaws: Array.isArray(a.attribute_flaws) ? a.attribute_flaws : [],
-    languages: Array.isArray(a.languages) ? a.languages : [],
-    bonus_languages: 0,
-    traits: Array.isArray(a.traits) ? a.traits : [],
-    senses: a.senses ?? {},
-    special_abilities: Array.isArray(a.special) ? a.special : [],
-    rarity: "Common",
-    source: String(a.source ?? ""),
-    is_official: true,
-  }));
+  const ancestryRows = Object.entries(data)
+    .filter(([key]) => key !== "_meta")
+    .map(([key, a]) => ({
+      name: String(a.name ?? key),
+      description: String(a.description ?? a.summary ?? ""),
+      ancestry_hp: typeof a.hit_points === "number" ? a.hit_points : 8,
+      size: String(a.size ?? "Medium"),
+      speed: toSpeed(a.speed),
+      attribute_boosts: Array.isArray(a.attribute_boosts) ? a.attribute_boosts : [],
+      attribute_flaws: Array.isArray(a.attribute_flaws) ? a.attribute_flaws : [],
+      languages: Array.isArray((a.languages as Record<string, unknown>)?.base)
+        ? (a.languages as Record<string, unknown[]>).base
+        : (Array.isArray(a.languages) ? a.languages : []),
+      bonus_languages: 0,
+      traits: Array.isArray(a.traits) ? a.traits : [],
+      senses: Array.isArray(a.senses) ? { list: a.senses } : (a.senses ?? {}),
+      special_abilities: [],
+      rarity: "Common",
+      source: String(a.source ?? ""),
+      is_official: true,
+    }));
 
   await insertBatches("ancestries", ancestryRows);
 
-  // Fetch inserted IDs, then insert heritages
+  // Fetch inserted IDs, then build heritages from separate heritages.json
   const { data: inserted } = await db.from("ancestries").select("id, name");
-  const idByName = Object.fromEntries((inserted ?? []).map((r) => [r.name, r.id]));
+  const idByName = Object.fromEntries((inserted ?? []).map((r: Record<string, string>) => [r.name, r.id]));
 
+  const heritageData = load<Record<string, Record<string, unknown>>>("heritages.json");
   const heritageRows: Record<string, unknown>[] = [];
-  for (const [key, a] of Object.entries(data)) {
-    const ancestryName = String(a.name ?? key);
+
+  for (const [key, h] of Object.entries(heritageData)) {
+    if (key === "_meta") continue;
+    const ancestryName = String(h.ancestry ?? "");
+    // Versatile heritages don't belong to one ancestry — skip them for now
+    if (!ancestryName || h.isVersatile) continue;
     const ancestryId = idByName[ancestryName];
     if (!ancestryId) continue;
-    for (const h of (a.heritages as Array<Record<string, unknown>>) ?? []) {
-      heritageRows.push({
-        ancestry_id: ancestryId,
-        name: String(h.name ?? ""),
-        description: String(h.description ?? ""),
-        traits: [],
-        benefits: {},
-        is_versatile: false,
-        is_official: true,
-        source: String(a.source ?? ""),
-      });
-    }
+    heritageRows.push({
+      ancestry_id: ancestryId,
+      name: String(h.name ?? key),
+      description: String(h.description ?? ""),
+      traits: Array.isArray(h.traits) ? h.traits : [],
+      benefits: {},
+      is_versatile: false,
+      is_official: true,
+      source: String(h.source ?? ""),
+    });
   }
   await insertBatches("heritages", heritageRows);
 }
@@ -194,22 +201,30 @@ async function seedClasses() {
   if (await alreadySeeded("character_classes")) return console.log("  — character_classes: already seeded, skipping");
   const data = load<Record<string, unknown>>("classes.json");
   const classes = data.classes as Record<string, Record<string, unknown>>;
-  const rows = Object.values(classes).map((c) => ({
-    name: String(c.name ?? ""),
-    description: String(c.description ?? ""),
-    class_hp: typeof c.hitPoints === "number" ? c.hitPoints : 8,
-    key_attribute: Array.isArray(c.keyAttribute) ? c.keyAttribute : (c.keyAttribute ? [c.keyAttribute] : []),
-    initial_proficiencies: (c.proficiencies as object) ?? {},
-    class_features: Array.isArray(c.classFeatures) ? c.classFeatures : [],
-    is_spellcaster: Boolean(
-      (c.classFeatures as string[] | undefined)?.some?.(
-        (f) => typeof f === "string" && f.toLowerCase().includes("spellcast")
-      )
-    ),
-    source: String(c.source ?? ""),
-    is_official: true,
-    class_metadata: { keyFeatures: c.keyFeatures ?? [] },
-  }));
+  // Deduplicate by name — source data has duplicate entries for some core classes
+  const seen = new Set<string>();
+  const rows = Object.values(classes).reduce<Record<string, unknown>[]>((acc, c) => {
+    const name = String(c.name ?? "");
+    if (!name || seen.has(name)) return acc;
+    seen.add(name);
+    acc.push({
+      name,
+      description: String(c.description ?? ""),
+      class_hp: typeof c.hitPoints === "number" ? c.hitPoints : 8,
+      key_attribute: Array.isArray(c.keyAttribute) ? c.keyAttribute : (c.keyAttribute ? [c.keyAttribute] : []),
+      initial_proficiencies: (c.proficiencies as object) ?? {},
+      class_features: Array.isArray(c.classFeatures) ? c.classFeatures : [],
+      is_spellcaster: Boolean(
+        (c.classFeatures as string[] | undefined)?.some?.(
+          (f) => typeof f === "string" && f.toLowerCase().includes("spellcast")
+        )
+      ),
+      source: String(c.source ?? ""),
+      is_official: true,
+      class_metadata: { keyFeatures: c.keyFeatures ?? [] },
+    });
+    return acc;
+  }, []);
   // character_classes has UNIQUE(name)
   await insertBatches("character_classes", rows, "name");
 }
@@ -217,7 +232,9 @@ async function seedClasses() {
 async function seedArchetypes() {
   if (await alreadySeeded("archetypes")) return console.log("  — archetypes: already seeded, skipping");
   const data = load<Record<string, Record<string, unknown>>>("archetypes.json");
-  const rows = Object.values(data).map((a) => ({
+  const rows = Object.entries(data)
+    .filter(([key]) => key !== "_meta")
+    .map(([, a]) => ({
     name: String(a.name ?? ""),
     description: String(a.description ?? ""),
     archetype_type: String(a.type ?? "multiclass").toLowerCase().replace(/ /g, "_"),
@@ -231,8 +248,9 @@ async function seedArchetypes() {
 
 async function seedFeats() {
   if (await alreadySeeded("feats")) return console.log("  — feats: already seeded, skipping");
-  const data = load<Record<string, unknown>>("feats.json");
-  const feats = (data.feats ?? []) as Array<Record<string, unknown>>;
+  // feats.json is a numeric-keyed object (not nested under a .feats key)
+  const data = load<Record<string, Record<string, unknown>>>("feats.json");
+  const feats = Object.values(data);
   const rows = feats.map((f) => {
     const traits = Array.isArray(f.traits) ? f.traits.map(String) : csv(f.traits);
     return {
@@ -289,8 +307,8 @@ async function seedItems() {
     item_type: String(item.category ?? "adventuring_gear").toLowerCase().replace(/ /g, "_"),
     item_subtype: item.subcategory ? String(item.subcategory) : null,
     level: typeof item.level === "number" ? item.level : 0,
-    price_cp: typeof item.price_cp === "number" ? item.price_cp : 0,
-    bulk: item.bulk_normalized ? String(item.bulk_normalized) : null,
+    price_cp: 0,
+    bulk: item.bulk ? String(item.bulk) : null,
     traits: Array.isArray(item.traits) ? item.traits : csv(item.traits as string),
     rarity: String(item.rarity ?? "Common"),
     description: "",
@@ -309,7 +327,8 @@ async function seedBestiary() {
   const creatures = data.creatures as Record<string, Record<string, unknown>>;
 
   const toMonsterRow = (m: Record<string, unknown>, isCompanion: boolean) => {
-    const saves = (m.saves ?? (m.defenses as Record<string, unknown> | null)) as Record<string, number> | null;
+    // core.saves is { fort, ref, will }; rich.defenses may hold similar data
+    const saves = (m.saves ?? m.defenses) as Record<string, number> | null;
     const speedRaw = m.speed;
     const speedObj =
       typeof speedRaw === "number" ? { walk: speedRaw } :
@@ -356,11 +375,12 @@ async function seedBestiary() {
   const bestiaryRows = Object.values(creatures).map((c) => {
     const core = (c.core ?? {}) as Record<string, unknown>;
     const rich = (c.rich ?? {}) as Record<string, unknown>;
-    return toMonsterRow({ ...core, ...rich }, false);
+    // name lives at the top-level creature entry, not in core/rich
+    return toMonsterRow({ name: c.name, source: c.source, ...core, ...rich }, false);
   });
   await insertBatches("monsters", bestiaryRows);
 
-  // Companions
+  // Companions — nested under .companions key
   const compData = load<Record<string, unknown>>("companions.json");
   const companions = compData.companions as Record<string, Record<string, unknown>>;
   const companionRows = Object.values(companions).map((c) => toMonsterRow(c, true));
