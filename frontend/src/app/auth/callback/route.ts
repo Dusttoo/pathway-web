@@ -36,6 +36,7 @@ export async function GET(request: Request) {
   const service = createServiceClient();
   await service.from("users").upsert(
     {
+      id: authUser.id,           // pin public.users.id = auth.users.id so RLS works
       discord_id: discordId,
       discord_username:
         authUser.user_metadata?.full_name ??
