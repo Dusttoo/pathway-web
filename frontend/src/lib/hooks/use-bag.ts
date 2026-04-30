@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import type { Tables } from "@/lib/types/database.types";
 import { createClient } from "@/lib/supabase/client";
 
@@ -13,7 +14,9 @@ export const bagKeys = {
 };
 
 export function useBag() {
-  return useQuery<BagRow | null, Error>({
+  const queryClient = useQueryClient();
+
+  const query = useQuery<BagRow | null, Error>({
     queryKey: bagKeys.mine(),
     queryFn: async () => {
       const supabase = createClient();
@@ -27,6 +30,23 @@ export function useBag() {
       if (error) throw error;
       return data;
     },
-    staleTime: 30_000,
+    staleTime: Infinity,
   });
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("bags-mine")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bags" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: bagKeys.mine() });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
+  return query;
 }

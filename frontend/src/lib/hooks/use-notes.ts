@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import type { Tables } from "@/lib/types/database.types";
 import { createClient } from "@/lib/supabase/client";
 
@@ -31,7 +32,9 @@ export const notesKeys = {
 };
 
 export function useCharacterNotes(charKey: string | null | undefined) {
-  return useQuery<CharacterNotesRow | null, Error>({
+  const queryClient = useQueryClient();
+
+  const query = useQuery<CharacterNotesRow | null, Error>({
     queryKey: notesKeys.forChar(charKey ?? ""),
     queryFn: async () => {
       if (!charKey) return null;
@@ -45,6 +48,28 @@ export function useCharacterNotes(charKey: string | null | undefined) {
       return data;
     },
     enabled: !!charKey,
-    staleTime: 30_000,
+    staleTime: Infinity,
   });
+
+  useEffect(() => {
+    if (!charKey) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`character-notes-${charKey}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "character_notes", filter: `char_key=eq.${charKey}` },
+        (payload) => {
+          queryClient.setQueryData(
+            notesKeys.forChar(charKey),
+            (old: CharacterNotesRow | null | undefined) =>
+              old ? { ...old, ...payload.new } : (payload.new as CharacterNotesRow)
+          );
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [charKey, queryClient]);
+
+  return query;
 }
