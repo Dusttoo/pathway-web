@@ -3,8 +3,9 @@
 import { MainLayout } from "@/components/layout";
 import { BookOpen, Search } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 
 type Row = Record<string, unknown>;
 
@@ -74,8 +75,11 @@ function ContentCard({ item, tab }: { item: Row; tab: Tab }) {
   );
 }
 
-export default function LibraryPage() {
-  const [tab, setTab] = useState<Tab>("ancestries");
+function LibraryContent() {
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") as Tab | null) ?? "ancestries";
+
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -175,5 +179,13 @@ export default function LibraryPage() {
         </>
       )}
     </MainLayout>
+  );
+}
+
+export default function LibraryPage() {
+  return (
+    <Suspense fallback={<MainLayout><div className="flex justify-center py-12"><div className="spinner" /></div></MainLayout>}>
+      <LibraryContent />
+    </Suspense>
   );
 }
