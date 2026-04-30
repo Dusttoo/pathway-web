@@ -38,8 +38,8 @@ function formatDuration(startedAt: string, endedAt: string | null) {
 // ── Session card ──────────────────────────────────────────────────────────────
 
 function SessionCard({ encounter }: { encounter: Encounter }) {
-  const pcs = (encounter.combatants as Combatant[]).filter((c) => !c.isNpc);
-  const npcs = (encounter.combatants as Combatant[]).filter((c) => c.isNpc);
+  const pcs = ((encounter.combatants ?? []) as Combatant[]).filter((c) => !c.isNpc);
+  const npcs = ((encounter.combatants ?? []) as Combatant[]).filter((c) => c.isNpc);
 
   return (
     <Link

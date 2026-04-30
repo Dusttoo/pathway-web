@@ -216,8 +216,8 @@ export default function SessionDetailPage() {
     );
   }
 
-  const pcs  = (encounter.combatants as Combatant[]).filter((c) => !c.isNpc);
-  const npcs = (encounter.combatants as Combatant[]).filter((c) => c.isNpc);
+  const pcs  = ((encounter.combatants ?? []) as Combatant[]).filter((c) => !c.isNpc);
+  const npcs = ((encounter.combatants ?? []) as Combatant[]).filter((c) => c.isNpc);
 
   // Group events by round (null = before/after rounds)
   const byRound = new Map<number | null, EncounterEvent[]>();
