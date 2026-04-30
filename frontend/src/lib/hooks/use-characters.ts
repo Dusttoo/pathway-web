@@ -40,6 +40,7 @@ export function useCharacter(id: string, options?: { enabled?: boolean }) {
       return res.json();
     },
     enabled: options?.enabled !== false && !!id,
+    staleTime: Infinity,
   });
 }
 
