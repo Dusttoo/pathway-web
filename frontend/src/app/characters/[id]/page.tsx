@@ -9,16 +9,16 @@ import { useBag, bagKeys, type BagCategories, type BagItem } from "@/lib/hooks/u
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay, BotCompanion } from "@/lib/types/bot-integration";
 import {
-  ArrowLeft, Radio, Zap, Heart, Flame, PawPrint,
+  ArrowLeft, Radio, Zap, Heart, Flame,
   CalendarDays, BookOpen, RefreshCw, Plus, Trash2, X,
-  Package, Inbox,
+  Package, Inbox, ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-// ── Pathbuilder shape ─────────────────────────────────────────────────────────
+// ── Pathbuilder build shape ───────────────────────────────────────────────────
 
 interface PBBuild {
   name?: string;
@@ -40,6 +40,38 @@ interface PBBuild {
 }
 
 type TabKey = "stats" | "feats" | "gear" | "bag" | "notes" | "downtime" | "companions";
+type ContentType = "feat" | "item";
+
+// Shapes returned by /api/content/feats and /api/content/items
+interface FeatData {
+  id: string;
+  name: string;
+  description: string | null;
+  feat_type: string | null;
+  level: number | null;
+  traits: unknown;           // JSONB — string[]
+  prerequisites: string | null;
+  action_cost: string | null;
+  trigger: string | null;
+  rarity: string | null;
+  source: string | null;
+}
+
+interface ItemData {
+  id: string;
+  name: string;
+  description: string | null;
+  item_type: string | null;
+  item_subtype: string | null;
+  level: number | null;
+  price_cp: number | null;
+  bulk: string | null;
+  traits: unknown;           // JSONB — string[]
+  rarity: string | null;
+  is_magical: boolean | null;
+  usage: string | null;
+  source: string | null;
+}
 
 // ── Math helpers ──────────────────────────────────────────────────────────────
 
@@ -52,7 +84,6 @@ function abilityModStr(score: number): string {
   return mod >= 0 ? `+${mod}` : `${mod}`;
 }
 
-/** PF2e proficiency bonus: Untrained = 0; Trained/Expert/Master/Legendary = rank×2 + level */
 function profBonus(rank: number, level: number): number {
   return rank === 0 ? 0 : rank * 2 + level;
 }
@@ -66,6 +97,18 @@ function deriveMaxHp(build: PBBuild, level: number): number | null {
   if (!attr) return null;
   const perLevel = (attr.classhp ?? 0) + (attr.bonushpPerLevel ?? 0);
   return (attr.ancestryhp ?? 0) + perLevel * level + (attr.bonushp ?? 0);
+}
+
+function formatPriceCp(cp: number | null): string {
+  if (cp === null || cp === 0) return "—";
+  const gp  = Math.floor(cp / 100);
+  const sp  = Math.floor((cp % 100) / 10);
+  const rem = cp % 10;
+  return [
+    gp  ? `${gp} gp`  : null,
+    sp  ? `${sp} sp`  : null,
+    rem ? `${rem} cp` : null,
+  ].filter(Boolean).join(", ") || "—";
 }
 
 // ── PF2e static maps ──────────────────────────────────────────────────────────
@@ -95,22 +138,223 @@ const SKILL_ORDER = [
   "performance", "religion", "society", "stealth", "survival", "thievery",
 ];
 
-const SAVE_LABELS: Record<string, string> = {
-  fortitude: "Fort",
-  reflex:    "Ref",
-  will:      "Will",
-};
-
+const SAVE_LABELS: Record<string, string> = { fortitude: "Fort", reflex: "Ref", will: "Will" };
 const SAVE_ABILITY: Record<string, keyof NonNullable<PBBuild["abilities"]>> = {
-  fortitude: "con",
-  reflex:    "dex",
-  will:      "wis",
+  fortitude: "con", reflex: "dex", will: "wis",
 };
 
 const COMBAT_PROF_KEYS = new Set([
   "light_armor", "medium_armor", "heavy_armor", "unarmored",
   "simple_weapons", "martial_weapons", "advanced_weapons", "unarmed",
 ]);
+
+// ── Content modal helpers ─────────────────────────────────────────────────────
+
+const RARITY_STYLES: Record<string, string> = {
+  common:   "bg-muted text-muted-foreground border border-border",
+  uncommon: "bg-amber-500/20 text-amber-400 border border-amber-500/30",
+  rare:     "bg-blue-500/20 text-blue-400 border border-blue-500/30",
+  unique:   "bg-purple-500/20 text-purple-400 border border-purple-500/30",
+};
+
+function actionCostLabel(cost: string | null): string | null {
+  if (!cost) return null;
+  const map: Record<string, string> = {
+    "1": "◆ 1 Action",
+    "2": "◆◆ 2 Actions",
+    "3": "◆◆◆ 3 Actions",
+    reaction: "↺ Reaction",
+    free:     "◇ Free Action",
+  };
+  return map[cost] ?? cost;
+}
+
+function TraitBadge({ trait }: { trait: string }) {
+  return (
+    <span className="text-xs bg-muted/80 text-muted-foreground border border-border px-2 py-0.5 rounded-full capitalize">
+      {trait}
+    </span>
+  );
+}
+
+// ── ContentModal — shared feat / item detail modal ────────────────────────────
+
+function ContentModal({
+  type,
+  name,
+  onClose,
+}: {
+  type: ContentType;
+  name: string;
+  onClose: () => void;
+}) {
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const { data, isLoading } = useQuery<FeatData | ItemData | null>({
+    queryKey: ["content-modal", type, name.toLowerCase()],
+    queryFn: async () => {
+      const endpoint = type === "feat" ? "feats" : "items";
+      const res = await fetch(`/api/content/${endpoint}?name=${encodeURIComponent(name)}&limit=5`);
+      if (!res.ok) return null;
+      const { data: rows } = await res.json() as { data: (FeatData | ItemData)[] };
+      return rows?.find((r) => r.name.toLowerCase() === name.toLowerCase()) ?? null;
+    },
+    staleTime: Infinity,
+  });
+
+  const traits = Array.isArray(data?.traits) ? (data.traits as string[]) : [];
+  const rarity = data?.rarity?.toLowerCase() ?? "common";
+  const source = data?.source;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 overflow-y-auto">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden
+      />
+
+      {/* Card */}
+      <div className="relative bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 p-5 pb-0">
+          <div className="flex-1 min-w-0">
+            <h2 className="font-heading text-xl font-bold leading-tight">{name}</h2>
+            {data && (
+              <p className="text-sm text-muted-foreground mt-0.5 capitalize">
+                {type === "feat"
+                  ? `${(data as FeatData).feat_type?.replace(/_/g, " ") ?? "Feat"} · Level ${data.level ?? "—"}`
+                  : `${(data as ItemData).item_type ?? "Item"}${(data as ItemData).item_subtype ? ` · ${(data as ItemData).item_subtype}` : ""} · Level ${data.level ?? "—"}`
+                }
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          {isLoading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="spinner" />
+            </div>
+          )}
+
+          {!isLoading && !data && (
+            <div className="text-center py-6 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{name}</span> isn&apos;t in the local database yet.
+              </p>
+              <a
+                href={`https://2e.aonprd.com/Search.aspx?query=${encodeURIComponent(name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+              >
+                <ExternalLink size={13} />
+                Look up on Archives of Nethys
+              </a>
+            </div>
+          )}
+
+          {!isLoading && data && (
+            <>
+              {/* Traits + Rarity row */}
+              {(traits.length > 0 || rarity !== "common") && (
+                <div className="flex flex-wrap gap-1.5">
+                  {rarity !== "common" && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${RARITY_STYLES[rarity] ?? RARITY_STYLES.common}`}>
+                      {rarity}
+                    </span>
+                  )}
+                  {traits.map((t) => <TraitBadge key={t} trait={t} />)}
+                </div>
+              )}
+
+              {/* Feat-specific metadata */}
+              {type === "feat" && (() => {
+                const f = data as FeatData;
+                const cost = actionCostLabel(f.action_cost);
+                return (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    {cost && (
+                      <><dt className="text-muted-foreground">Action</dt><dd className="font-mono text-xs">{cost}</dd></>
+                    )}
+                    {f.prerequisites && (
+                      <><dt className="text-muted-foreground">Prerequisites</dt><dd>{f.prerequisites}</dd></>
+                    )}
+                    {f.trigger && (
+                      <><dt className="text-muted-foreground">Trigger</dt><dd>{f.trigger}</dd></>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Item-specific metadata */}
+              {type === "item" && (() => {
+                const it = data as ItemData;
+                return (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    {it.price_cp !== null && it.price_cp !== undefined && (
+                      <><dt className="text-muted-foreground">Price</dt><dd>{formatPriceCp(it.price_cp)}</dd></>
+                    )}
+                    {it.bulk && (
+                      <><dt className="text-muted-foreground">Bulk</dt><dd>{it.bulk}</dd></>
+                    )}
+                    {it.usage && (
+                      <><dt className="text-muted-foreground">Usage</dt><dd className="capitalize">{it.usage}</dd></>
+                    )}
+                    {it.is_magical && (
+                      <><dt className="text-muted-foreground">Magical</dt><dd>Yes</dd></>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Description */}
+              {data.description && (
+                <div className="border-t border-border pt-3">
+                  <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                    {data.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Source */}
+              {source && (
+                <div className="flex items-center justify-between pt-1 border-t border-border">
+                  <span className="text-xs text-muted-foreground/60">{source}</span>
+                  <a
+                    href={`https://2e.aonprd.com/Search.aspx?query=${encodeURIComponent(name)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground/60 hover:text-primary flex items-center gap-1 transition-colors"
+                  >
+                    <ExternalLink size={11} />
+                    AoN
+                  </a>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Shared presentational components ─────────────────────────────────────────
 
@@ -173,15 +417,9 @@ function LiveBadge() {
 }
 
 function SaveBox({
-  label,
-  rank,
-  abilityScore,
-  level,
+  label, rank, abilityScore, level,
 }: {
-  label: string;
-  rank: number;
-  abilityScore: number;
-  level: number;
+  label: string; rank: number; abilityScore: number; level: number;
 }) {
   const total = profBonus(rank, level) + abilityModNum(abilityScore);
   return (
@@ -199,15 +437,15 @@ function companionMaxHp(comp: BotCompanion, charLevel: number): number | null {
   if (comp.baseType !== "custom" || !comp.customStats) return null;
   const base = comp.customStats.hpPerLevel ?? 8;
   const con  = comp.customStats.abilities?.con ?? 0;
-  if (comp.form === "young")   return base * charLevel;
-  if (comp.form === "mature")  return (base + con) * charLevel;
+  if (comp.form === "young")  return base * charLevel;
+  if (comp.form === "mature") return (base + con) * charLevel;
   return (base + con + 1) * charLevel;
 }
 
 function CompanionCard({ comp, charLevel }: { comp: BotCompanion; charLevel: number }) {
-  const maxHp     = companionMaxHp(comp, charLevel);
-  const currentHp = comp.currentHp;
-  const hpPct     = maxHp && currentHp !== null ? Math.max(0, Math.min(100, (currentHp / maxHp) * 100)) : null;
+  const maxHp  = companionMaxHp(comp, charLevel);
+  const curHp  = comp.currentHp;
+  const hpPct  = maxHp && curHp !== null ? Math.max(0, Math.min(100, (curHp / maxHp) * 100)) : null;
   return (
     <div className="p-3 bg-muted/40 rounded-lg space-y-2">
       <div className="flex items-center justify-between">
@@ -215,17 +453,17 @@ function CompanionCard({ comp, charLevel }: { comp: BotCompanion; charLevel: num
           <p className="font-semibold text-sm">{comp.displayName}</p>
           <p className="text-xs text-muted-foreground capitalize">{comp.baseType.replace(/-/g, " ")} · {comp.form}</p>
         </div>
-        {currentHp !== null ? (
+        {curHp !== null ? (
           maxHp ? (
             <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
-              currentHp === 0 ? "text-destructive bg-destructive/10"
-              : currentHp / maxHp < 0.3 ? "text-orange-400 bg-orange-500/10"
+              curHp === 0 ? "text-destructive bg-destructive/10"
+              : curHp / maxHp < 0.3 ? "text-orange-400 bg-orange-500/10"
               : "text-green-400 bg-green-500/10"
-            }`}>{currentHp}/{maxHp} HP</span>
+            }`}>{curHp}/{maxHp} HP</span>
           ) : (
             <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
-              currentHp === 0 ? "text-destructive bg-destructive/10" : "text-green-400 bg-green-500/10"
-            }`}>{currentHp} HP</span>
+              curHp === 0 ? "text-destructive bg-destructive/10" : "text-green-400 bg-green-500/10"
+            }`}>{curHp} HP</span>
           )
         ) : (
           <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted">Not in combat</span>
@@ -326,11 +564,72 @@ function useRemoveItem() {
   });
 }
 
+function useUpdateItemQty() {
+  const qc = useQueryClient();
+  return useMutation<unknown, Error, { category: string; itemName: string; qty: number }>({
+    mutationFn: (body) =>
+      fetch("/api/inventory", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+        return r.json();
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: bagKeys.mine() }),
+  });
+}
+
+// ── Inline qty editor ─────────────────────────────────────────────────────────
+
+function EditableQty({ item, category }: { item: BagItem; category: string }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue]     = useState(String(item.qty));
+  const updateQty             = useUpdateItemQty();
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => { setValue(String(item.qty)); setEditing(true); }}
+        className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors"
+        title="Click to edit quantity"
+      >
+        ×{item.qty}
+      </button>
+    );
+  }
+
+  const save = () => {
+    const n = parseInt(value, 10);
+    if (n >= 1 && n !== item.qty) {
+      updateQty.mutate({ category, itemName: item.name, qty: n });
+    }
+    setEditing(false);
+  };
+
+  return (
+    <input
+      className="w-14 text-xs text-center bg-muted/60 border border-primary/50 rounded px-1 py-0.5 font-mono focus:outline-none focus:border-primary"
+      type="number"
+      min={1}
+      value={value}
+      autoFocus
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === "Enter")  { e.currentTarget.blur(); }
+        if (e.key === "Escape") { setEditing(false); }
+      }}
+    />
+  );
+}
+
 // ── Forms ─────────────────────────────────────────────────────────────────────
 
 function AddNoteForm({ characterId, onClose }: { characterId: string; onClose: () => void }) {
   const addNote = useAddNote(characterId);
-  const [text, setText] = useState("");
+  const [text, setText]         = useState("");
   const [category, setCategory] = useState("npcs");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -377,18 +676,14 @@ function AddNoteForm({ characterId, onClose }: { characterId: string; onClose: (
 }
 
 function SpendDowntimeForm({
-  characterId,
-  currentBank,
-  onClose,
+  characterId, currentBank, onClose,
 }: {
-  characterId: string;
-  currentBank: number;
-  onClose: () => void;
+  characterId: string; currentBank: number; onClose: () => void;
 }) {
-  const spendMutation = useSpendDowntime(characterId);
-  const [days, setDays] = useState("1");
-  const [reason, setReason] = useState("");
-  const [mode, setMode] = useState<"spend" | "add">("spend");
+  const spendMutation           = useSpendDowntime(characterId);
+  const [days, setDays]         = useState("1");
+  const [reason, setReason]     = useState("");
+  const [mode, setMode]         = useState<"spend" | "add">("spend");
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -400,8 +695,7 @@ function SpendDowntimeForm({
     if (result.clipped) {
       setFeedback(`Only ${Math.abs(result.actualDelta)} day(s) deducted (not enough remaining).`);
     }
-    setDays("1");
-    setReason("");
+    setDays("1"); setReason("");
     if (!result.clipped) onClose();
   };
 
@@ -452,13 +746,11 @@ function SpendDowntimeForm({
 const DEFAULT_CATEGORIES = ["General", "Armor", "Weapons", "Potions", "Tools", "Valuables"];
 
 function AddItemForm({
-  existingCategories,
-  onClose,
+  existingCategories, onClose,
 }: {
-  existingCategories: string[];
-  onClose: () => void;
+  existingCategories: string[]; onClose: () => void;
 }) {
-  const addMutation = useAddItem();
+  const addMutation               = useAddItem();
   const [name, setName]           = useState("");
   const [qty, setQty]             = useState("1");
   const [category, setCategory]   = useState("");
@@ -473,9 +765,7 @@ function AddItemForm({
     const cat = category === "__custom__" ? customCat.trim() : category || "General";
     if (!cat) return;
     await addMutation.mutateAsync({ name: name.trim(), qty: parseInt(qty) || 1, category: cat });
-    setName("");
-    setQty("1");
-    onClose();
+    setName(""); setQty("1"); onClose();
   };
 
   return (
@@ -533,7 +823,6 @@ function StatsTabPanel({ build, level }: { build: PBBuild; level: number }) {
 
   return (
     <div className="space-y-5">
-      {/* Perception */}
       {profs.perception !== undefined && abs && (
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Perception</h4>
@@ -548,7 +837,6 @@ function StatsTabPanel({ build, level }: { build: PBBuild; level: number }) {
         </div>
       )}
 
-      {/* Skills */}
       <div>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Skills</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
@@ -569,7 +857,6 @@ function StatsTabPanel({ build, level }: { build: PBBuild; level: number }) {
         </div>
       </div>
 
-      {/* Weapon / Armor proficiencies */}
       {(() => {
         const combatProfs = Object.entries(profs).filter(([k]) => COMBAT_PROF_KEYS.has(k));
         if (combatProfs.length === 0) return null;
@@ -591,11 +878,17 @@ function StatsTabPanel({ build, level }: { build: PBBuild; level: number }) {
   );
 }
 
-function FeatsTabPanel({ build }: { build: PBBuild }) {
+// onSelect receives a feat name — parent opens the detail modal
+function FeatsTabPanel({
+  build,
+  onSelect,
+}: {
+  build: PBBuild;
+  onSelect: (name: string) => void;
+}) {
   const feats    = build.feats ?? [];
   const specials = build.specials ?? [];
 
-  // Group feats by their type field (index 2 in the tuple)
   const grouped: Record<string, string[]> = {};
   feats.forEach((feat) => {
     const name = Array.isArray(feat) ? (feat[0] as string) : String(feat);
@@ -608,6 +901,8 @@ function FeatsTabPanel({ build }: { build: PBBuild }) {
 
   return (
     <div className="space-y-5">
+      <p className="text-xs text-muted-foreground">Click a feat to see its description and details.</p>
+
       {[...TYPE_ORDER, ...Object.keys(grouped).filter((t) => !TYPE_ORDER.includes(t))].map((type) => {
         const list = grouped[type];
         if (!list || list.length === 0) return null;
@@ -615,8 +910,16 @@ function FeatsTabPanel({ build }: { build: PBBuild }) {
           <div key={type}>
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{type} Feats</h4>
             <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
-              {list.map((name, i) => (
-                <li key={i} className="text-sm py-1.5 px-3 bg-muted/40 rounded-md">{name}</li>
+              {list.map((featName, i) => (
+                <li key={i}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(featName)}
+                    className="w-full text-left text-sm py-1.5 px-3 bg-muted/40 rounded-md hover:bg-muted/70 hover:text-primary transition-colors"
+                  >
+                    {featName}
+                  </button>
+                </li>
               ))}
             </ul>
           </div>
@@ -637,12 +940,18 @@ function FeatsTabPanel({ build }: { build: PBBuild }) {
   );
 }
 
-function GearTabPanel({ build }: { build: PBBuild }) {
+// onSelect receives an item name — parent opens the detail modal
+function GearTabPanel({
+  build,
+  onSelect,
+}: {
+  build: PBBuild;
+  onSelect: (name: string) => void;
+}) {
   const equipment = build.equipment ?? [];
 
   return (
     <div className="space-y-5">
-      {/* Character details */}
       {(build.deity || build.keyability || (build.languages && build.languages.length > 0)) && (
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Details</h4>
@@ -654,24 +963,32 @@ function GearTabPanel({ build }: { build: PBBuild }) {
               <><dt className="text-muted-foreground">Key Ability</dt><dd className="capitalize">{build.keyability}</dd></>
             )}
             {build.languages && build.languages.length > 0 && (
-              <><dt className="text-muted-foreground">Languages</dt><dd className="col-span-1">{build.languages.join(", ")}</dd></>
+              <><dt className="text-muted-foreground">Languages</dt><dd>{build.languages.join(", ")}</dd></>
             )}
           </dl>
         </div>
       )}
 
-      {/* Starting equipment from Pathbuilder */}
       {(equipment as unknown[]).length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Starting Equipment</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Starting Equipment
+            <span className="ml-1.5 font-normal normal-case text-muted-foreground/60">(click for details)</span>
+          </h4>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
             {(equipment as unknown[]).map((item, i) => {
-              const name = Array.isArray(item) ? item[0] : (item as { name: string }).name ?? String(item);
-              const qty  = Array.isArray(item) ? item[1] : (item as { qty: number }).qty ?? 1;
+              const name = Array.isArray(item) ? item[0] as string : (item as { name: string }).name ?? String(item);
+              const qty  = Array.isArray(item) ? item[1] as number : (item as { qty: number }).qty ?? 1;
               return (
                 <li key={i} className="text-sm py-1.5 px-3 bg-muted/40 rounded-md flex items-center justify-between">
-                  <span>{name}</span>
-                  {qty > 1 && <span className="text-xs text-muted-foreground ml-2">×{qty}</span>}
+                  <button
+                    type="button"
+                    onClick={() => onSelect(name)}
+                    className="text-left hover:text-primary transition-colors flex-1"
+                  >
+                    {name}
+                  </button>
+                  {qty > 1 && <span className="text-xs text-muted-foreground ml-3 shrink-0">×{qty}</span>}
                 </li>
               );
             })}
@@ -679,7 +996,6 @@ function GearTabPanel({ build }: { build: PBBuild }) {
         </div>
       )}
 
-      {/* Spell casters */}
       {build.spellCasters && build.spellCasters.length > 0 && (
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Spell Casters</h4>
@@ -697,27 +1013,16 @@ function GearTabPanel({ build }: { build: PBBuild }) {
   );
 }
 
-// BagTabPanel fetches its own data — only mounts when the Bag tab is active,
-// so the query fires lazily on first visit rather than on page load.
 function BagTabPanel() {
   const { data: bag, isLoading, error } = useBag();
   const removeMutation = useRemoveItem();
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddForm, setShowAddForm]   = useState(false);
 
   const categories    = (bag?.categories ?? {}) as BagCategories;
   const categoryNames = Object.keys(categories).sort();
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="spinner" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return <p className="text-sm text-destructive">{error.message}</p>;
-  }
+  if (isLoading) return <div className="flex items-center justify-center py-8"><div className="spinner" /></div>;
+  if (error) return <p className="text-sm text-destructive">{error.message}</p>;
 
   return (
     <div className="space-y-4">
@@ -768,11 +1073,10 @@ function BagTabPanel() {
               <ul className="space-y-1">
                 {(categories[cat] ?? []).map((item: BagItem, i: number) => (
                   <li key={i} className="flex items-center justify-between text-sm group py-0.5">
-                    <span>{item.name}</span>
-                    <div className="flex items-center gap-2">
-                      {item.qty !== 1 && (
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">×{item.qty}</span>
-                      )}
+                    <span className="flex-1 min-w-0 truncate">{item.name}</span>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      {/* Editable quantity — click to edit, blur/Enter saves */}
+                      <EditableQty item={item} category={cat} />
                       <button
                         type="button"
                         onClick={() => removeMutation.mutate({ category: cat, itemName: item.name })}
@@ -808,24 +1112,15 @@ function NotesTabPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {notes.length} {notes.length === 1 ? "note" : "notes"}
-        </p>
+        <p className="text-sm text-muted-foreground">{notes.length} {notes.length === 1 ? "note" : "notes"}</p>
         {!showAddNote && (
-          <button
-            type="button"
-            onClick={() => setShowAddNote(true)}
-            className="btn btn-primary btn-sm flex items-center gap-1.5"
-          >
-            <Plus size={14} />
-            Add Note
+          <button type="button" onClick={() => setShowAddNote(true)} className="btn btn-primary btn-sm flex items-center gap-1.5">
+            <Plus size={14} /> Add Note
           </button>
         )}
       </div>
 
-      {showAddNote && (
-        <AddNoteForm characterId={characterId} onClose={() => setShowAddNote(false)} />
-      )}
+      {showAddNote && <AddNoteForm characterId={characterId} onClose={() => setShowAddNote(false)} />}
 
       {notes.length === 0 && !showAddNote && (
         <div className="text-center py-8">
@@ -835,8 +1130,8 @@ function NotesTabPanel({
       )}
 
       {NOTE_CATEGORY_ORDER.map((catKey) => {
-        const cat    = NOTE_CATEGORIES[catKey];
-        const inCat  = notes
+        const cat   = NOTE_CATEGORIES[catKey];
+        const inCat = notes
           .filter((n) => n.category === catKey)
           .sort((a, b) => {
             if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
@@ -845,9 +1140,7 @@ function NotesTabPanel({
         if (inCat.length === 0) return null;
         return (
           <div key={catKey}>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              {cat.icon} {cat.label}
-            </h4>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{cat.icon} {cat.label}</h4>
             <ul className="space-y-2">
               {inCat.map((note) => (
                 <li key={note.id} className="text-sm bg-muted/40 rounded-lg p-3 space-y-1 group">
@@ -881,8 +1174,7 @@ function NotesTabPanel({
 }
 
 function DowntimeTabPanel({
-  characterId,
-  downtime,
+  characterId, downtime,
 }: {
   characterId: string;
   downtime: { bank: number; log: unknown } | null | undefined;
@@ -894,8 +1186,7 @@ function DowntimeTabPanel({
       <div className="text-center py-8">
         <CalendarDays size={32} className="mx-auto text-muted-foreground mb-3" />
         <p className="text-sm text-muted-foreground">
-          No downtime tracked yet. Use{" "}
-          <code className="bg-muted px-1 rounded">/downtime</code> in Discord to start.
+          No downtime tracked yet. Use <code className="bg-muted px-1 rounded">/downtime</code> in Discord to start.
         </p>
       </div>
     );
@@ -911,23 +1202,14 @@ function DowntimeTabPanel({
           <span className="text-sm text-muted-foreground">days available</span>
         </div>
         {!showForm && (
-          <button
-            type="button"
-            onClick={() => setShowForm(true)}
-            className="btn btn-primary btn-sm flex items-center gap-1.5"
-          >
-            <Plus size={14} />
-            Manage
+          <button type="button" onClick={() => setShowForm(true)} className="btn btn-primary btn-sm flex items-center gap-1.5">
+            <Plus size={14} /> Manage
           </button>
         )}
       </div>
 
       {showForm && (
-        <SpendDowntimeForm
-          characterId={characterId}
-          currentBank={downtime.bank}
-          onClose={() => setShowForm(false)}
-        />
+        <SpendDowntimeForm characterId={characterId} currentBank={downtime.bank} onClose={() => setShowForm(false)} />
       )}
 
       {log.length > 0 && (
@@ -936,9 +1218,7 @@ function DowntimeTabPanel({
           <ul className="space-y-0.5">
             {log.map((entry, i) => (
               <li key={i} className="flex items-center justify-between text-xs py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors">
-                <span className="text-muted-foreground">
-                  {entry.date}{entry.reason ? ` · ${entry.reason}` : ""}
-                </span>
+                <span className="text-muted-foreground">{entry.date}{entry.reason ? ` · ${entry.reason}` : ""}</span>
                 <span className={`font-mono font-semibold shrink-0 ml-3 ${entry.delta > 0 ? "text-green-400" : "text-orange-400"}`}>
                   {entry.delta > 0 ? "+" : ""}{entry.delta}d
                 </span>
@@ -951,7 +1231,7 @@ function DowntimeTabPanel({
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function CharacterDetailPage() {
   const params      = useParams();
@@ -961,22 +1241,21 @@ export default function CharacterDetailPage() {
   const { data: character, isLoading, error } = useCharacterLive(characterId, {
     enabled: !!characterId && !!user,
   });
-  const syncMutation                    = useSyncCharacter();
-  const [syncError, setSyncError]       = useState<string | null>(null);
-  const [tab, setTab]                   = useState<TabKey>("stats");
+  const syncMutation              = useSyncCharacter();
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [tab, setTab]             = useState<TabKey>("stats");
+
+  // Modal state: null = closed, otherwise { type, name }
+  const [modal, setModal] = useState<{ type: ContentType; name: string } | null>(null);
 
   const charKey = character ? (character as unknown as { char_key: string | null }).char_key : null;
   const { data: downtime }    = useCharacterDowntime(charKey);
   const { data: notesRecord } = useCharacterNotes(charKey);
 
-  // ── Loading / error states ────────────────────────────────────────────────
-
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center py-12">
-          <div className="spinner" />
-        </div>
+        <div className="flex items-center justify-center py-12"><div className="spinner" /></div>
       </MainLayout>
     );
   }
@@ -995,16 +1274,14 @@ export default function CharacterDetailPage() {
     );
   }
 
-  // ── Derived data ──────────────────────────────────────────────────────────
-
   const pb    = character.pathbuilder_data as { build?: PBBuild } | PBBuild | null;
   const build = pb ? ((pb as { build?: PBBuild }).build ?? (pb as PBBuild)) : null;
   const abs   = build?.abilities;
 
-  const currentHp  = (character as unknown as { current_hp: number | null }).current_hp;
-  const overlay    = (character as unknown as { overlay: CharacterOverlay }).overlay ?? {};
-  const daily      = overlay.daily;
-  const hasLiveHp  = currentHp !== null && currentHp !== undefined;
+  const currentHp = (character as unknown as { current_hp: number | null }).current_hp;
+  const overlay   = (character as unknown as { overlay: CharacterOverlay }).overlay ?? {};
+  const daily     = overlay.daily;
+  const hasLiveHp = currentHp !== null && currentHp !== undefined;
 
   const level   = character.level ?? build?.level ?? 1;
   const maxHp   = build ? deriveMaxHp(build, level) : null;
@@ -1020,24 +1297,28 @@ export default function CharacterDetailPage() {
   const profs         = build?.proficiencies ?? {};
   const hasCompanions = overlay.companions && Object.keys(overlay.companions).length > 0;
 
-  // ── Tab definitions ───────────────────────────────────────────────────────
-
   type TabDef = { key: TabKey; label: string };
   const tabs: TabDef[] = [
-    { key: "stats",     label: "Stats"     },
-    { key: "feats",     label: "Feats"     },
-    { key: "gear",      label: "Gear"      },
-    { key: "bag",       label: "Bag"       },
-    { key: "notes",     label: "Notes"     },
-    { key: "downtime",  label: "Downtime"  },
+    { key: "stats",    label: "Stats"    },
+    { key: "feats",    label: "Feats"    },
+    { key: "gear",     label: "Gear"     },
+    { key: "bag",      label: "Bag"      },
+    { key: "notes",    label: "Notes"    },
+    { key: "downtime", label: "Downtime" },
     ...(hasCompanions ? [{ key: "companions" as TabKey, label: "Companions" }] : []),
   ];
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <MainLayout>
-      {/* Back link */}
+      {/* Detail modal — rendered outside main flow so it overlays everything */}
+      {modal && (
+        <ContentModal
+          type={modal.type}
+          name={modal.name}
+          onClose={() => setModal(null)}
+        />
+      )}
+
       <div className="mb-4">
         <Link href="/characters" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft size={16} />
@@ -1047,15 +1328,13 @@ export default function CharacterDetailPage() {
 
       <div className="space-y-4">
 
-        {/* ── Header Card ────────────────────────────────────────────────── */}
+        {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="card p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="font-heading text-3xl font-bold leading-tight">{character.name}</h1>
               <p className="text-muted-foreground mt-0.5">
-                Level {level}
-                {" · "}
-                {[character.ancestry_name, character.heritage_name, character.class_name].filter(Boolean).join(" ")}
+                Level {level} · {[character.ancestry_name, character.heritage_name, character.class_name].filter(Boolean).join(" ")}
               </p>
               {character.background_name && (
                 <p className="text-sm text-muted-foreground mt-0.5">{character.background_name} background</p>
@@ -1081,9 +1360,7 @@ export default function CharacterDetailPage() {
                 </button>
               )}
               <span className={`text-sm px-3 py-1 rounded-full ${
-                character.status === "active"
-                  ? "bg-green-500/20 text-green-400"
-                  : "bg-muted text-muted-foreground"
+                character.status === "active" ? "bg-green-500/20 text-green-400" : "bg-muted text-muted-foreground"
               }`}>
                 {character.status}
               </span>
@@ -1093,14 +1370,13 @@ export default function CharacterDetailPage() {
           {syncError && <p className="text-xs text-destructive mt-2">{syncError}</p>}
         </div>
 
-        {/* ── Vitals Card ────────────────────────────────────────────────── */}
+        {/* ── Vitals ─────────────────────────────────────────────────────── */}
         <div className="card p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Vitals</h2>
             {hasLiveHp && <LiveBadge />}
           </div>
 
-          {/* HP bar */}
           {hasLiveHp && maxHp ? (
             <HealthBar currentHp={currentHp!} maxHp={maxHp} size="lg" />
           ) : maxHp ? (
@@ -1117,7 +1393,6 @@ export default function CharacterDetailPage() {
             </div>
           )}
 
-          {/* Dying / Wounded */}
           {(dying > 0 || wounded > 0) && (
             <div className="flex gap-3 flex-wrap">
               {dying > 0 && (
@@ -1133,15 +1408,9 @@ export default function CharacterDetailPage() {
             </div>
           )}
 
-          {/* Perception + Saves row */}
           {abs && (
             <div className="grid grid-cols-4 gap-2">
-              <SaveBox
-                label="Perception"
-                rank={profs.perception ?? 0}
-                abilityScore={abs.wis}
-                level={level}
-              />
+              <SaveBox label="Perception" rank={profs.perception ?? 0} abilityScore={abs.wis} level={level} />
               {(["fortitude", "reflex", "will"] as const).map((save) => (
                 <SaveBox
                   key={save}
@@ -1154,7 +1423,6 @@ export default function CharacterDetailPage() {
             </div>
           )}
 
-          {/* Hero / Focus pips */}
           <div className="space-y-2">
             <PipRow count={heroPoints} max={3} color="bg-yellow-400" label="Hero Points" />
             {focusMax > 0 && (
@@ -1162,7 +1430,6 @@ export default function CharacterDetailPage() {
             )}
           </div>
 
-          {/* Spell slots used today */}
           {daily?.slots_used && Object.keys(daily.slots_used).length > 0 && (
             <div className="space-y-2 pt-2 border-t border-border">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Spell Slots — Today</p>
@@ -1172,9 +1439,7 @@ export default function CharacterDetailPage() {
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(ranks).map(([rank, used]) =>
                       used > 0 ? (
-                        <span key={rank} className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
-                          Rank {rank}: {used} used
-                        </span>
+                        <span key={rank} className="text-xs bg-muted px-2 py-0.5 rounded font-mono">Rank {rank}: {used} used</span>
                       ) : null
                     )}
                   </div>
@@ -1196,9 +1461,8 @@ export default function CharacterDetailPage() {
           </div>
         )}
 
-        {/* ── Tabbed section ───────────────────────────────────────────────── */}
+        {/* ── Tabs ───────────────────────────────────────────────────────── */}
         <div className="card overflow-hidden">
-          {/* Tab bar */}
           <div className="flex border-b border-border overflow-x-auto">
             {tabs.map(({ key, label }) => (
               <button
@@ -1212,7 +1476,6 @@ export default function CharacterDetailPage() {
                 }`}
               >
                 {label}
-                {/* Subtle count badges for notes/downtime */}
                 {key === "notes" && notesRecord && (
                   <span className="ml-1.5 text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-normal">
                     {(notesRecord.notes as unknown as BotNote[]).length}
@@ -1227,7 +1490,6 @@ export default function CharacterDetailPage() {
             ))}
           </div>
 
-          {/* Tab content */}
           <div className="p-5">
             {tab === "stats" && (
               build
@@ -1236,21 +1498,17 @@ export default function CharacterDetailPage() {
             )}
             {tab === "feats" && (
               build
-                ? <FeatsTabPanel build={build} />
+                ? <FeatsTabPanel build={build} onSelect={(name) => setModal({ type: "feat", name })} />
                 : <p className="text-sm text-muted-foreground italic">No Pathbuilder data available.</p>
             )}
             {tab === "gear" && (
               build
-                ? <GearTabPanel build={build} />
+                ? <GearTabPanel build={build} onSelect={(name) => setModal({ type: "item", name })} />
                 : <p className="text-sm text-muted-foreground italic">No Pathbuilder data available.</p>
             )}
-            {tab === "bag" && <BagTabPanel />}
-            {tab === "notes" && (
-              <NotesTabPanel characterId={characterId} notesRecord={notesRecord} />
-            )}
-            {tab === "downtime" && (
-              <DowntimeTabPanel characterId={characterId} downtime={downtime} />
-            )}
+            {tab === "bag"      && <BagTabPanel />}
+            {tab === "notes"    && <NotesTabPanel characterId={characterId} notesRecord={notesRecord} />}
+            {tab === "downtime" && <DowntimeTabPanel characterId={characterId} downtime={downtime} />}
             {tab === "companions" && hasCompanions && (
               <div className="space-y-2">
                 {Object.entries(overlay.companions!).map(([key, comp]) => (

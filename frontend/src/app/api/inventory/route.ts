@@ -128,7 +128,10 @@ export async function DELETE(request: Request) {
   return NextResponse.json(data);
 }
 
-// ── PATCH /api/inventory — rename bag ─────────────────────────────────────────
+// ── PATCH /api/inventory — rename bag OR update item quantity ─────────────────
+//
+//  { bag_name: string }                          → rename the bag
+//  { category, itemName, qty: number }           → set an item's quantity
 
 export async function PATCH(request: Request) {
   const supabase = await createClient();
@@ -138,13 +141,53 @@ export async function PATCH(request: Request) {
   const userId = await resolveUserId(authUser);
   if (!userId) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const body = await request.json();
-  const { bag_name } = body;
-  if (!bag_name || typeof bag_name !== "string" || bag_name.trim().length === 0) {
-    return NextResponse.json({ error: "bag_name is required" }, { status: 400 });
+  const body     = await request.json();
+  const service  = createServiceClient();
+
+  // ── Update item quantity ──────────────────────────────────────────────────
+  if (body.category !== undefined && body.itemName !== undefined && body.qty !== undefined) {
+    const { category, itemName, qty } = body;
+    const qtyNum = Math.max(1, parseInt(String(qty), 10) || 1);
+
+    const { data: existing } = await service
+      .from("bags")
+      .select("categories")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!existing) return NextResponse.json({ error: "No bag found" }, { status: 404 });
+
+    const cats: BagCategories = (existing.categories as BagCategories) ?? {};
+    const catItems            = cats[String(category)] ?? [];
+    const idx = catItems.findIndex(
+      (i) => i.name.toLowerCase() === String(itemName).toLowerCase()
+    );
+    if (idx < 0) return NextResponse.json({ error: "Item not found" }, { status: 404 });
+
+    const newCatItems   = [...catItems];
+    newCatItems[idx]    = { ...newCatItems[idx], qty: qtyNum };
+    const newCats       = { ...cats, [String(category)]: newCatItems };
+
+    const { data, error } = await service
+      .from("bags")
+      .update({ categories: newCats })
+      .eq("user_id", userId)
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
   }
 
-  const service = createServiceClient();
+  // ── Rename bag ────────────────────────────────────────────────────────────
+  const { bag_name } = body;
+  if (!bag_name || typeof bag_name !== "string" || bag_name.trim().length === 0) {
+    return NextResponse.json(
+      { error: "Provide bag_name to rename, or { category, itemName, qty } to update quantity" },
+      { status: 400 }
+    );
+  }
+
   const { data, error } = await service
     .from("bags")
     .update({ bag_name: bag_name.trim() })

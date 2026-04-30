@@ -19,7 +19,14 @@ export async function GET(request: Request) {
     .order("name", { ascending: true })
     .range(offset, offset + limit - 1);
 
-  if (q) query = query.ilike("name", `%${q}%`);
+  // `name` = case-insensitive exact match (for modal lookups)
+  // `q`    = substring search (for browse/search UI)
+  const nameExact = searchParams.get("name");
+  if (nameExact) {
+    query = query.ilike("name", nameExact);
+  } else if (q) {
+    query = query.ilike("name", `%${q}%`);
+  }
   if (featType) query = query.eq("feat_type", featType);
   if (level) query = query.eq("level", parseInt(level));
 
