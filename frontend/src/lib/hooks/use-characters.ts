@@ -46,7 +46,7 @@ export function useCharacter(id: string, options?: { enabled?: boolean }) {
 type PathbuilderImport = {
   discord_guild_id: string;
   pathbuilder_id?: number;
-  pathbuilder_data?: unknown;
+  pathbuilder_data?: unknown; // full { success, build } or just build
 };
 
 export function useCreateCharacter() {
@@ -58,7 +58,15 @@ export function useCreateCharacter() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const body = await res.text();
+        try {
+          const { error } = JSON.parse(body);
+          throw new Error(error ?? body);
+        } catch {
+          throw new Error(body);
+        }
+      }
       return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: characterKeys.all }),
@@ -90,6 +98,46 @@ export function useCharacterLive(id: string, options?: { enabled?: boolean }) {
   }, [id, queryClient]);
 
   return query;
+}
+
+export type DiscordGuild = { id: string; name: string; icon: string | null };
+
+export function useDiscordGuilds() {
+  return useQuery<DiscordGuild[], Error>({
+    queryKey: ["discord_guilds"],
+    queryFn: async () => {
+      // provider_token is only reliably available client-side in the Supabase
+      // session — the SSR cookie doesn't carry it after the initial exchange.
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const providerToken = session?.provider_token;
+      if (!providerToken) throw new Error("No Discord token — please log out and log back in.");
+
+      const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+        headers: { Authorization: `Bearer ${providerToken}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch servers from Discord.");
+      const guilds: DiscordGuild[] = await res.json();
+      return guilds.map((g) => ({ id: g.id, name: g.name, icon: g.icon }));
+    },
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+export function useSyncCharacter() {
+  const queryClient = useQueryClient();
+  return useMutation<Character, Error, string>({
+    mutationFn: async (id) => {
+      const res = await fetch(`/api/characters/${id}`, { method: "PUT" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(characterKeys.detail(data.id), data);
+      queryClient.invalidateQueries({ queryKey: characterKeys.all });
+    },
+  });
 }
 
 export function useDeleteCharacter() {

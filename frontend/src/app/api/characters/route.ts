@@ -68,22 +68,12 @@ export async function POST(request: Request) {
     );
   }
 
-  let sheetData = pathbuilder_data;
-
-  // Fetch from Pathbuilder API if only ID provided
-  if (!sheetData && pathbuilder_id) {
-    const pbRes = await fetch(
-      `https://pathbuilder2e.com/json.php?id=${pathbuilder_id}`
-    );
-    if (!pbRes.ok) {
-      return NextResponse.json({ error: "Failed to fetch from Pathbuilder" }, { status: 502 });
-    }
-    const pbJson = await pbRes.json();
-    if (!pbJson.success) {
-      return NextResponse.json({ error: "Pathbuilder character not found" }, { status: 404 });
-    }
-    sheetData = pbJson.build;
+  if (!pathbuilder_data) {
+    return NextResponse.json({ error: "pathbuilder_data is required" }, { status: 400 });
   }
+
+  // Accept either the full { success, build } envelope or just the build object
+  const sheetData = pathbuilder_data;
 
   const build = sheetData?.build ?? sheetData;
   if (!build?.name) {

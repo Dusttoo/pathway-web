@@ -1,12 +1,78 @@
 "use client";
 
 import { MainLayout } from "@/components/layout";
-import { useCreateCharacter } from "@/lib/hooks/use-characters";
+import { useCreateCharacter, useDiscordGuilds } from "@/lib/hooks/use-characters";
 import { useAuth } from "@/lib/providers/auth-provider";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Upload, ChevronDown, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+function GuildPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const { data: guilds, isLoading, error } = useDiscordGuilds();
+
+  if (isLoading) {
+    return (
+      <div className="input w-full flex items-center gap-2 text-muted-foreground">
+        <div className="spinner w-4 h-4" />
+        Loading your servers…
+      </div>
+    );
+  }
+
+  if (error || !guilds?.length) {
+    // Graceful fallback to manual entry
+    return (
+      <div className="space-y-2">
+        {error && (
+          <div className="flex items-center gap-2 text-xs text-amber-500">
+            <AlertCircle size={12} />
+            Couldn&apos;t load servers automatically — please paste your Server ID.
+          </div>
+        )}
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="e.g. 1234567890123456789"
+          className="input w-full font-mono"
+          required
+        />
+        <p className="text-xs text-muted-foreground">
+          Right-click your server icon in Discord → Copy Server ID (Developer Mode required).
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="input w-full appearance-none pr-8"
+        required
+      >
+        <option value="">Select a server…</option>
+        {guilds.map((g) => (
+          <option key={g.id} value={g.id}>
+            {g.name}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        size={14}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+      />
+    </div>
+  );
+}
 
 export default function NewCharacterPage() {
   const router = useRouter();
@@ -14,10 +80,10 @@ export default function NewCharacterPage() {
   const createMutation = useCreateCharacter();
 
   const [mode, setMode] = useState<"id" | "json">("id");
-  const [pathbuilderId, setPathbuilderId] = useState("");
   const [guildId, setGuildId] = useState("");
+  const [pathbuilderId, setPathbuilderId] = useState("");
   const [jsonText, setJsonText] = useState("");
-  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   if (!user) {
     return (
@@ -31,10 +97,10 @@ export default function NewCharacterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setJsonError(null);
+    setFormError(null);
 
     if (!guildId.trim()) {
-      setJsonError("Discord Server ID is required.");
+      setFormError("Please select a Discord server.");
       return;
     }
 
@@ -43,16 +109,35 @@ export default function NewCharacterPage() {
     if (mode === "id") {
       const id = parseInt(pathbuilderId, 10);
       if (!pathbuilderId || isNaN(id)) {
-        setJsonError("Enter a valid Pathbuilder character ID (number).");
+        setFormError("Enter a valid Pathbuilder character ID (number).");
         return;
       }
-      payload = { discord_guild_id: guildId, pathbuilder_id: id };
+      // Fetch Pathbuilder from the browser — server-side fetches get blocked by
+      // their IP allowlist even on localhost. Browsers are always allowed.
+      let pbRes: Response;
+      try {
+        pbRes = await fetch(`https://pathbuilder2e.com/json.php?id=${id}`);
+      } catch {
+        setFormError("Could not reach Pathbuilder. Check your connection.");
+        return;
+      }
+      if (!pbRes.ok) {
+        setFormError(`Pathbuilder returned an error (HTTP ${pbRes.status}). Try again.`);
+        return;
+      }
+      const pbJson = await pbRes.json();
+      if (!pbJson.success) {
+        setFormError(`ID ${id} not found or expired. Get a fresh one: Pathbuilder → Menu → Export JSON.`);
+        return;
+      }
+      // Pass both the data and the ID so the API can store the ID for re-sync
+      payload = { discord_guild_id: guildId, pathbuilder_data: pbJson, pathbuilder_id: id };
     } else {
       let parsed: unknown;
       try {
         parsed = JSON.parse(jsonText);
       } catch {
-        setJsonError("Invalid JSON — please check the format.");
+        setFormError("Invalid JSON — please check the format.");
         return;
       }
       payload = { discord_guild_id: guildId, pathbuilder_data: parsed };
@@ -62,14 +147,17 @@ export default function NewCharacterPage() {
       const character = await createMutation.mutateAsync(payload);
       router.push(`/characters/${character.id}`);
     } catch (err) {
-      setJsonError(err instanceof Error ? err.message : "Import failed.");
+      setFormError(err instanceof Error ? err.message : "Import failed.");
     }
   };
 
   return (
     <MainLayout>
       <div className="mb-6">
-        <Link href="/characters" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
+        <Link
+          href="/characters"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
           <ArrowLeft size={16} />
           Back to Characters
         </Link>
@@ -87,7 +175,9 @@ export default function NewCharacterPage() {
               type="button"
               onClick={() => setMode("id")}
               className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
-                mode === "id" ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"
+                mode === "id"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted hover:bg-muted/80"
               }`}
             >
               By Pathbuilder ID
@@ -96,7 +186,9 @@ export default function NewCharacterPage() {
               type="button"
               onClick={() => setMode("json")}
               className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
-                mode === "json" ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"
+                mode === "json"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted hover:bg-muted/80"
               }`}
             >
               Paste JSON Export
@@ -104,27 +196,20 @@ export default function NewCharacterPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Guild picker */}
             <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="guild-id">
-                Discord Server ID
+              <label className="block text-sm font-medium mb-1">
+                Discord Server
               </label>
-              <input
-                id="guild-id"
-                type="text"
-                value={guildId}
-                onChange={(e) => setGuildId(e.target.value)}
-                placeholder="e.g. 1234567890123456789"
-                className="input w-full font-mono"
-                required
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Right-click your server icon in Discord → Copy Server ID (Developer Mode required).
-              </p>
+              <GuildPicker value={guildId} onChange={setGuildId} />
             </div>
 
             {mode === "id" ? (
               <div>
-                <label className="block text-sm font-medium mb-1" htmlFor="pathbuilder-id">
+                <label
+                  className="block text-sm font-medium mb-1"
+                  htmlFor="pathbuilder-id"
+                >
                   Pathbuilder Character ID
                 </label>
                 <input
@@ -137,12 +222,15 @@ export default function NewCharacterPage() {
                   min="1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Find this in Pathbuilder 2e under Share → Export to Pathbuilder Code.
+                  In Pathbuilder: Menu → Export &amp; Import → Export JSON → copy the 6-digit code.
                 </p>
               </div>
             ) : (
               <div>
-                <label className="block text-sm font-medium mb-1" htmlFor="json-export">
+                <label
+                  className="block text-sm font-medium mb-1"
+                  htmlFor="json-export"
+                >
                   Pathbuilder JSON Export
                 </label>
                 <textarea
@@ -153,13 +241,13 @@ export default function NewCharacterPage() {
                   className="input w-full font-mono text-xs min-h-[200px] resize-y"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  In Pathbuilder 2e: Menu → Export → Export to JSON, then paste the result here.
+                  In Pathbuilder: Menu → Export &amp; Import → Export JSON → Copy to Clipboard, then paste here.
                 </p>
               </div>
             )}
 
-            {jsonError && (
-              <p className="text-sm text-destructive">{jsonError}</p>
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
             )}
 
             <button
@@ -168,9 +256,13 @@ export default function NewCharacterPage() {
               className="btn-primary w-full flex items-center justify-center gap-2"
             >
               {createMutation.isPending ? (
-                <><div className="spinner w-4 h-4" /> Importing…</>
+                <>
+                  <div className="spinner w-4 h-4" /> Importing…
+                </>
               ) : (
-                <><Upload size={16} /> Import Character</>
+                <>
+                  <Upload size={16} /> Import Character
+                </>
               )}
             </button>
           </form>

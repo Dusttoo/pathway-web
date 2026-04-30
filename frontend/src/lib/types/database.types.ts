@@ -354,6 +354,260 @@ export type Database = {
           },
         ]
       }
+      character_notes: {
+        Row: {
+          char_key: string
+          id: string
+          next_id: number
+          notes: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          char_key: string
+          id?: string
+          next_id?: number
+          notes?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          char_key?: string
+          id?: string
+          next_id?: number
+          notes?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      downtime: {
+        Row: {
+          bank: number
+          char_key: string
+          id: string
+          last_accrual_date: string
+          log: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bank?: number
+          char_key: string
+          id?: string
+          last_accrual_date: string
+          log?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bank?: number
+          char_key?: string
+          id?: string
+          last_accrual_date?: string
+          log?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "downtime_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bags: {
+        Row: {
+          bag_name: string
+          categories: Json
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bag_name?: string
+          categories?: Json
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bag_name?: string
+          categories?: Json
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bags_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guild_state: {
+        Row: {
+          calendar: Json | null
+          discord_guild_id: string
+          id: string
+          updated_at: string
+          weather: Json | null
+        }
+        Insert: {
+          calendar?: Json | null
+          discord_guild_id: string
+          id?: string
+          updated_at?: string
+          weather?: Json | null
+        }
+        Update: {
+          calendar?: Json | null
+          discord_guild_id?: string
+          id?: string
+          updated_at?: string
+          weather?: Json | null
+        }
+        Relationships: []
+      }
+      homebrew_entries: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          data: Json
+          entry_key: string
+          id: string
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          data: Json
+          entry_key: string
+          id?: string
+          name: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          data?: Json
+          entry_key?: string
+          id?: string
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_snippets: {
+        Row: {
+          id: string
+          snippets: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          snippets?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          snippets?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_snippets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guild_snippets: {
+        Row: {
+          discord_guild_id: string
+          id: string
+          snippets: Json
+          updated_at: string
+        }
+        Insert: {
+          discord_guild_id: string
+          id?: string
+          snippets?: Json
+          updated_at?: string
+        }
+        Update: {
+          discord_guild_id?: string
+          id?: string
+          snippets?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      monster_art: {
+        Row: {
+          art: Json
+          discord_guild_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          art?: Json
+          discord_guild_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          art?: Json
+          discord_guild_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      monster_edits: {
+        Row: {
+          discord_guild_id: string
+          edits: Json
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          discord_guild_id: string
+          edits?: Json
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          discord_guild_id?: string
+          edits?: Json
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       feats: {
         Row: {
           action_cost: string | null

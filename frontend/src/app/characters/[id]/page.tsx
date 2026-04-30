@@ -2,13 +2,16 @@
 
 import { MainLayout } from "@/components/layout";
 import { HealthBar } from "@/components/characters/HealthBar";
-import { useCharacterLive } from "@/lib/hooks/use-characters";
+import { useCharacterLive, useSyncCharacter } from "@/lib/hooks/use-characters";
+import { useCharacterDowntime, type DowntimeLogEntry } from "@/lib/hooks/use-downtime";
+import { useCharacterNotes, NOTE_CATEGORIES, NOTE_CATEGORY_ORDER, type BotNote } from "@/lib/hooks/use-notes";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay } from "@/lib/types/bot-integration";
 import type { BotCompanion } from "@/lib/types/bot-integration";
-import { ArrowLeft, Radio, Zap, Star, Heart, Flame, PawPrint } from "lucide-react";
+import { ArrowLeft, Radio, Zap, Star, Heart, Flame, PawPrint, CalendarDays, BookOpen, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 
 // Pathbuilder build shape (top-level fields we care about)
 interface PBBuild {
@@ -167,6 +170,12 @@ export default function CharacterDetailPage() {
   const { data: character, isLoading, error } = useCharacterLive(characterId, {
     enabled: !!characterId && !!user,
   });
+  const syncMutation = useSyncCharacter();
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  const charKey = character ? (character as unknown as { char_key: string | null }).char_key : null;
+  const { data: downtime } = useCharacterDowntime(charKey);
+  const { data: notesRecord } = useCharacterNotes(charKey);
 
   if (isLoading) {
     return (
@@ -224,7 +233,7 @@ export default function CharacterDetailPage() {
         </Link>
 
         {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-heading text-4xl font-bold">{character.name}</h1>
             <p className="text-muted-foreground mt-1">
@@ -237,16 +246,42 @@ export default function CharacterDetailPage() {
               <p className="text-sm text-muted-foreground">{character.background_name} background</p>
             )}
           </div>
-          <span
-            className={`text-sm px-3 py-1 rounded-full ${
-              character.status === "active"
-                ? "bg-green-500/20 text-green-400"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {character.status}
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {(character as unknown as { pathbuilder_id: number | null }).pathbuilder_id && (
+              <button
+                onClick={async () => {
+                  setSyncError(null);
+                  try {
+                    await syncMutation.mutateAsync(characterId);
+                  } catch (err) {
+                    setSyncError(err instanceof Error ? err.message : "Sync failed");
+                  }
+                }}
+                disabled={syncMutation.isPending}
+                className="btn-outline flex items-center gap-2 text-sm"
+                title="Re-fetch latest data from Pathbuilder"
+              >
+                <RefreshCw size={14} className={syncMutation.isPending ? "animate-spin" : ""} />
+                {syncMutation.isPending ? "Syncing…" : "Sync from Pathbuilder"}
+              </button>
+            )}
+            <span
+              className={`text-sm px-3 py-1 rounded-full ${
+                character.status === "active"
+                  ? "bg-green-500/20 text-green-400"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {character.status}
+            </span>
+          </div>
         </div>
+        {syncMutation.isSuccess && (
+          <p className="text-xs text-green-400 mt-1">Sheet refreshed from Pathbuilder.</p>
+        )}
+        {syncError && (
+          <p className="text-xs text-destructive mt-1">{syncError}</p>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -394,6 +429,101 @@ export default function CharacterDetailPage() {
                 );
               })}
             </ul>
+          </Section>
+        )}
+
+        {/* ── Downtime ── */}
+        {downtime && (
+          <Section
+            title="Downtime"
+            badge={
+              <span className="flex items-center gap-1.5 text-xs font-medium text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                <CalendarDays size={10} />
+                {downtime.bank} {downtime.bank === 1 ? "day" : "days"}
+              </span>
+            }
+          >
+            <div className="space-y-3">
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold tabular-nums">{downtime.bank}</span>
+                <span className="text-sm text-muted-foreground">days available</span>
+              </div>
+              {(() => {
+                const entries = (downtime.log as unknown as DowntimeLogEntry[]).slice().reverse().slice(0, 5);
+                if (entries.length === 0) return null;
+                return (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Recent Activity</p>
+                    <ul className="space-y-1">
+                      {entries.map((entry, i) => (
+                        <li key={i} className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            {entry.date}
+                            {entry.reason ? ` · ${entry.reason}` : ""}
+                          </span>
+                          <span className={`font-mono font-semibold ${entry.delta > 0 ? "text-green-400" : "text-orange-400"}`}>
+                            {entry.delta > 0 ? "+" : ""}{entry.delta}d
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
+              <p className="text-xs text-muted-foreground">
+                Spend days with <code className="bg-muted px-1 rounded">/downtime spend</code> in Discord.
+              </p>
+            </div>
+          </Section>
+        )}
+
+        {/* ── Session Notes ── */}
+        {notesRecord && (notesRecord.notes as unknown as BotNote[]).length > 0 && (
+          <Section
+            title="Session Notes"
+            badge={
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <BookOpen size={12} />
+                {(notesRecord.notes as unknown as BotNote[]).length}
+              </span>
+            }
+          >
+            <div className="space-y-4">
+              {NOTE_CATEGORY_ORDER.map((catKey) => {
+                const cat = NOTE_CATEGORIES[catKey];
+                const allNotes = notesRecord.notes as unknown as BotNote[];
+                const inCat = allNotes
+                  .filter((n) => n.category === catKey)
+                  .sort((a, b) => {
+                    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+                    return b.createdAt.localeCompare(a.createdAt);
+                  });
+                if (inCat.length === 0) return null;
+                return (
+                  <div key={catKey}>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2">
+                      {cat.icon} {cat.label}
+                    </p>
+                    <ul className="space-y-2">
+                      {inCat.map((note) => (
+                        <li key={note.id} className="text-sm bg-muted/40 rounded-lg p-3 space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="leading-snug flex-1">{note.text}</p>
+                            {note.pinned && (
+                              <span className="text-xs text-muted-foreground shrink-0">📌</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {note.authorName} · {new Date(note.createdAt).toLocaleDateString()}
+                            {note.editedAt ? " (edited)" : ""}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
           </Section>
         )}
 

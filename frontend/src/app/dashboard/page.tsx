@@ -2,8 +2,9 @@
 
 import { MainLayout } from "@/components/layout";
 import { useCharacters } from "@/lib/hooks/use-characters";
+import { useGuildState, type CalendarSnapshot, type WeatherSnapshot } from "@/lib/hooks/use-guild-state";
 import { useAuth } from "@/lib/providers/auth-provider";
-import { BookOpen, Plus, Shield, Swords } from "lucide-react";
+import { BookOpen, Plus, Shield, Swords, CalendarDays, Cloud, Radio } from "lucide-react";
 import Link from "next/link";
 
 function CharacterCard({ character }: { character: { id: string; name: string; class_name: string | null; ancestry_name: string | null; level: number; status: string } }) {
@@ -28,11 +29,95 @@ function CharacterCard({ character }: { character: { id: string; name: string; c
   );
 }
 
+function LiveChip() {
+  return (
+    <span className="flex items-center gap-1 text-xs font-medium text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
+      <Radio size={9} className="animate-pulse" />
+      Live
+    </span>
+  );
+}
+
+function CalendarCard({ cal }: { cal: CalendarSnapshot }) {
+  return (
+    <div className="card p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CalendarDays size={16} className="text-muted-foreground" />
+          <span className="text-sm font-semibold">Campaign Date</span>
+        </div>
+        <LiveChip />
+      </div>
+      <div>
+        <p className="text-lg font-bold">{cal.seasonEmoji} {cal.description}</p>
+        <p className="text-sm text-muted-foreground capitalize">{cal.weekday} · {cal.season}</p>
+      </div>
+      {cal.holidays.length > 0 && (
+        <p className="text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
+          🎉 {cal.holidays.join(" · ")}
+        </p>
+      )}
+      {cal.nextHoliday && (
+        <p className="text-xs text-muted-foreground">
+          Next: <span className="text-foreground">{cal.nextHoliday.name}</span> in {cal.nextHoliday.daysAway} day{cal.nextHoliday.daysAway === 1 ? "" : "s"} ({cal.nextHoliday.dateString})
+        </p>
+      )}
+    </div>
+  );
+}
+
+const PRECIP_EMOJI: Record<string, string> = {
+  none: "☀️", drizzle: "🌦️", light: "🌧️", moderate: "🌧️",
+  heavy: "⛈️", downpour: "🌊", snow: "❄️", blizzard: "🌨️",
+  hail: "🌩️", freezingRain: "🧊",
+};
+
+function WeatherCard({ wx }: { wx: WeatherSnapshot }) {
+  const precipEmoji = PRECIP_EMOJI[wx.precipitation] ?? "🌤️";
+  const tempColor =
+    wx.temperatureF >= 90 ? "text-orange-400" :
+    wx.temperatureF <= 32 ? "text-blue-400" : "text-foreground";
+
+  return (
+    <div className="card p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Cloud size={16} className="text-muted-foreground" />
+          <span className="text-sm font-semibold">Weather</span>
+        </div>
+        <LiveChip />
+      </div>
+      <div className="flex items-baseline gap-3">
+        <span className={`text-3xl font-bold tabular-nums ${tempColor}`}>{wx.temperatureF}°F</span>
+        <span className="text-sm text-muted-foreground capitalize">{wx.temperatureCategory.replace(/([A-Z])/g, " $1").trim()}</span>
+      </div>
+      <div className="flex flex-wrap gap-2 text-sm">
+        <span className="bg-muted px-2 py-0.5 rounded-full">
+          {precipEmoji} {wx.precipitation === "none" ? "Clear" : wx.precipitation}
+          {wx.soaked ? " (soaked)" : ""}
+        </span>
+        {wx.wind !== "calm" && (
+          <span className="bg-muted px-2 py-0.5 rounded-full">💨 {wx.wind}</span>
+        )}
+        {wx.fog !== "none" && (
+          <span className="bg-muted px-2 py-0.5 rounded-full">🌫️ {wx.fog}</span>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground capitalize">{wx.climate} · {wx.season}</p>
+    </div>
+  );
+}
+
 function DashboardOverview() {
   const { user } = useAuth();
   const { data: characters, isLoading } = useCharacters({}, { enabled: !!user });
 
   const activeChars = characters?.filter((c) => c.status === "active") ?? [];
+  // Derive guild ID from first character — users typically belong to one campaign.
+  const guildId = characters?.[0]?.discord_guild_id ?? null;
+  const { calendar, weather } = useGuildState(guildId);
+
+  const hasCampaignData = !!(calendar || weather);
 
   return (
     <div className="space-y-6">
@@ -42,6 +127,17 @@ function DashboardOverview() {
           Welcome back, {user?.discord_username ?? "Adventurer"}.
         </p>
       </div>
+
+      {/* Campaign State — calendar + weather */}
+      {hasCampaignData && (
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Campaign</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {calendar && <CalendarCard cal={calendar} />}
+            {weather && <WeatherCard wx={weather} />}
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
