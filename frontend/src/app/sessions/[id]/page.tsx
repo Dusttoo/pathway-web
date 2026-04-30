@@ -339,7 +339,7 @@ export default function SessionDetailPage() {
             <RoundSection
               key={round ?? "null"}
               round={round}
-              events={byRound.get(round)!}
+              events={byRound.get(round) ?? []}
             />
           ))}
         </div>
