@@ -1,14 +1,29 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { MainLayout } from "@/components/layout";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { GuildSettings } from "@/lib/types";
-import { Server, Settings } from "lucide-react";
+import { Server, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { DiscordGuild } from "@/app/api/discord/guilds/route";
 
-export const dynamic = "force-dynamic";
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+function useDiscordGuilds() {
+  return useQuery<DiscordGuild[], Error>({
+    queryKey: ["discord-guilds"],
+    queryFn: async () => {
+      const res = await fetch("/api/discord/guilds");
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    staleTime: 5 * 60_000,
+  });
+}
 
 function useGuildSettings(guildId: string) {
   return useQuery<GuildSettings, Error>({
@@ -38,16 +53,105 @@ function useUpdateGuildSettings(guildId: string) {
   });
 }
 
+// ── Guild selector ────────────────────────────────────────────────────────────
+
+function GuildSelector({
+  guilds,
+  selected,
+  onSelect,
+}: {
+  guilds: DiscordGuild[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  const current = guilds.find((g) => g.id === selected);
+
+  return (
+    <div className="card p-5">
+      <p className="font-medium mb-3">Select a Server</p>
+      <div className="relative">
+        <select
+          value={selected}
+          onChange={(e) => onSelect(e.target.value)}
+          className="input appearance-none pr-10 cursor-pointer"
+        >
+          <option value="">— choose a server —</option>
+          {guilds.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          size={16}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+        />
+      </div>
+      {current && (
+        <p className="text-xs text-muted-foreground mt-2 font-mono">
+          ID: {current.id}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Settings form ─────────────────────────────────────────────────────────────
+
+function Toggle({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (val: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+        checked ? "bg-primary" : "bg-muted"
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
+}
+
 function GuildSettingsForm({ guildId }: { guildId: string }) {
   const { data, isLoading, error } = useGuildSettings(guildId);
   const updateMutation = useUpdateGuildSettings(guildId);
   const [saved, setSaved] = useState(false);
 
-  if (isLoading) return <div className="flex justify-center py-8"><div className="spinner" /></div>;
-  if (error) return <p className="text-destructive text-sm">{error.message}</p>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="card p-4 bg-destructive/10 border-destructive text-sm text-destructive">
+        {error.message}
+      </div>
+    );
+  }
+
   if (!data) return null;
 
-  const handleToggle = async (field: "bot_enabled" | "homebrew_enabled", value: boolean) => {
+  const handleToggle = async (
+    field: "bot_enabled" | "homebrew_enabled",
+    value: boolean
+  ) => {
     await updateMutation.mutateAsync({ [field]: value });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -56,61 +160,67 @@ function GuildSettingsForm({ guildId }: { guildId: string }) {
   return (
     <div className="space-y-4">
       <div className="card p-5">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between">
           <div>
             <p className="font-medium">Bot Enabled</p>
-            <p className="text-sm text-muted-foreground">Allow Pathway bot commands in this server</p>
+            <p className="text-sm text-muted-foreground">
+              Allow Pathway bot commands in this server
+            </p>
           </div>
-          <button
-            onClick={() => handleToggle("bot_enabled", !data.bot_enabled)}
+          <Toggle
+            checked={data.bot_enabled}
+            onChange={(v) => handleToggle("bot_enabled", v)}
             disabled={updateMutation.isPending}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${data.bot_enabled ? "bg-primary" : "bg-muted"}`}
-          >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${data.bot_enabled ? "translate-x-6" : "translate-x-1"}`} />
-          </button>
+          />
         </div>
       </div>
 
       <div className="card p-5">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between">
           <div>
             <p className="font-medium">Homebrew Content</p>
-            <p className="text-sm text-muted-foreground">Allow custom homebrew content in this server</p>
+            <p className="text-sm text-muted-foreground">
+              Allow custom homebrew content in this server
+            </p>
           </div>
-          <button
-            onClick={() => handleToggle("homebrew_enabled", !data.homebrew_enabled)}
+          <Toggle
+            checked={data.homebrew_enabled}
+            onChange={(v) => handleToggle("homebrew_enabled", v)}
             disabled={updateMutation.isPending}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${data.homebrew_enabled ? "bg-primary" : "bg-muted"}`}
-          >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${data.homebrew_enabled ? "translate-x-6" : "translate-x-1"}`} />
-          </button>
+          />
         </div>
       </div>
 
       {data.command_prefix && (
         <div className="card p-5">
           <p className="font-medium mb-1">Command Prefix</p>
-          <p className="font-mono text-sm bg-muted px-2 py-1 rounded inline-block">{data.command_prefix}</p>
+          <p className="font-mono text-sm bg-muted px-2 py-1 rounded inline-block">
+            {data.command_prefix}
+          </p>
         </div>
       )}
 
       {saved && (
-        <p className="text-sm text-green-400">Settings saved.</p>
+        <p className="text-sm text-green-400 animate-fade-in">✓ Settings saved.</p>
       )}
     </div>
   );
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function GuildSettingsPage() {
   const { user } = useAuth();
-  const [guildId, setGuildId] = useState("");
-  const [submitted, setSubmitted] = useState("");
+  const [selectedGuildId, setSelectedGuildId] = useState("");
+  const { data: guilds, isLoading: guildsLoading, error: guildsError } = useDiscordGuilds();
 
   if (!user) {
     return (
       <MainLayout>
         <div className="card p-8 text-center">
-          <p className="text-muted-foreground">Please log in to manage server settings.</p>
+          <p className="text-muted-foreground">
+            Please log in to manage server settings.
+          </p>
         </div>
       </MainLayout>
     );
@@ -119,8 +229,12 @@ export default function GuildSettingsPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div>
-          <Link href="/settings" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">
+          <Link
+            href="/settings"
+            className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block"
+          >
             ← Back to Settings
           </Link>
           <div className="flex items-center gap-3">
@@ -129,35 +243,38 @@ export default function GuildSettingsPage() {
             </div>
             <div>
               <h1>Server Settings</h1>
-              <p className="text-muted-foreground text-sm">Configure Pathway bot settings for your Discord server</p>
+              <p className="text-muted-foreground text-sm">
+                Configure Pathway bot settings for your Discord servers
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="card p-6">
-          <p className="font-medium mb-3">Enter Discord Server ID</p>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={guildId}
-              onChange={(e) => setGuildId(e.target.value)}
-              placeholder="e.g. 1234567890123456789"
-              className="input flex-1 font-mono"
-            />
-            <button
-              onClick={() => setSubmitted(guildId)}
-              disabled={!guildId.trim()}
-              className="btn-primary px-4"
-            >
-              Load
-            </button>
+        {/* Guild picker */}
+        {guildsLoading ? (
+          <div className="flex justify-center py-6">
+            <div className="spinner" />
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Right-click your server in Discord → Copy Server ID (requires Developer Mode).
-          </p>
-        </div>
+        ) : guildsError ? (
+          <div className="card p-4 bg-destructive/10 border-destructive text-sm text-destructive">
+            {guildsError.message.includes("No Discord token")
+              ? "Your Discord session has expired. Please log out and log back in to refresh it."
+              : guildsError.message}
+          </div>
+        ) : guilds && guilds.length > 0 ? (
+          <GuildSelector
+            guilds={guilds}
+            selected={selectedGuildId}
+            onSelect={setSelectedGuildId}
+          />
+        ) : (
+          <div className="card p-6 text-center text-sm text-muted-foreground">
+            No Discord servers found. Make sure you&apos;re a member of at least one server.
+          </div>
+        )}
 
-        {submitted && <GuildSettingsForm guildId={submitted} />}
+        {/* Settings for the selected guild */}
+        {selectedGuildId && <GuildSettingsForm guildId={selectedGuildId} />}
       </div>
     </MainLayout>
   );

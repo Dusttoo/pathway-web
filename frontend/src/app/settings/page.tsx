@@ -24,6 +24,7 @@ export default function SettingsPage() {
       href: "/settings/subscription",
       color: "text-green-500",
       bgColor: "bg-green-500/10",
+      comingSoon: true,
     },
     {
       title: "Account Settings",
