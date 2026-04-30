@@ -316,22 +316,27 @@ export default function CharacterDetailPage() {
               </div>
 
               {/* Spell slots used today */}
-              {daily?.slots_used && Object.keys(daily.slots_used).length > 0 && (
+              {build.spellCasters && build.spellCasters.length > 0 && (
                 <div className="pt-1 space-y-2">
-                  {Object.entries(daily.slots_used).map(([caster, ranks]) => (
-                    <div key={caster}>
-                      <p className="text-xs font-semibold text-muted-foreground mb-1">{caster} — Slots Used</p>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(ranks).map(([rank, used]) =>
-                          used > 0 ? (
-                            <span key={rank} className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
-                              Rank {rank}: {used} used
-                            </span>
-                          ) : null
-                        )}
+                  <p className="text-xs font-semibold text-muted-foreground">Spell Slots — Today</p>
+                  {daily?.slots_used && Object.keys(daily.slots_used).length > 0 ? (
+                    Object.entries(daily.slots_used).map(([caster, ranks]) => (
+                      <div key={caster}>
+                        <p className="text-xs text-muted-foreground mb-1">{caster}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(ranks).map(([rank, used]) =>
+                            used > 0 ? (
+                              <span key={rank} className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
+                                Rank {rank}: {used} used
+                              </span>
+                            ) : null
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">No slots used today.</p>
+                  )}
                 </div>
               )}
             </div>

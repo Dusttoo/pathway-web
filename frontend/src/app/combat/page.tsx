@@ -164,15 +164,20 @@ function EncounterCard({ encounter }: { encounter: Encounter }) {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-heading font-bold text-lg">Round {encounter.round}</h2>
-              {ended ? (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-medium">
-                  <CheckCircle2 size={9} /> Ended
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-xs text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full font-medium">
-                  <Radio size={9} className="animate-pulse" /> Live
-                </span>
-              )}
+              <span
+                key={ended ? "ended" : "live"}
+                className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium animate-fade-in ${
+                  ended
+                    ? "text-muted-foreground bg-muted"
+                    : "text-green-400 bg-green-500/10"
+                }`}
+              >
+                {ended ? (
+                  <><CheckCircle2 size={9} /> Ended</>
+                ) : (
+                  <><Radio size={9} className="animate-pulse" /> Live</>
+                )}
+              </span>
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Clock size={11} />

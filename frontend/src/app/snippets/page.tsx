@@ -35,7 +35,11 @@ function SnippetTable({ snippets, empty }: { snippets: SnippetMap; empty: string
 export default function SnippetsPage() {
   const { data: userRow, isLoading: userLoading } = useUserSnippets();
   const { data: characters } = useCharacters({}, {});
+  // Use first character's guild. For multi-server players this shows their
+  // primary campaign — a full guild picker is a future feature.
   const guildId = characters?.[0]?.discord_guild_id ?? null;
+  const uniqueGuilds = new Set(characters?.map((c) => c.discord_guild_id).filter(Boolean));
+  const isMultiGuild = uniqueGuilds.size > 1;
   const { data: guildRow, isLoading: guildLoading } = useGuildSnippets(guildId);
 
   const userSnippets = (userRow?.snippets ?? {}) as SnippetMap;
@@ -84,13 +88,18 @@ export default function SnippetsPage() {
             <div className="flex items-center gap-2 mb-4">
               <Server className="h-4 w-4 text-primary" />
               <h2 className="font-semibold">Server Snippets</h2>
+              {isMultiGuild && (
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  Primary server
+                </span>
+              )}
               <span className="ml-auto text-xs text-muted-foreground">
                 {Object.keys(guildSnippets).length}/100
               </span>
             </div>
             <SnippetTable
               snippets={guildSnippets}
-              empty={guildId ? "No server snippets yet." : "No server linked."}
+              empty={guildId ? "No server snippets yet." : "Import a character in Discord to link your server."}
             />
           </div>
         </div>

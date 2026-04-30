@@ -113,8 +113,11 @@ function DashboardOverview() {
   const { data: characters, isLoading } = useCharacters({}, { enabled: !!user });
 
   const activeChars = characters?.filter((c) => c.status === "active") ?? [];
-  // Derive guild ID from first character — users typically belong to one campaign.
+  // Derive guild ID from the first character. For players in multiple servers
+  // this shows their primary campaign — a full guild picker is a future feature.
   const guildId = characters?.[0]?.discord_guild_id ?? null;
+  const uniqueGuilds = new Set(characters?.map((c) => c.discord_guild_id).filter(Boolean));
+  const isMultiGuild = uniqueGuilds.size > 1;
   const { calendar, weather } = useGuildState(guildId);
 
   const hasCampaignData = !!(calendar || weather);
@@ -129,9 +132,21 @@ function DashboardOverview() {
       </div>
 
       {/* Campaign State — calendar + weather */}
+      {!isLoading && !guildId && (
+        <div className="card p-4 border-dashed text-center text-sm text-muted-foreground">
+          Import a character via <code className="text-xs bg-muted px-1 rounded">/char import</code> in Discord to see your campaign state here.
+        </div>
+      )}
       {hasCampaignData && (
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Campaign</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Campaign</h3>
+            {isMultiGuild && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                Showing primary server
+              </span>
+            )}
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             {calendar && <CalendarCard cal={calendar} />}
             {weather && <WeatherCard wx={weather} />}
