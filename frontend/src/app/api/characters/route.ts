@@ -111,6 +111,7 @@ export async function POST(request: Request) {
       user_id: userResult.data.id,
       discord_guild_id,
       name: build.name,
+      char_key: build.name.toLowerCase().replace(/\s+/g, '-'),
       ancestry_name: build.ancestry ?? null,
       heritage_name: build.heritage ?? null,
       class_name: build.class ?? null,
