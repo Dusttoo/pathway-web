@@ -3,15 +3,16 @@
 import { MainLayout } from "@/components/layout";
 import { HealthBar } from "@/components/characters/HealthBar";
 import { useCharacterLive, useSyncCharacter } from "@/lib/hooks/use-characters";
-import { useCharacterDowntime, type DowntimeLogEntry } from "@/lib/hooks/use-downtime";
-import { useCharacterNotes, NOTE_CATEGORIES, NOTE_CATEGORY_ORDER, type BotNote } from "@/lib/hooks/use-notes";
+import { useCharacterDowntime, downtimeKeys, type DowntimeLogEntry } from "@/lib/hooks/use-downtime";
+import { useCharacterNotes, NOTE_CATEGORIES, NOTE_CATEGORY_ORDER, notesKeys, type BotNote } from "@/lib/hooks/use-notes";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay } from "@/lib/types/bot-integration";
 import type { BotCompanion } from "@/lib/types/bot-integration";
-import { ArrowLeft, Radio, Zap, Star, Heart, Flame, PawPrint, CalendarDays, BookOpen, RefreshCw } from "lucide-react";
+import { ArrowLeft, Radio, Zap, Star, Heart, Flame, PawPrint, CalendarDays, BookOpen, RefreshCw, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Pathbuilder build shape (top-level fields we care about)
 interface PBBuild {
@@ -162,6 +163,215 @@ function CompanionCard({ comp, charLevel }: { comp: BotCompanion; charLevel: num
   );
 }
 
+// ── Note mutation hooks ───────────────────────────────────────────────────────
+
+function useAddNote(characterId: string) {
+  const qc = useQueryClient();
+  return useMutation<unknown, Error, { text: string; category: string; pinned?: boolean }>({
+    mutationFn: (body) =>
+      fetch(`/api/characters/${characterId}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+        return r.json();
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: notesKeys.all }),
+  });
+}
+
+function useDeleteNote(characterId: string) {
+  const qc = useQueryClient();
+  return useMutation<unknown, Error, { noteId: number }>({
+    mutationFn: (body) =>
+      fetch(`/api/characters/${characterId}/notes`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+        return r.json();
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: notesKeys.all }),
+  });
+}
+
+function useSpendDowntime(characterId: string) {
+  const qc = useQueryClient();
+  return useMutation<{ actualDelta: number; clipped: boolean }, Error, { delta: number; reason: string }>({
+    mutationFn: (body) =>
+      fetch(`/api/characters/${characterId}/downtime`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+        return r.json();
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: downtimeKeys.all }),
+  });
+}
+
+// ── Add note inline form ──────────────────────────────────────────────────────
+
+function AddNoteForm({
+  characterId,
+  onClose,
+}: {
+  characterId: string;
+  onClose: () => void;
+}) {
+  const addNote = useAddNote(characterId);
+  const [text, setText] = useState("");
+  const [category, setCategory] = useState("npcs");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    await addNote.mutateAsync({ text: text.trim(), category });
+    setText("");
+    onClose();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 pt-3 border-t border-border">
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">Category</label>
+        <select
+          className="input text-sm"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
+          <option value="npcs">🧑 NPCs</option>
+          <option value="locations">🗺️ Locations</option>
+          <option value="plot-threads">🎭 Plot Threads</option>
+          <option value="influence">🤝 Influence</option>
+          <option value="items">💎 Items</option>
+        </select>
+      </div>
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">Note</label>
+        <textarea
+          className="input text-sm resize-none"
+          rows={3}
+          placeholder="Write your session note here…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          autoFocus
+          required
+        />
+      </div>
+      {addNote.error && (
+        <p className="text-xs text-destructive">{addNote.error.message}</p>
+      )}
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">Cancel</button>
+        <button
+          type="submit"
+          disabled={addNote.isPending || !text.trim()}
+          className="btn btn-primary btn-sm"
+        >
+          {addNote.isPending ? "Saving…" : "Add Note"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ── Downtime spend form ───────────────────────────────────────────────────────
+
+function SpendDowntimeForm({
+  characterId,
+  currentBank,
+  onClose,
+}: {
+  characterId: string;
+  currentBank: number;
+  onClose: () => void;
+}) {
+  const spendMutation = useSpendDowntime(characterId);
+  const [days, setDays] = useState("1");
+  const [reason, setReason] = useState("");
+  const [mode, setMode] = useState<"spend" | "add">("spend");
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const n = parseInt(days, 10);
+    if (!n || n < 1) return;
+    const delta = mode === "spend" ? -n : n;
+    const result = await spendMutation.mutateAsync({ delta, reason: reason.trim() });
+    if (result.clipped) {
+      setFeedback(`Only ${Math.abs(result.actualDelta)} day(s) deducted (not enough remaining).`);
+    }
+    setDays("1");
+    setReason("");
+    if (!result.clipped) onClose();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 pt-3 border-t border-border">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setMode("spend")}
+          className={`btn btn-sm flex-1 ${mode === "spend" ? "btn-primary" : "btn-ghost"}`}
+        >
+          Spend Days
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("add")}
+          className={`btn btn-sm flex-1 ${mode === "add" ? "btn-primary" : "btn-ghost"}`}
+        >
+          Add Days
+        </button>
+      </div>
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">
+          {mode === "spend" ? `Days to spend (have ${currentBank})` : "Days to add"}
+        </label>
+        <input
+          className="input text-sm"
+          type="number"
+          min={1}
+          max={mode === "spend" ? currentBank : undefined}
+          value={days}
+          onChange={(e) => setDays(e.target.value)}
+          required
+        />
+      </div>
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">Reason (optional)</label>
+        <input
+          className="input text-sm"
+          placeholder={mode === "spend" ? "e.g. Crafting, Studying…" : "e.g. Session reward"}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </div>
+      {(spendMutation.error || feedback) && (
+        <p className={`text-xs ${spendMutation.error ? "text-destructive" : "text-amber-400"}`}>
+          {spendMutation.error?.message ?? feedback}
+        </p>
+      )}
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">Cancel</button>
+        <button
+          type="submit"
+          disabled={spendMutation.isPending || !days || parseInt(days) < 1}
+          className="btn btn-primary btn-sm"
+        >
+          {spendMutation.isPending ? "Saving…" : "Confirm"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function CharacterDetailPage() {
   const params = useParams();
   const { user } = useAuth();
@@ -172,6 +382,9 @@ export default function CharacterDetailPage() {
   });
   const syncMutation = useSyncCharacter();
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [showAddNote, setShowAddNote] = useState(false);
+  const [showDowntimeForm, setShowDowntimeForm] = useState(false);
+  const deleteNote = useDeleteNote(characterId);
 
   const charKey = character ? (character as unknown as { char_key: string | null }).char_key : null;
   const { data: downtime } = useCharacterDowntime(charKey);
@@ -442,10 +655,21 @@ export default function CharacterDetailPage() {
           <Section
             title="Downtime"
             badge={
-              <span className="flex items-center gap-1.5 text-xs font-medium text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
-                <CalendarDays size={10} />
-                {downtime.bank} {downtime.bank === 1 ? "day" : "days"}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                  <CalendarDays size={10} />
+                  {downtime.bank} {downtime.bank === 1 ? "day" : "days"}
+                </span>
+                {!showDowntimeForm && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDowntimeForm(true)}
+                    className="text-xs text-primary flex items-center gap-1 hover:underline"
+                  >
+                    <Plus size={11} /> Manage
+                  </button>
+                )}
+              </div>
             }
           >
             <div className="space-y-3">
@@ -475,62 +699,110 @@ export default function CharacterDetailPage() {
                   </div>
                 );
               })()}
-              <p className="text-xs text-muted-foreground">
-                Spend days with <code className="bg-muted px-1 rounded">/downtime spend</code> in Discord.
-              </p>
+              {showDowntimeForm ? (
+                <SpendDowntimeForm
+                  characterId={characterId}
+                  currentBank={downtime.bank}
+                  onClose={() => setShowDowntimeForm(false)}
+                />
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Spend or add days here, or use{" "}
+                  <code className="bg-muted px-1 rounded">/downtime spend</code> in Discord.
+                </p>
+              )}
             </div>
           </Section>
         )}
 
         {/* ── Session Notes ── */}
-        {notesRecord && (notesRecord.notes as unknown as BotNote[]).length > 0 && (
-          <Section
-            title="Session Notes"
-            badge={
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <BookOpen size={12} />
-                {(notesRecord.notes as unknown as BotNote[]).length}
-              </span>
-            }
-          >
-            <div className="space-y-4">
-              {NOTE_CATEGORY_ORDER.map((catKey) => {
-                const cat = NOTE_CATEGORIES[catKey];
-                const allNotes = notesRecord.notes as unknown as BotNote[];
-                const inCat = allNotes
-                  .filter((n) => n.category === catKey)
-                  .sort((a, b) => {
-                    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-                    return b.createdAt.localeCompare(a.createdAt);
-                  });
-                if (inCat.length === 0) return null;
-                return (
-                  <div key={catKey}>
-                    <p className="text-xs font-semibold text-muted-foreground mb-2">
-                      {cat.icon} {cat.label}
-                    </p>
-                    <ul className="space-y-2">
-                      {inCat.map((note) => (
-                        <li key={note.id} className="text-sm bg-muted/40 rounded-lg p-3 space-y-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="leading-snug flex-1">{note.text}</p>
-                            {note.pinned && (
-                              <span className="text-xs text-muted-foreground shrink-0">📌</span>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {note.authorName} · {new Date(note.createdAt).toLocaleDateString()}
-                            {note.editedAt ? " (edited)" : ""}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
+        <Section
+          title="Session Notes"
+          badge={
+            <div className="flex items-center gap-2">
+              {notesRecord && (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <BookOpen size={12} />
+                  {(notesRecord.notes as unknown as BotNote[]).length}
+                </span>
+              )}
+              {!showAddNote && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddNote(true)}
+                  className="text-xs text-primary flex items-center gap-1 hover:underline"
+                >
+                  <Plus size={11} /> Add Note
+                </button>
+              )}
             </div>
-          </Section>
-        )}
+          }
+        >
+          <div className="space-y-4">
+            {showAddNote && (
+              <AddNoteForm
+                characterId={characterId}
+                onClose={() => setShowAddNote(false)}
+              />
+            )}
+
+            {(!notesRecord || (notesRecord.notes as unknown as BotNote[]).length === 0) && !showAddNote && (
+              <p className="text-sm text-muted-foreground italic">
+                No session notes yet. Click &ldquo;Add Note&rdquo; above to record your first one.
+              </p>
+            )}
+
+            {notesRecord && (
+              <>
+                {NOTE_CATEGORY_ORDER.map((catKey) => {
+                  const cat = NOTE_CATEGORIES[catKey];
+                  const allNotes = notesRecord.notes as unknown as BotNote[];
+                  const inCat = allNotes
+                    .filter((n) => n.category === catKey)
+                    .sort((a, b) => {
+                      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+                      return b.createdAt.localeCompare(a.createdAt);
+                    });
+                  if (inCat.length === 0) return null;
+                  return (
+                    <div key={catKey}>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">
+                        {cat.icon} {cat.label}
+                      </p>
+                      <ul className="space-y-2">
+                        {inCat.map((note) => (
+                          <li key={note.id} className="text-sm bg-muted/40 rounded-lg p-3 space-y-1 group">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="leading-snug flex-1">{note.text}</p>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {note.pinned && (
+                                  <span className="text-xs text-muted-foreground">📌</span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => deleteNote.mutate({ noteId: note.id })}
+                                  disabled={deleteNote.isPending}
+                                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity disabled:opacity-30"
+                                  title="Delete note"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {note.authorName} · {new Date(note.createdAt).toLocaleDateString()}
+                              {note.editedAt ? " (edited)" : ""}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </Section>
 
         {/* ── Companions ── */}
         {overlay.companions && Object.keys(overlay.companions).length > 0 && (
