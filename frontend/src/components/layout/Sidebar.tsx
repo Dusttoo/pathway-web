@@ -14,6 +14,7 @@ import {
   Swords,
   BookOpen,
   MessageSquare,
+  Sword,
 } from "lucide-react";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { useAuth } from "@/lib/providers/auth-provider";
@@ -28,6 +29,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Characters", href: "/characters", icon: Swords },
+  { name: "Combat", href: "/combat", icon: Sword },
   { name: "Library", href: "/library", icon: BookOpen },
   { name: "Feedback", href: "/feedback", icon: MessageSquare },
 ];

@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import type { Tables } from "@/lib/types/database.types";
+import { createClient } from "@/lib/supabase/client";
 
 type Character = Tables<"characters">;
 
@@ -61,6 +63,33 @@ export function useCreateCharacter() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: characterKeys.all }),
   });
+}
+
+// Wraps useCharacter and adds a Supabase Realtime subscription so the
+// character detail page updates live when the bot changes HP or overlay.
+export function useCharacterLive(id: string, options?: { enabled?: boolean }) {
+  const queryClient = useQueryClient();
+  const query = useCharacter(id, options);
+
+  useEffect(() => {
+    if (!id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`character-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "characters", filter: `id=eq.${id}` },
+        (payload) => {
+          queryClient.setQueryData(characterKeys.detail(id), (old: Character | undefined) =>
+            old ? { ...old, ...payload.new } : payload.new as Character
+          );
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [id, queryClient]);
+
+  return query;
 }
 
 export function useDeleteCharacter() {

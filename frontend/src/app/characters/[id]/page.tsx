@@ -1,9 +1,11 @@
 "use client";
 
 import { MainLayout } from "@/components/layout";
-import { useCharacter } from "@/lib/hooks/use-characters";
+import { HealthBar } from "@/components/characters/HealthBar";
+import { useCharacterLive } from "@/lib/hooks/use-characters";
 import { useAuth } from "@/lib/providers/auth-provider";
-import { ArrowLeft } from "lucide-react";
+import type { CharacterOverlay } from "@/lib/types/bot-integration";
+import { ArrowLeft, Radio, Zap, Star, Heart, Flame } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -23,6 +25,8 @@ interface PBBuild {
   feats?: Array<[string, string | null, string | null, string | null] | string[]>;
   specials?: string[];
   equipment?: Array<[string, number]> | Array<{ name: string; qty: number }>;
+  attributes?: { ancestryhp: number; classhp: number; bonushp: number; bonushpPerLevel: number };
+  spellCasters?: Array<{ name: string; perDay: number[] }>;
 }
 
 function abilityMod(score: number) {
@@ -32,6 +36,13 @@ function abilityMod(score: number) {
 
 function profLabel(rank: number) {
   return ["Untrained", "Trained", "Expert", "Master", "Legendary"][rank] ?? "Untrained";
+}
+
+function deriveMaxHp(build: PBBuild, level: number): number | null {
+  const attr = build.attributes;
+  if (!attr) return null;
+  const perLevel = (attr.classhp ?? 0) + (attr.bonushpPerLevel ?? 0);
+  return (attr.ancestryhp ?? 0) + perLevel * level + (attr.bonushp ?? 0);
 }
 
 function AbilityBlock({ label, score }: { label: string; score: number }) {
@@ -44,11 +55,39 @@ function AbilityBlock({ label, score }: { label: string; score: number }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, badge }: { title: string; children: React.ReactNode; badge?: React.ReactNode }) {
   return (
     <div className="card p-5">
-      <h3 className="font-semibold mb-3 border-b border-border pb-2">{title}</h3>
+      <div className="flex items-center justify-between border-b border-border pb-2 mb-3">
+        <h3 className="font-semibold">{title}</h3>
+        {badge}
+      </div>
       {children}
+    </div>
+  );
+}
+
+function LiveBadge() {
+  return (
+    <span className="flex items-center gap-1.5 text-xs font-medium text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
+      <Radio size={10} className="animate-pulse" />
+      Live
+    </span>
+  );
+}
+
+function PipRow({ count, max, color, label }: { count: number; max: number; color: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground w-20">{label}</span>
+      <div className="flex gap-1">
+        {Array.from({ length: max }).map((_, i) => (
+          <div
+            key={i}
+            className={`w-4 h-4 rounded-full border-2 ${i < count ? `${color} border-transparent` : "border-muted-foreground/30 bg-transparent"}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -58,7 +97,9 @@ export default function CharacterDetailPage() {
   const { user } = useAuth();
   const characterId = params.id as string;
 
-  const { data: character, isLoading, error } = useCharacter(characterId, { enabled: !!characterId && !!user });
+  const { data: character, isLoading, error } = useCharacterLive(characterId, {
+    enabled: !!characterId && !!user,
+  });
 
   if (isLoading) {
     return (
@@ -86,8 +127,26 @@ export default function CharacterDetailPage() {
 
   const pb = character.pathbuilder_data as { build?: PBBuild } | PBBuild | null;
   const build: PBBuild | null = pb ? ((pb as { build?: PBBuild }).build ?? (pb as PBBuild)) : null;
-
   const abs = build?.abilities;
+
+  // Live state from bot (may be null if bot hasn't synced yet)
+  const currentHp = (character as unknown as { current_hp: number | null }).current_hp;
+  const overlay = (character as unknown as { overlay: CharacterOverlay }).overlay ?? {};
+  const daily = overlay.daily;
+  const hasLiveData = currentHp !== null && currentHp !== undefined;
+
+  const level = character.level ?? build?.level ?? 1;
+  const maxHp = build ? deriveMaxHp(build, level) : null;
+
+  const dying = character.dying ?? 0;
+  const wounded = character.wounded ?? 0;
+  const heroPoints = daily?.hero_points ?? character.hero_points ?? 1;
+  const focusSpent = daily?.focus_spent ?? 0;
+
+  // Focus pool size from Pathbuilder (sum of focusPoints across all casters)
+  const focusMax = (build?.spellCasters ?? []).reduce(
+    (sum, c) => sum + ((c as unknown as { focusPoints?: number }).focusPoints ?? 0), 0
+  );
 
   return (
     <MainLayout>
@@ -123,27 +182,81 @@ export default function CharacterDetailPage() {
         </div>
       </div>
 
-      {!build ? (
-        <div className="card p-6 text-center">
-          <p className="text-muted-foreground">No Pathbuilder data available for this character.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {/* Ability Scores */}
-          {abs && (
-            <Section title="Ability Scores">
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                <AbilityBlock label="STR" score={abs.str} />
-                <AbilityBlock label="DEX" score={abs.dex} />
-                <AbilityBlock label="CON" score={abs.con} />
-                <AbilityBlock label="INT" score={abs.int} />
-                <AbilityBlock label="WIS" score={abs.wis} />
-                <AbilityBlock label="CHA" score={abs.cha} />
-              </div>
-            </Section>
-          )}
+      <div className="space-y-4">
+        {/* ── Live Combat Status ── */}
+        {hasLiveData && maxHp ? (
+          <Section title="Combat Status" badge={<LiveBadge />}>
+            <div className="space-y-4">
+              <HealthBar currentHp={currentHp!} maxHp={maxHp} size="lg" />
 
-          {/* Character Details */}
+              {/* Dying / Wounded */}
+              {(dying > 0 || wounded > 0) && (
+                <div className="flex gap-3 flex-wrap">
+                  {dying > 0 && (
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-destructive bg-destructive/10 px-3 py-1 rounded-full">
+                      <Heart size={14} /> Dying {dying}
+                    </span>
+                  )}
+                  {wounded > 0 && (
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full">
+                      <Flame size={14} /> Wounded {wounded}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Hero Points + Focus */}
+              <div className="space-y-2 pt-1">
+                <PipRow count={heroPoints} max={3} color="bg-yellow-400" label="Hero Points" />
+                {focusMax > 0 && (
+                  <PipRow count={Math.max(0, focusMax - focusSpent)} max={focusMax} color="bg-blue-400" label="Focus Pool" />
+                )}
+              </div>
+
+              {/* Spell slots used today */}
+              {daily?.slots_used && Object.keys(daily.slots_used).length > 0 && (
+                <div className="pt-1 space-y-2">
+                  {Object.entries(daily.slots_used).map(([caster, ranks]) => (
+                    <div key={caster}>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">{caster} — Slots Used</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(ranks).map(([rank, used]) =>
+                          used > 0 ? (
+                            <span key={rank} className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
+                              Rank {rank}: {used} used
+                            </span>
+                          ) : null
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Section>
+        ) : (
+          <div className="card p-4 border-dashed text-center text-sm text-muted-foreground">
+            <Zap size={16} className="inline mr-2 opacity-40" />
+            Combat status will appear here once the bot syncs this character.
+          </div>
+        )}
+
+        {/* ── Ability Scores ── */}
+        {abs && (
+          <Section title="Ability Scores">
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+              <AbilityBlock label="STR" score={abs.str} />
+              <AbilityBlock label="DEX" score={abs.dex} />
+              <AbilityBlock label="CON" score={abs.con} />
+              <AbilityBlock label="INT" score={abs.int} />
+              <AbilityBlock label="WIS" score={abs.wis} />
+              <AbilityBlock label="CHA" score={abs.cha} />
+            </div>
+          </Section>
+        )}
+
+        {/* ── Character Details ── */}
+        {build && (
           <Section title="Details">
             <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-sm">
               {build.deity && <><dt className="text-muted-foreground">Deity</dt><dd>{build.deity}</dd></>}
@@ -156,66 +269,67 @@ export default function CharacterDetailPage() {
               )}
             </dl>
           </Section>
+        )}
 
-          {/* Proficiencies */}
-          {build.proficiencies && Object.keys(build.proficiencies).length > 0 && (
-            <Section title="Proficiencies">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                {Object.entries(build.proficiencies)
-                  .filter(([, rank]) => rank > 0)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([skill, rank]) => (
-                    <div key={skill} className="flex justify-between">
-                      <span className="capitalize text-muted-foreground">
-                        {skill.replace(/_/g, " ")}
-                      </span>
-                      <span className="text-xs font-medium">{profLabel(rank)}</span>
-                    </div>
-                  ))}
-              </div>
-            </Section>
-          )}
-
-          {/* Feats & Abilities */}
-          {build.specials && build.specials.length > 0 && (
-            <Section title="Special Abilities">
-              <ul className="space-y-1 text-sm">
-                {build.specials.map((s, i) => (
-                  <li key={i} className="text-muted-foreground">• {s}</li>
+        {/* ── Proficiencies ── */}
+        {build?.proficiencies && Object.keys(build.proficiencies).length > 0 && (
+          <Section title="Proficiencies">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+              {Object.entries(build.proficiencies)
+                .filter(([, rank]) => rank > 0)
+                .sort(([, a], [, b]) => b - a)
+                .map(([skill, rank]) => (
+                  <div key={skill} className="flex justify-between">
+                    <span className="capitalize text-muted-foreground">
+                      {skill.replace(/_/g, " ")}
+                    </span>
+                    <span className="text-xs font-medium">{profLabel(rank)}</span>
+                  </div>
                 ))}
-              </ul>
-            </Section>
-          )}
+            </div>
+          </Section>
+        )}
 
-          {build.feats && build.feats.length > 0 && (
-            <Section title="Feats">
-              <ul className="grid grid-cols-1 md:grid-cols-2 gap-1 text-sm">
-                {build.feats.map((feat, i) => {
-                  const name = Array.isArray(feat) ? feat[0] : String(feat);
-                  return <li key={i} className="text-muted-foreground">• {name}</li>;
-                })}
-              </ul>
-            </Section>
-          )}
+        {/* ── Special Abilities ── */}
+        {build?.specials && build.specials.length > 0 && (
+          <Section title="Special Abilities">
+            <ul className="space-y-1 text-sm">
+              {build.specials.map((s, i) => (
+                <li key={i} className="text-muted-foreground">• {s}</li>
+              ))}
+            </ul>
+          </Section>
+        )}
 
-          {/* Equipment */}
-          {build.equipment && (build.equipment as unknown[]).length > 0 && (
-            <Section title="Equipment">
-              <ul className="grid grid-cols-1 md:grid-cols-2 gap-1 text-sm">
-                {(build.equipment as unknown[]).map((item, i) => {
-                  const name = Array.isArray(item) ? item[0] : (item as { name: string }).name ?? String(item);
-                  const qty = Array.isArray(item) ? item[1] : (item as { qty: number }).qty ?? 1;
-                  return (
-                    <li key={i} className="text-muted-foreground">
-                      {qty > 1 ? `${qty}× ` : ""}• {name}
-                    </li>
-                  );
-                })}
-              </ul>
-            </Section>
-          )}
-        </div>
-      )}
+        {/* ── Feats ── */}
+        {build?.feats && build.feats.length > 0 && (
+          <Section title="Feats">
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-1 text-sm">
+              {build.feats.map((feat, i) => {
+                const name = Array.isArray(feat) ? feat[0] : String(feat);
+                return <li key={i} className="text-muted-foreground">• {name}</li>;
+              })}
+            </ul>
+          </Section>
+        )}
+
+        {/* ── Equipment ── */}
+        {build?.equipment && (build.equipment as unknown[]).length > 0 && (
+          <Section title="Equipment">
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-1 text-sm">
+              {(build.equipment as unknown[]).map((item, i) => {
+                const name = Array.isArray(item) ? item[0] : (item as { name: string }).name ?? String(item);
+                const qty = Array.isArray(item) ? item[1] : (item as { qty: number }).qty ?? 1;
+                return (
+                  <li key={i} className="text-muted-foreground">
+                    {qty > 1 ? `${qty}× ` : ""}• {name}
+                  </li>
+                );
+              })}
+            </ul>
+          </Section>
+        )}
+      </div>
     </MainLayout>
   );
 }
