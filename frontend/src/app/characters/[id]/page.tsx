@@ -316,7 +316,7 @@ export default function CharacterDetailPage() {
               </div>
 
               {/* Spell slots used today */}
-              {build.spellCasters && build.spellCasters.length > 0 && (
+              {build?.spellCasters && build.spellCasters.length > 0 && (
                 <div className="pt-1 space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground">Spell Slots — Today</p>
                   {daily?.slots_used && Object.keys(daily.slots_used).length > 0 ? (
