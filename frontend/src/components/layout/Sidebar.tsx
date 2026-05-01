@@ -18,6 +18,7 @@ import {
   ScrollText,
   Package,
   Zap,
+  Wand2,
 } from "lucide-react";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { useAuth } from "@/lib/providers/auth-provider";
@@ -37,6 +38,7 @@ const navItems: NavItem[] = [
   { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Snippets", href: "/snippets", icon: Zap },
   { name: "Library", href: "/library", icon: BookOpen },
+  { name: "Homebrew", href: "/homebrew", icon: Wand2 },
   { name: "Feedback", href: "/feedback", icon: MessageSquare },
 ];
 
