@@ -203,6 +203,38 @@ export type Database = {
           },
         ]
       }
+      bags: {
+        Row: {
+          bag_name: string
+          categories: Json
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bag_name?: string
+          categories?: Json
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bag_name?: string
+          categories?: Json
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bags_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       character_classes: {
         Row: {
           class_features: Json
@@ -268,92 +300,6 @@ export type Database = {
           },
         ]
       }
-      characters: {
-        Row: {
-          ancestry_name: string | null
-          background_name: string | null
-          char_key: string | null
-          class_name: string | null
-          created_at: string
-          currency: Json
-          current_hp: number | null
-          discord_guild_id: string
-          dying: number
-          experience: number
-          heritage_name: string | null
-          hero_points: number
-          id: string
-          level: number
-          name: string
-          notes: string | null
-          overlay: Json
-          pathbuilder_data: Json | null
-          pathbuilder_id: number | null
-          status: string
-          updated_at: string
-          user_id: string
-          wounded: number
-        }
-        Insert: {
-          ancestry_name?: string | null
-          background_name?: string | null
-          char_key?: string | null
-          class_name?: string | null
-          created_at?: string
-          currency?: Json
-          current_hp?: number | null
-          discord_guild_id: string
-          dying?: number
-          experience?: number
-          heritage_name?: string | null
-          hero_points?: number
-          id?: string
-          level?: number
-          name: string
-          notes?: string | null
-          overlay?: Json
-          pathbuilder_data?: Json | null
-          pathbuilder_id?: number | null
-          status?: string
-          updated_at?: string
-          user_id: string
-          wounded?: number
-        }
-        Update: {
-          ancestry_name?: string | null
-          background_name?: string | null
-          char_key?: string | null
-          class_name?: string | null
-          created_at?: string
-          currency?: Json
-          current_hp?: number | null
-          discord_guild_id?: string
-          dying?: number
-          experience?: number
-          heritage_name?: string | null
-          hero_points?: number
-          id?: string
-          level?: number
-          name?: string
-          notes?: string | null
-          overlay?: Json
-          pathbuilder_data?: Json | null
-          pathbuilder_id?: number | null
-          status?: string
-          updated_at?: string
-          user_id?: string
-          wounded?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "characters_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       character_notes: {
         Row: {
           char_key: string
@@ -382,6 +328,92 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "character_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      characters: {
+        Row: {
+          ancestry_name: string | null
+          background_name: string | null
+          char_key: string | null
+          class_name: string | null
+          created_at: string
+          currency: Json
+          current_hp: number | null
+          discord_guild_id: string | null
+          dying: number
+          experience: number
+          heritage_name: string | null
+          hero_points: number
+          id: string
+          level: number
+          name: string
+          notes: string | null
+          overlay: Json
+          pathbuilder_data: Json | null
+          pathbuilder_id: number | null
+          status: string
+          updated_at: string
+          user_id: string
+          wounded: number
+        }
+        Insert: {
+          ancestry_name?: string | null
+          background_name?: string | null
+          char_key?: string | null
+          class_name?: string | null
+          created_at?: string
+          currency?: Json
+          current_hp?: number | null
+          discord_guild_id?: string | null
+          dying?: number
+          experience?: number
+          heritage_name?: string | null
+          hero_points?: number
+          id?: string
+          level?: number
+          name: string
+          notes?: string | null
+          overlay?: Json
+          pathbuilder_data?: Json | null
+          pathbuilder_id?: number | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          wounded?: number
+        }
+        Update: {
+          ancestry_name?: string | null
+          background_name?: string | null
+          char_key?: string | null
+          class_name?: string | null
+          created_at?: string
+          currency?: Json
+          current_hp?: number | null
+          discord_guild_id?: string | null
+          dying?: number
+          experience?: number
+          heritage_name?: string | null
+          hero_points?: number
+          id?: string
+          level?: number
+          name?: string
+          notes?: string | null
+          overlay?: Json
+          pathbuilder_data?: Json | null
+          pathbuilder_id?: number | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          wounded?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "characters_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -427,183 +459,85 @@ export type Database = {
           },
         ]
       }
-      bags: {
+      encounter_events: {
         Row: {
-          bag_name: string
-          categories: Json
-          id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          bag_name?: string
-          categories?: Json
-          id?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          bag_name?: string
-          categories?: Json
-          id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bags_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      guild_state: {
-        Row: {
-          calendar: Json | null
-          discord_guild_id: string
-          id: string
-          updated_at: string
-          weather: Json | null
-        }
-        Insert: {
-          calendar?: Json | null
-          discord_guild_id: string
-          id?: string
-          updated_at?: string
-          weather?: Json | null
-        }
-        Update: {
-          calendar?: Json | null
-          discord_guild_id?: string
-          id?: string
-          updated_at?: string
-          weather?: Json | null
-        }
-        Relationships: []
-      }
-      homebrew_entries: {
-        Row: {
-          added_by: string | null
+          actor: string | null
           created_at: string
           data: Json
-          entry_key: string
+          encounter_id: string
+          event_type: string
           id: string
-          name: string
-          type: string
-          updated_at: string
+          round: number | null
+          target: string | null
         }
         Insert: {
-          added_by?: string | null
-          created_at?: string
-          data: Json
-          entry_key: string
-          id?: string
-          name: string
-          type: string
-          updated_at?: string
-        }
-        Update: {
-          added_by?: string | null
+          actor?: string | null
           created_at?: string
           data?: Json
-          entry_key?: string
+          encounter_id: string
+          event_type: string
           id?: string
-          name?: string
-          type?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      user_snippets: {
-        Row: {
-          id: string
-          snippets: Json
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          snippets?: Json
-          updated_at?: string
-          user_id: string
+          round?: number | null
+          target?: string | null
         }
         Update: {
+          actor?: string | null
+          created_at?: string
+          data?: Json
+          encounter_id?: string
+          event_type?: string
           id?: string
-          snippets?: Json
-          updated_at?: string
-          user_id?: string
+          round?: number | null
+          target?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "user_snippets_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
+            foreignKeyName: "encounter_events_encounter_id_fkey"
+            columns: ["encounter_id"]
+            isOneToOne: false
+            referencedRelation: "encounters"
             referencedColumns: ["id"]
           },
         ]
       }
-      guild_snippets: {
+      encounters: {
         Row: {
+          channel_id: string
+          combatants: Json
           discord_guild_id: string
+          ended_at: string | null
+          gm_discord_id: string | null
           id: string
-          snippets: Json
+          round: number
+          started_at: string
+          status: string
+          turn_index: number
           updated_at: string
         }
         Insert: {
+          channel_id: string
+          combatants?: Json
           discord_guild_id: string
+          ended_at?: string | null
+          gm_discord_id?: string | null
           id?: string
-          snippets?: Json
+          round?: number
+          started_at?: string
+          status?: string
+          turn_index?: number
           updated_at?: string
         }
         Update: {
+          channel_id?: string
+          combatants?: Json
           discord_guild_id?: string
+          ended_at?: string | null
+          gm_discord_id?: string | null
           id?: string
-          snippets?: Json
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      monster_art: {
-        Row: {
-          art: Json
-          discord_guild_id: string
-          id: string
-          updated_at: string
-        }
-        Insert: {
-          art?: Json
-          discord_guild_id: string
-          id?: string
-          updated_at?: string
-        }
-        Update: {
-          art?: Json
-          discord_guild_id?: string
-          id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      monster_edits: {
-        Row: {
-          discord_guild_id: string
-          edits: Json
-          id: string
-          updated_at: string
-        }
-        Insert: {
-          discord_guild_id: string
-          edits?: Json
-          id?: string
-          updated_at?: string
-        }
-        Update: {
-          discord_guild_id?: string
-          edits?: Json
-          id?: string
+          round?: number
+          started_at?: string
+          status?: string
+          turn_index?: number
           updated_at?: string
         }
         Relationships: []
@@ -676,6 +610,33 @@ export type Database = {
           },
         ]
       }
+      gamedata: {
+        Row: {
+          category: string
+          data: Json
+          id: number
+          name: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          data: Json
+          id?: number
+          name?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          data?: Json
+          id?: number
+          name?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       guild_settings: {
         Row: {
           allowed_rulebooks: string[]
@@ -718,6 +679,51 @@ export type Database = {
           homebrew_enabled?: boolean
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      guild_snippets: {
+        Row: {
+          discord_guild_id: string
+          id: string
+          snippets: Json
+          updated_at: string
+        }
+        Insert: {
+          discord_guild_id: string
+          id?: string
+          snippets?: Json
+          updated_at?: string
+        }
+        Update: {
+          discord_guild_id?: string
+          id?: string
+          snippets?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      guild_state: {
+        Row: {
+          calendar: Json | null
+          discord_guild_id: string
+          id: string
+          updated_at: string
+          weather: Json | null
+        }
+        Insert: {
+          calendar?: Json | null
+          discord_guild_id: string
+          id?: string
+          updated_at?: string
+          weather?: Json | null
+        }
+        Update: {
+          calendar?: Json | null
+          discord_guild_id?: string
+          id?: string
+          updated_at?: string
+          weather?: Json | null
         }
         Relationships: []
       }
@@ -767,6 +773,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      homebrew_entries: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          data: Json
+          entry_key: string
+          id: string
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          data: Json
+          entry_key: string
+          id?: string
+          name: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          data?: Json
+          entry_key?: string
+          id?: string
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       items: {
         Row: {
@@ -841,6 +880,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      monster_art: {
+        Row: {
+          art: Json
+          discord_guild_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          art?: Json
+          discord_guild_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          art?: Json
+          discord_guild_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      monster_edits: {
+        Row: {
+          discord_guild_id: string
+          edits: Json
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          discord_guild_id: string
+          edits?: Json
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          discord_guild_id?: string
+          edits?: Json
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       monsters: {
         Row: {
@@ -1063,6 +1144,35 @@ export type Database = {
             foreignKeyName: "spells_created_by_user_id_fkey"
             columns: ["created_by_user_id"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_snippets: {
+        Row: {
+          id: string
+          snippets: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          snippets?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          snippets?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_snippets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
