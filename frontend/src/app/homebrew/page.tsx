@@ -15,6 +15,7 @@ import {
   Wand2,
   Plus,
   Trash2,
+  Pencil,
   Search,
   Swords,
   Sparkles,
@@ -103,7 +104,7 @@ function HomebrewCard({
   onDelete: (id: string) => void;
   deleting: boolean;
 }) {
-  const canDelete = entry.added_by === currentUserId;
+  const canWrite = entry.added_by === currentUserId;
   const rarity = getRarity(entry);
   const meta = metaBadge(entry);
 
@@ -116,19 +117,24 @@ function HomebrewCard({
             <p className="text-sm text-muted-foreground mt-0.5 truncate">{meta}</p>
           )}
         </div>
-        {canDelete && (
-          <button
-            onClick={() => onDelete(entry.id)}
-            disabled={deleting}
-            className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-            title="Delete homebrew entry"
-          >
-            {deleting ? (
-              <div className="spinner w-4 h-4" />
-            ) : (
-              <Trash2 size={15} />
-            )}
-          </button>
+        {canWrite && (
+          <div className="flex items-center gap-1 shrink-0">
+            <Link
+              href={`/homebrew/${entry.id}/edit`}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Edit homebrew entry"
+            >
+              <Pencil size={14} />
+            </Link>
+            <button
+              onClick={() => onDelete(entry.id)}
+              disabled={deleting}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+              title="Delete homebrew entry"
+            >
+              {deleting ? <div className="spinner w-4 h-4" /> : <Trash2 size={15} />}
+            </button>
+          </div>
         )}
       </div>
 

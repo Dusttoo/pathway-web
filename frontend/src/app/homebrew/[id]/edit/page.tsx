@@ -1,0 +1,702 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { MainLayout } from "@/components/layout";
+import {
+  useHomebrewEntry,
+  useUpdateHomebrew,
+  type HomebrewEntry,
+} from "@/lib/hooks/use-homebrew";
+import { ArrowLeft, Sparkles, Package, Swords, FileCode, LayoutList } from "lucide-react";
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+function Field({
+  label,
+  hint,
+  required,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1">
+        {label}
+        {required && <span className="text-destructive ml-0.5">*</span>}
+      </label>
+      {children}
+      {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+      {children}
+    </h2>
+  );
+}
+
+type Rarity = "Common" | "Uncommon" | "Rare" | "Unique";
+
+const TRADITIONS = ["arcane", "divine", "occult", "primal"] as const;
+type Tradition = (typeof TRADITIONS)[number];
+
+const CAST_OPTIONS = [
+  "Free Action", "Reaction", "1 Action", "2 Actions", "3 Actions",
+  "1 Minute", "10 Minutes", "1 Hour", "1 Day",
+];
+
+const ITEM_CATEGORIES = [
+  "Adventuring Gear", "Alchemical", "Ammunition", "Armor", "Artifact",
+  "Consumable", "Held Item", "Rune", "Shield", "Snare", "Staff",
+  "Tool", "Wand", "Weapon", "Worn Item", "Other",
+] as const;
+
+const BULK_OPTIONS = ["—", "L", "1", "2", "3", "4", "5", "6"] as const;
+
+function toSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function parsePriceToCP(raw: string): number | null {
+  const m = raw.trim().match(/^(\d+(?:\.\d+)?)\s*(cp|sp|gp|pp)$/i);
+  if (!m) return null;
+  const mult: Record<string, number> = { cp: 1, sp: 10, gp: 100, pp: 1000 };
+  return Math.round(parseFloat(m[1]) * (mult[m[2].toLowerCase()] ?? 1));
+}
+
+function normalizeBulk(raw: string): string | null {
+  if (!raw || raw === "—") return "negligible";
+  if (raw === "L") return "light";
+  const n = parseFloat(raw);
+  return isNaN(n) ? null : String(n);
+}
+
+// ── Spell edit form ───────────────────────────────────────────────────────────
+
+function SpellEditForm({ entry }: { entry: HomebrewEntry }) {
+  const router = useRouter();
+  const update = useUpdateHomebrew();
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const d = entry.data as Record<string, unknown>;
+
+  const [name, setName]               = useState(String(d.name ?? entry.name));
+  const [type, setType]               = useState(String(d.type ?? "Spell"));
+  const [level, setLevel]             = useState(String(d.level ?? "1"));
+  const [rarity, setRarity]           = useState<Rarity>((d.rarity as Rarity) ?? "Common");
+  const [traditions, setTraditions]   = useState<Set<Tradition>>(
+    new Set(
+      String(d.traditions ?? "")
+        .split(",")
+        .map((t) => t.trim())
+        .filter((t): t is Tradition => (TRADITIONS as readonly string[]).includes(t))
+    )
+  );
+  const [traits, setTraits]           = useState(String(d.traits ?? ""));
+  const rawCast                       = String(d.cast ?? "2 Actions");
+  const [cast, setCast]               = useState(CAST_OPTIONS.includes(rawCast) ? rawCast : "Other");
+  const [castCustom, setCastCustom]   = useState(CAST_OPTIONS.includes(rawCast) ? "" : rawCast);
+  const [trigger, setTrigger]         = useState(String(d.trigger ?? ""));
+  const [requirements, setRequirements] = useState(String(d.requirements ?? ""));
+  const [target, setTarget]           = useState(String(d.target ?? ""));
+  const [range, setRange]             = useState(String(d.range ?? ""));
+  const [area, setArea]               = useState(String(d.area ?? ""));
+  const [duration, setDuration]       = useState(String(d.duration ?? ""));
+  const [defense, setDefense]         = useState(String(d.defense ?? ""));
+  const [description, setDescription] = useState(String(d.description ?? ""));
+  const [heightened, setHeightened]   = useState(String(d.heightened ?? ""));
+  const [source, setSource]           = useState(String(d.source ?? "Homebrew"));
+
+  function toggleTradition(t: Tradition) {
+    setTraditions((prev) => {
+      const next = new Set(prev);
+      next.has(t) ? next.delete(t) : next.add(t);
+      return next;
+    });
+  }
+
+  const effectiveLevel = type === "Cantrip" ? "0" : level;
+  const castValue = cast === "Other" ? castCustom : cast;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    if (!name.trim()) { setFormError("Name is required."); return; }
+    if (!description.trim()) { setFormError("Description is required."); return; }
+    if (type === "Spell" && traditions.size === 0) {
+      setFormError("Regular spells must belong to at least one tradition.");
+      return;
+    }
+    try {
+      await update.mutateAsync({
+        id: entry.id,
+        name: name.trim(),
+        data: {
+          name: name.trim(), source, traditions: Array.from(traditions).join(", "),
+          rarity, traits, type, level: effectiveLevel, heightened,
+          summary: description.trim().slice(0, 400), description: description.trim(),
+          cast: castValue, trigger, requirements, target, range, area, duration, defense,
+          damage: (d.damage as object) ?? { base: "", type: "", extra: "" },
+          heightening: null, rolls: [],
+        },
+      });
+      router.push("/homebrew?tab=spell");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to save.");
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Core Identity</SectionHeading>
+        <Field label="Spell Name" required>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+        </Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Type">
+            <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
+              {["Spell", "Cantrip", "Focus", "Ritual"].map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </Field>
+          <Field label={type === "Cantrip" ? "Rank (auto: 0)" : "Rank"}>
+            <select
+              className={`input ${type === "Cantrip" ? "opacity-50 pointer-events-none" : ""}`}
+              value={type === "Cantrip" ? "0" : level}
+              onChange={(e) => setLevel(e.target.value)}
+            >
+              {["0","1","2","3","4","5","6","7","8","9","10"].map((l) => <option key={l}>{l}</option>)}
+            </select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Rarity">
+            <select className="input" value={rarity} onChange={(e) => setRarity(e.target.value as Rarity)}>
+              {(["Common","Uncommon","Rare","Unique"] as const).map((r) => <option key={r}>{r}</option>)}
+            </select>
+          </Field>
+          <Field label="Source">
+            <input className="input" value={source} onChange={(e) => setSource(e.target.value)} />
+          </Field>
+        </div>
+        {type !== "Focus" && type !== "Ritual" && (
+          <Field label="Traditions" hint="Select all that apply.">
+            <div className="flex flex-wrap gap-2 mt-1">
+              {TRADITIONS.map((t) => (
+                <button key={t} type="button" onClick={() => toggleTradition(t)}
+                  className={`px-3 py-1 rounded-full text-sm font-medium border-2 transition-colors capitalize ${
+                    traditions.has(t)
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  }`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </Field>
+        )}
+        <Field label="Traits" hint="Comma-separated">
+          <input className="input" value={traits} onChange={(e) => setTraits(e.target.value)} placeholder="fire, evocation" />
+        </Field>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Casting</SectionHeading>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Cast">
+            <select className="input" value={cast} onChange={(e) => setCast(e.target.value)}>
+              {[...CAST_OPTIONS, "Other"].map((o) => <option key={o}>{o}</option>)}
+            </select>
+          </Field>
+          {cast === "Other" && (
+            <Field label="Custom Cast Time">
+              <input className="input" value={castCustom} onChange={(e) => setCastCustom(e.target.value)} />
+            </Field>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Trigger"><input className="input" value={trigger} onChange={(e) => setTrigger(e.target.value)} placeholder="An enemy within 30 feet…" /></Field>
+          <Field label="Requirements"><input className="input" value={requirements} onChange={(e) => setRequirements(e.target.value)} /></Field>
+        </div>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Range, Area &amp; Duration</SectionHeading>
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="Range"><input className="input" value={range} onChange={(e) => setRange(e.target.value)} placeholder="60 feet" /></Field>
+          <Field label="Area"><input className="input" value={area} onChange={(e) => setArea(e.target.value)} placeholder="20-foot burst" /></Field>
+          <Field label="Duration"><input className="input" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="1 minute" /></Field>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Target"><input className="input" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="1 creature" /></Field>
+          <Field label="Defense / Saving Throw"><input className="input" value={defense} onChange={(e) => setDefense(e.target.value)} placeholder="Reflex" /></Field>
+        </div>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Description</SectionHeading>
+        <Field label="Spell Description" required>
+          <textarea className="input min-h-[160px] resize-y" value={description} onChange={(e) => setDescription(e.target.value)} required />
+        </Field>
+        <Field label="Heightened" hint="+2 The damage increases by 2d6.">
+          <textarea className="input min-h-[80px] resize-y" value={heightened} onChange={(e) => setHeightened(e.target.value)} />
+        </Field>
+      </div>
+
+      {formError && <p className="text-sm text-destructive font-medium">{formError}</p>}
+      <div className="flex gap-3">
+        <button type="submit" disabled={update.isPending} className="btn-primary flex items-center gap-2">
+          {update.isPending ? <><div className="spinner w-4 h-4" />Saving…</> : <><Sparkles size={16} />Save Spell</>}
+        </button>
+        <Link href="/homebrew?tab=spell" className="btn-outline">Cancel</Link>
+      </div>
+    </form>
+  );
+}
+
+// ── Item edit form ────────────────────────────────────────────────────────────
+
+function ItemEditForm({ entry }: { entry: HomebrewEntry }) {
+  const router = useRouter();
+  const update = useUpdateHomebrew();
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const d = entry.data as Record<string, unknown>;
+  const src = d.source as Record<string, unknown> | undefined;
+
+  const [name, setName]             = useState(String(d.name ?? entry.name));
+  const [category, setCategory]     = useState(String(d.category ?? ITEM_CATEGORIES[0]));
+  const [subcategory, setSubcategory] = useState(String(d.subcategory ?? ""));
+  const [level, setLevel]           = useState(String(d.level ?? "0"));
+  const [rarity, setRarity]         = useState<Rarity>((d.rarity as Rarity) ?? "Common");
+  const [traits, setTraits]         = useState(
+    Array.isArray(d.traits) ? (d.traits as string[]).join(", ") : String(d.traits ?? "")
+  );
+  const [price, setPrice]           = useState(String(d.price_raw ?? ""));
+  const [bulk, setBulk]             = useState(String(d.bulk_raw ?? "L"));
+  const [usage, setUsage]           = useState(String(d.usage ?? ""));
+  const [sourceBook, setSourceBook] = useState(String(src?.book ?? "Homebrew"));
+  const [sourcePage, setSourcePage] = useState(String(src?.page ?? ""));
+  const [description, setDescription] = useState(String(d.notes ?? ""));
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    if (!name.trim()) { setFormError("Name is required."); return; }
+    const traitsList = traits ? traits.split(",").map((t) => t.trim()).filter(Boolean) : [];
+    try {
+      await update.mutateAsync({
+        id: entry.id,
+        name: name.trim(),
+        data: {
+          id: entry.entry_key,
+          name: name.trim(),
+          lookup_name: name.trim().toLowerCase(),
+          pfs_availability: null,
+          source: {
+            book: sourceBook || "Homebrew",
+            page: sourcePage || null,
+            source_text: [sourceBook, sourcePage].filter(Boolean).join(" p."),
+          },
+          rarity, traits: traitsList,
+          category: category !== "Other" ? category : (subcategory || null),
+          subcategory: subcategory || null,
+          level: parseInt(level) || 0,
+          price_raw: price || null,
+          price_cp: price ? parsePriceToCP(price) : null,
+          bulk_raw: bulk === "—" ? null : bulk,
+          bulk_normalized: normalizeBulk(bulk),
+          usage: usage || null,
+          campaign: null,
+          notes: description || null,
+        },
+      });
+      router.push("/homebrew?tab=item");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to save.");
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Identity</SectionHeading>
+        <Field label="Item Name" required>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+        </Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Category">
+            <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+              {ITEM_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </Field>
+          <Field label="Subcategory" hint="Optional, e.g. Bomb, Potion">
+            <input className="input" value={subcategory} onChange={(e) => setSubcategory(e.target.value)} />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Item Level">
+            <select className="input" value={level} onChange={(e) => setLevel(e.target.value)}>
+              {Array.from({ length: 26 }, (_, i) => String(i)).map((l) => <option key={l}>{l}</option>)}
+            </select>
+          </Field>
+          <Field label="Rarity">
+            <select className="input" value={rarity} onChange={(e) => setRarity(e.target.value as Rarity)}>
+              {(["Common","Uncommon","Rare","Unique"] as const).map((r) => <option key={r}>{r}</option>)}
+            </select>
+          </Field>
+        </div>
+        <Field label="Traits" hint="Comma-separated">
+          <input className="input" value={traits} onChange={(e) => setTraits(e.target.value)} />
+        </Field>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Physical Properties</SectionHeading>
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="Price" hint="e.g. 3 gp">
+            <input className="input" value={price} onChange={(e) => setPrice(e.target.value)} />
+          </Field>
+          <Field label="Bulk">
+            <select className="input" value={bulk} onChange={(e) => setBulk(e.target.value)}>
+              {BULK_OPTIONS.map((b) => <option key={b}>{b}</option>)}
+            </select>
+          </Field>
+          <Field label="Usage">
+            <input className="input" value={usage} onChange={(e) => setUsage(e.target.value)} placeholder="held in 1 hand" />
+          </Field>
+        </div>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Source</SectionHeading>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Source Book"><input className="input" value={sourceBook} onChange={(e) => setSourceBook(e.target.value)} /></Field>
+          <Field label="Page"><input className="input" value={sourcePage} onChange={(e) => setSourcePage(e.target.value)} /></Field>
+        </div>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Description</SectionHeading>
+        <Field label="Item Description / Notes">
+          <textarea className="input min-h-[140px] resize-y" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </Field>
+      </div>
+
+      {formError && <p className="text-sm text-destructive font-medium">{formError}</p>}
+      <div className="flex gap-3">
+        <button type="submit" disabled={update.isPending} className="btn-primary flex items-center gap-2">
+          {update.isPending ? <><div className="spinner w-4 h-4" />Saving…</> : <><Package size={16} />Save Item</>}
+        </button>
+        <Link href="/homebrew?tab=item" className="btn-outline">Cancel</Link>
+      </div>
+    </form>
+  );
+}
+
+// ── Monster edit form ─────────────────────────────────────────────────────────
+
+function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
+  const router = useRouter();
+  const update = useUpdateHomebrew();
+  const [formError, setFormError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"form" | "json">("form");
+
+  const d = entry.data as Record<string, unknown>;
+  const core = (d.core ?? {}) as Record<string, unknown>;
+  const rich = (d.rich ?? {}) as Record<string, unknown>;
+  const saves = (core.saves ?? {}) as Record<string, unknown>;
+  const speed = (rich.speed ?? {}) as Record<string, unknown>;
+  const mods = (rich.ability_modifiers ?? {}) as Record<string, unknown>;
+
+  // Form state — initialised from stored data
+  const [name, setName]         = useState(String(core.name ?? d.name ?? entry.name));
+  const [level, setLevel]       = useState(String(core.level ?? "1"));
+  const [size, setSize]         = useState(String(core.size ?? "Medium"));
+  const [rarity, setRarity]     = useState<Rarity>((core.rarity as Rarity) ?? "Common");
+  const [traits, setTraits]     = useState(
+    Array.isArray(core.traits) ? (core.traits as string[]).join(", ") : String(core.traits ?? "")
+  );
+  const [hp, setHp]             = useState(String(core.hp ?? ""));
+  const [ac, setAc]             = useState(String(core.ac ?? ""));
+  const [perception, setPerception] = useState(String(core.perception ?? ""));
+  const [fort, setFort]         = useState(String(saves.fort ?? ""));
+  const [ref, setRef]           = useState(String(saves.ref ?? ""));
+  const [will, setWill]         = useState(String(saves.will ?? ""));
+  const [landSpeed, setLandSpeed] = useState(String(speed.land ?? "25"));
+  const [senses, setSenses]     = useState((rich.senses as string[] | undefined)?.join(", ") ?? "");
+  const [languages, setLanguages] = useState((rich.languages as string[] | undefined)?.join(", ") ?? "");
+  const [description, setDescription] = useState(String(rich.description ?? ""));
+  const [strMod, setStrMod]     = useState(String(mods.str ?? ""));
+  const [dexMod, setDexMod]     = useState(String(mods.dex ?? ""));
+  const [conMod, setConMod]     = useState(String(mods.con ?? ""));
+  const [intMod, setIntMod]     = useState(String(mods.int ?? ""));
+  const [wisMod, setWisMod]     = useState(String(mods.wis ?? ""));
+  const [chaMod, setChaMod]     = useState(String(mods.cha ?? ""));
+
+  // JSON mode — strip internal fields for display
+  const cleanData = { ...d };
+  delete (cleanData as Record<string, unknown>)._homebrew;
+  delete (cleanData as Record<string, unknown>)._addedBy;
+  const [jsonText, setJsonText] = useState(JSON.stringify(cleanData, null, 2));
+
+  function parseMod(raw: string): number | null { const n = parseInt(raw); return isNaN(n) ? null : n; }
+
+  async function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    if (!name.trim()) { setFormError("Name is required."); return; }
+    if (!hp || !ac) { setFormError("HP and AC are required."); return; }
+    const traitsList = traits ? traits.split(",").map((t) => t.trim()).filter(Boolean) : [];
+    const newCore = {
+      name: name.trim(), level: parseInt(level) || 0, size, traits: traitsList, rarity,
+      hp: parseInt(hp) || 0, ac: parseInt(ac) || 0, perception: parseInt(perception) || 0,
+      saves: { fort: parseInt(fort) || 0, ref: parseInt(ref) || 0, will: parseInt(will) || 0 },
+      source: core.source ?? { summary_source: null }, has_rich_data: true,
+    };
+    const newRich = {
+      ...rich, name: name.trim(), level: parseInt(level) || 0, size,
+      creature_traits: traitsList,
+      perception: parseInt(perception) || 0,
+      senses: senses ? senses.split(",").map((s) => s.trim()) : [],
+      languages: languages ? languages.split(",").map((l) => l.trim()) : [],
+      ability_modifiers: {
+        str: parseMod(strMod), dex: parseMod(dexMod), con: parseMod(conMod),
+        int: parseMod(intMod), wis: parseMod(wisMod), cha: parseMod(chaMod),
+      },
+      speed: { ...((rich.speed as object) ?? {}), land: parseInt(landSpeed) || 25 },
+      defenses: {
+        ...((rich.defenses as object) ?? {}),
+        ac: parseInt(ac) || 0,
+        saves: { Fort: parseInt(fort) || 0, Ref: parseInt(ref) || 0, Will: parseInt(will) || 0 },
+        hp: parseInt(hp) || 0,
+      },
+      description: description || null,
+    };
+    try {
+      await update.mutateAsync({
+        id: entry.id, name: name.trim(),
+        data: { name: name.trim(), core: newCore, rich: newRich, summary: d.summary },
+      });
+      router.push("/homebrew?tab=monster");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to save.");
+    }
+  }
+
+  async function handleJsonSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    let parsed: Record<string, unknown>;
+    try { parsed = JSON.parse(jsonText); }
+    catch { setFormError("Invalid JSON — fix syntax and try again."); return; }
+    const entryName = (parsed.name as string) ?? ((parsed.core as Record<string,unknown>)?.name as string);
+    if (!entryName) { setFormError('JSON must have a top-level "name" field.'); return; }
+    try {
+      await update.mutateAsync({ id: entry.id, name: entryName, data: parsed });
+      router.push("/homebrew?tab=monster");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to save.");
+    }
+  }
+
+  const levels = Array.from({ length: 32 }, (_, i) => String(i - 1));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-1 p-1 bg-muted/40 rounded-lg border border-border w-fit">
+        {([["form", LayoutList, "Form Builder"], ["json", FileCode, "JSON"]] as const).map(([m, Icon, label]) => (
+          <button key={m} type="button" onClick={() => setMode(m)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}>
+            <Icon size={15} />{label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "form" && (
+        <form onSubmit={handleFormSubmit} className="space-y-6">
+          <div className="card p-6 space-y-4">
+            <SectionHeading>Identity</SectionHeading>
+            <Field label="Name" required><input className="input" value={name} onChange={(e) => setName(e.target.value)} required /></Field>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Level">
+                <select className="input" value={level} onChange={(e) => setLevel(e.target.value)}>
+                  {levels.map((l) => <option key={l}>{l}</option>)}
+                </select>
+              </Field>
+              <Field label="Size">
+                <select className="input" value={size} onChange={(e) => setSize(e.target.value)}>
+                  {["Tiny","Small","Medium","Large","Huge","Gargantuan"].map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </Field>
+              <Field label="Rarity">
+                <select className="input" value={rarity} onChange={(e) => setRarity(e.target.value as Rarity)}>
+                  {(["Common","Uncommon","Rare","Unique"] as const).map((r) => <option key={r}>{r}</option>)}
+                </select>
+              </Field>
+            </div>
+            <Field label="Traits" hint="Comma-separated"><input className="input" value={traits} onChange={(e) => setTraits(e.target.value)} /></Field>
+          </div>
+
+          <div className="card p-6 space-y-4">
+            <SectionHeading>Defenses</SectionHeading>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="HP" required><input type="number" className="input" value={hp} onChange={(e) => setHp(e.target.value)} min={0} required /></Field>
+              <Field label="AC" required><input type="number" className="input" value={ac} onChange={(e) => setAc(e.target.value)} min={0} required /></Field>
+              <Field label="Perception"><input type="number" className="input" value={perception} onChange={(e) => setPerception(e.target.value)} /></Field>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Fortitude"><input type="number" className="input" value={fort} onChange={(e) => setFort(e.target.value)} /></Field>
+              <Field label="Reflex"><input type="number" className="input" value={ref} onChange={(e) => setRef(e.target.value)} /></Field>
+              <Field label="Will"><input type="number" className="input" value={will} onChange={(e) => setWill(e.target.value)} /></Field>
+            </div>
+          </div>
+
+          <div className="card p-6 space-y-4">
+            <SectionHeading>Ability Modifiers</SectionHeading>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+              {([["STR", strMod, setStrMod], ["DEX", dexMod, setDexMod], ["CON", conMod, setConMod],
+                 ["INT", intMod, setIntMod], ["WIS", wisMod, setWisMod], ["CHA", chaMod, setChaMod]] as const).map(([label, val, setter]) => (
+                <div key={label as string}>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 text-center">{label as string}</label>
+                  <input type="number" className="input text-center" value={val as string}
+                    onChange={(e) => (setter as (v: string) => void)(e.target.value)} placeholder="+0" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="card p-6 space-y-4">
+            <SectionHeading>Movement, Senses &amp; Languages</SectionHeading>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Land Speed (feet)"><input type="number" className="input" value={landSpeed} onChange={(e) => setLandSpeed(e.target.value)} min={0} /></Field>
+              <Field label="Senses" hint="Comma-separated"><input className="input" value={senses} onChange={(e) => setSenses(e.target.value)} /></Field>
+            </div>
+            <Field label="Languages" hint="Comma-separated">
+              <input className="input" value={languages} onChange={(e) => setLanguages(e.target.value)} />
+            </Field>
+          </div>
+
+          <div className="card p-6 space-y-4">
+            <SectionHeading>Description</SectionHeading>
+            <Field label="Creature Description" hint="Use /monsteredit in Discord to add attacks and abilities.">
+              <textarea className="input min-h-[120px] resize-y" value={description} onChange={(e) => setDescription(e.target.value)} />
+            </Field>
+          </div>
+
+          {formError && <p className="text-sm text-destructive font-medium">{formError}</p>}
+          <div className="flex gap-3">
+            <button type="submit" disabled={update.isPending} className="btn-primary flex items-center gap-2">
+              {update.isPending ? <><div className="spinner w-4 h-4" />Saving…</> : <><Swords size={16} />Save Monster</>}
+            </button>
+            <Link href="/homebrew?tab=monster" className="btn-outline">Cancel</Link>
+          </div>
+        </form>
+      )}
+
+      {mode === "json" && (
+        <form onSubmit={handleJsonSubmit} className="space-y-6">
+          <div className="card p-6 space-y-4">
+            <SectionHeading>JSON</SectionHeading>
+            <p className="text-sm text-muted-foreground">
+              Edit the raw monster object. Must include a top-level{" "}
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">name</code> field.
+            </p>
+            <textarea className="input min-h-[400px] resize-y font-mono text-xs" value={jsonText}
+              onChange={(e) => setJsonText(e.target.value)} spellCheck={false} />
+          </div>
+          {formError && <p className="text-sm text-destructive font-medium">{formError}</p>}
+          <div className="flex gap-3">
+            <button type="submit" disabled={update.isPending} className="btn-primary flex items-center gap-2">
+              {update.isPending ? <><div className="spinner w-4 h-4" />Saving…</> : <><FileCode size={16} />Save Monster</>}
+            </button>
+            <Link href="/homebrew?tab=monster" className="btn-outline">Cancel</Link>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+const TYPE_META: Record<string, { label: string; icon: typeof Sparkles; tab: string }> = {
+  spell:   { label: "Spell",   icon: Sparkles, tab: "spell"   },
+  item:    { label: "Item",    icon: Package,  tab: "item"    },
+  monster: { label: "Monster", icon: Swords,   tab: "monster" },
+};
+
+export default function EditHomebrewPage() {
+  const { id } = useParams<{ id: string }>();
+  const { data, isLoading, error } = useHomebrewEntry(id);
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center py-16">
+          <div className="spinner" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error || !data?.data) {
+    return (
+      <MainLayout>
+        <div className="space-y-4">
+          <Link href="/homebrew" className="inline-flex items-center gap-2 text-primary text-sm">
+            <ArrowLeft size={14} /> Back to Homebrew
+          </Link>
+          <div className="card p-6 bg-destructive/10 border-destructive">
+            <p className="text-destructive font-semibold">Entry not found</p>
+            <p className="text-sm text-muted-foreground mt-1">{error?.message}</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  const entry = data.data;
+  const meta = TYPE_META[entry.type] ?? TYPE_META.spell;
+  const Icon = meta.icon;
+
+  return (
+    <MainLayout>
+      <div className="max-w-3xl space-y-6">
+        <Link
+          href={`/homebrew?tab=${meta.tab}`}
+          className="inline-flex items-center gap-2 text-primary hover:text-primary/80 text-sm"
+        >
+          <ArrowLeft size={14} />
+          Back to Homebrew
+        </Link>
+
+        <div>
+          <h1 className="font-heading text-3xl font-bold mb-1 flex items-center gap-2">
+            <Icon className="text-primary" size={28} />
+            Edit {meta.label}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">{entry.entry_key}</span>
+            <span className="ml-2">— changes take effect in the bot immediately via Realtime.</span>
+          </p>
+        </div>
+
+        {entry.type === "spell"   && <SpellEditForm   entry={entry} />}
+        {entry.type === "item"    && <ItemEditForm    entry={entry} />}
+        {entry.type === "monster" && <MonsterEditForm entry={entry} />}
+      </div>
+    </MainLayout>
+  );
+}
