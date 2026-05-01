@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout";
 import { useCreateHomebrew } from "@/lib/hooks/use-homebrew";
+import { HomebrewImageUpload } from "@/components/homebrew/HomebrewImageUpload";
 import { ArrowLeft, Swords, FileCode, LayoutList } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -177,6 +178,7 @@ export default function NewMonsterPage() {
 
   // Basic form state
   const [name, setName] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [level, setLevel] = useState("1");
   const [size, setSize] = useState<Size>("Medium");
   const [rarity, setRarity] = useState<Rarity>("Common");
@@ -226,6 +228,7 @@ export default function NewMonsterPage() {
       core: built.core,
       rich: built.rich,
       summary: built.summary,
+      image_url: imageUrl,
     };
 
     try {
@@ -338,16 +341,24 @@ export default function NewMonsterPage() {
                 Identity
               </h2>
 
-              <Field label="Name" required>
-                <input
-                  type="text"
-                  className="input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Ember Drake"
-                  required
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
+                <Field label="Name" required>
+                  <input
+                    type="text"
+                    className="input"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Ember Drake"
+                    required
+                  />
+                </Field>
+                <HomebrewImageUpload
+                  value={imageUrl}
+                  onChange={setImageUrl}
+                  label="Portrait"
+                  recommendedSize="512×512 px"
                 />
-              </Field>
+              </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <Field label="Level">

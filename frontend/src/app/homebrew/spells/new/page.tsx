@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout";
 import { useCreateHomebrew } from "@/lib/hooks/use-homebrew";
+import { HomebrewImageUpload } from "@/components/homebrew/HomebrewImageUpload";
 import { ArrowLeft, Sparkles } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -99,6 +100,7 @@ export default function NewSpellPage() {
   const [description, setDescription] = useState("");
   const [heightened, setHeightened] = useState("");
   const [source, setSource] = useState("Homebrew");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   function toggleTradition(t: Tradition) {
     setTraditions((prev) => {
@@ -155,6 +157,7 @@ export default function NewSpellPage() {
       damage: { base: "", type: "", extra: "" },
       heightening: null,
       rolls: [],
+      image_url: imageUrl,
     };
 
     try {
@@ -199,16 +202,24 @@ export default function NewSpellPage() {
               Core Identity
             </h2>
 
-            <Field label="Spell Name" hint="Must be unique — if the name already exists, it will be saved as 'Name (Homebrew)'.">
-              <input
-                type="text"
-                className="input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Ember Lance"
-                required
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
+              <Field label="Spell Name" hint="Must be unique — if the name already exists, it will be saved as 'Name (Homebrew)'.">
+                <input
+                  type="text"
+                  className="input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Ember Lance"
+                  required
+                />
+              </Field>
+              <HomebrewImageUpload
+                value={imageUrl}
+                onChange={setImageUrl}
+                label="Artwork"
+                recommendedSize="256×256 px"
               />
-            </Field>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <Field label="Type">

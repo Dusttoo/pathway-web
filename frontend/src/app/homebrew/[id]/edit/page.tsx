@@ -10,6 +10,7 @@ import {
   type HomebrewEntry,
 } from "@/lib/hooks/use-homebrew";
 import { ArrowLeft, Sparkles, Package, Swords, FileCode, LayoutList } from "lucide-react";
+import { HomebrewImageUpload } from "@/components/homebrew/HomebrewImageUpload";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -115,6 +116,7 @@ function SpellEditForm({ entry }: { entry: HomebrewEntry }) {
   const [description, setDescription] = useState(String(d.description ?? ""));
   const [heightened, setHeightened]   = useState(String(d.heightened ?? ""));
   const [source, setSource]           = useState(String(d.source ?? "Homebrew"));
+  const [imageUrl, setImageUrl]       = useState<string | null>((d.image_url as string | null) ?? null);
 
   function toggleTradition(t: Tradition) {
     setTraditions((prev) => {
@@ -147,6 +149,7 @@ function SpellEditForm({ entry }: { entry: HomebrewEntry }) {
           cast: castValue, trigger, requirements, target, range, area, duration, defense,
           damage: (d.damage as object) ?? { base: "", type: "", extra: "" },
           heightening: null, rolls: [],
+          image_url: imageUrl,
         },
       });
       router.push("/homebrew?tab=spell");
@@ -159,9 +162,12 @@ function SpellEditForm({ entry }: { entry: HomebrewEntry }) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="card p-6 space-y-4">
         <SectionHeading>Core Identity</SectionHeading>
-        <Field label="Spell Name" required>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
-        </Field>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
+          <Field label="Spell Name" required>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+          </Field>
+          <HomebrewImageUpload value={imageUrl} onChange={setImageUrl} label="Artwork" recommendedSize="256×256 px" />
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Type">
             <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
@@ -287,6 +293,7 @@ function ItemEditForm({ entry }: { entry: HomebrewEntry }) {
   const [sourceBook, setSourceBook] = useState(String(src?.book ?? "Homebrew"));
   const [sourcePage, setSourcePage] = useState(String(src?.page ?? ""));
   const [description, setDescription] = useState(String(d.notes ?? ""));
+  const [imageUrl, setImageUrl]     = useState<string | null>((d.image_url as string | null) ?? null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -318,6 +325,7 @@ function ItemEditForm({ entry }: { entry: HomebrewEntry }) {
           usage: usage || null,
           campaign: null,
           notes: description || null,
+          image_url: imageUrl,
         },
       });
       router.push("/homebrew?tab=item");
@@ -330,9 +338,12 @@ function ItemEditForm({ entry }: { entry: HomebrewEntry }) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="card p-6 space-y-4">
         <SectionHeading>Identity</SectionHeading>
-        <Field label="Item Name" required>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
-        </Field>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
+          <Field label="Item Name" required>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+          </Field>
+          <HomebrewImageUpload value={imageUrl} onChange={setImageUrl} label="Artwork" recommendedSize="256×256 px" />
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Category">
             <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -442,6 +453,7 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
   const [intMod, setIntMod]     = useState(String(mods.int ?? ""));
   const [wisMod, setWisMod]     = useState(String(mods.wis ?? ""));
   const [chaMod, setChaMod]     = useState(String(mods.cha ?? ""));
+  const [imageUrl, setImageUrl] = useState<string | null>((d.image_url as string | null) ?? null);
 
   // JSON mode — strip internal fields for display
   const cleanData = { ...d };
@@ -485,7 +497,7 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
     try {
       await update.mutateAsync({
         id: entry.id, name: name.trim(),
-        data: { name: name.trim(), core: newCore, rich: newRich, summary: d.summary },
+        data: { name: name.trim(), core: newCore, rich: newRich, summary: d.summary, image_url: imageUrl },
       });
       router.push("/homebrew?tab=monster");
     } catch (err) {
@@ -528,7 +540,10 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
         <form onSubmit={handleFormSubmit} className="space-y-6">
           <div className="card p-6 space-y-4">
             <SectionHeading>Identity</SectionHeading>
-            <Field label="Name" required><input className="input" value={name} onChange={(e) => setName(e.target.value)} required /></Field>
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
+              <Field label="Name" required><input className="input" value={name} onChange={(e) => setName(e.target.value)} required /></Field>
+              <HomebrewImageUpload value={imageUrl} onChange={setImageUrl} label="Portrait" recommendedSize="512×512 px" />
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <Field label="Level">
                 <select className="input" value={level} onChange={(e) => setLevel(e.target.value)}>

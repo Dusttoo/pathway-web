@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout";
 import { useCreateHomebrew } from "@/lib/hooks/use-homebrew";
+import { HomebrewImageUpload } from "@/components/homebrew/HomebrewImageUpload";
 import { ArrowLeft, Package } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -90,6 +91,7 @@ export default function NewItemPage() {
 
   // Form state
   const [name, setName] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [category, setCategory] = useState<string>(ITEM_CATEGORIES[0]);
   const [subcategory, setSubcategory] = useState("");
   const [level, setLevel] = useState("0");
@@ -139,6 +141,7 @@ export default function NewItemPage() {
       usage: usage || null,
       campaign: null,
       notes: description || null,
+      image_url: imageUrl,
     };
 
     try {
@@ -183,16 +186,24 @@ export default function NewItemPage() {
               Identity
             </h2>
 
-            <Field label="Item Name" required>
-              <input
-                type="text"
-                className="input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Ember Flask"
-                required
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
+              <Field label="Item Name" required>
+                <input
+                  type="text"
+                  className="input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Ember Flask"
+                  required
+                />
+              </Field>
+              <HomebrewImageUpload
+                value={imageUrl}
+                onChange={setImageUrl}
+                label="Artwork"
+                recommendedSize="256×256 px"
               />
-            </Field>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <Field label="Category">

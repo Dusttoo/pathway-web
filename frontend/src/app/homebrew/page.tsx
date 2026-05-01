@@ -108,8 +108,19 @@ function HomebrewCard({
   const rarity = getRarity(entry);
   const meta = metaBadge(entry);
 
+  const imageUrl = (entry.data as Record<string, unknown>).image_url as string | undefined;
+
   return (
     <div className="card p-5 flex flex-col gap-3 hover:shadow-md transition-shadow">
+      {/* Portrait thumbnail — shown when the entry has uploaded artwork */}
+      {imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl}
+          alt={entry.name}
+          className="w-full h-32 object-cover rounded-lg"
+        />
+      )}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h3 className="font-heading text-lg font-bold truncate">{entry.name}</h3>
