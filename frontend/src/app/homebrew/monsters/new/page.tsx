@@ -14,6 +14,15 @@ type Rarity = "Common" | "Uncommon" | "Rare" | "Unique";
 type Size = "Tiny" | "Small" | "Medium" | "Large" | "Huge" | "Gargantuan";
 type Mode = "form" | "json";
 
+type SkillRow = { name: string; bonus: string };
+
+const PF2E_SKILLS = [
+  "Acrobatics", "Arcana", "Athletics", "Crafting", "Deception",
+  "Diplomacy", "Intimidation", "Medicine", "Nature", "Occultism",
+  "Performance", "Religion", "Society", "Stealth", "Survival", "Thievery",
+  "Lore (custom)",
+] as const;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function toSlug(name: string) {
@@ -50,6 +59,16 @@ function parseMod(raw: string): number | null {
 
 // ── Basic form builder ────────────────────────────────────────────────────────
 
+function buildSkillsObject(rows: SkillRow[]): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const row of rows) {
+    const key = row.name.replace(/\s*\(custom\)/i, "").trim().toLowerCase();
+    const val = parseInt(row.bonus);
+    if (key && !isNaN(val)) result[key] = val;
+  }
+  return result;
+}
+
 function buildMonsterData(fields: {
   name: string;
   level: string;
@@ -72,6 +91,7 @@ function buildMonsterData(fields: {
   intMod: string;
   wisMod: string;
   chaMod: string;
+  skills: SkillRow[];
 }) {
   const slug = toSlug(fields.name);
   const traitsList = fields.traits
@@ -108,7 +128,7 @@ function buildMonsterData(fields: {
     languages: fields.languages
       ? fields.languages.split(",").map((l) => l.trim())
       : [],
-    skills: {},
+    skills: buildSkillsObject(fields.skills),
     ability_modifiers: {
       str: parseMod(fields.strMod),
       dex: parseMod(fields.dexMod),
@@ -199,6 +219,7 @@ export default function NewMonsterPage() {
   const [intMod, setIntMod] = useState("");
   const [wisMod, setWisMod] = useState("");
   const [chaMod, setChaMod] = useState("");
+  const [skills, setSkills] = useState<SkillRow[]>([]);
 
   // JSON mode state
   const [jsonText, setJsonText] = useState("");
@@ -221,6 +242,7 @@ export default function NewMonsterPage() {
       level, size, rarity, traits, hp, ac, perception,
       fort, ref, will, speed, senses, languages, description,
       strMod, dexMod, conMod, intMod, wisMod, chaMod,
+      skills,
     });
 
     const monsterData = {
@@ -573,6 +595,71 @@ export default function NewMonsterPage() {
                   placeholder="Draconic"
                 />
               </Field>
+            </div>
+
+            {/* Skills */}
+            <div className="card p-6 space-y-4">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Skills
+              </h2>
+              {skills.length === 0 && (
+                <p className="text-sm text-muted-foreground">No skills added yet.</p>
+              )}
+              <datalist id="pf2e-skills">
+                {PF2E_SKILLS.filter((s) => s !== "Lore (custom)").map((s) => (
+                  <option key={s} value={s} />
+                ))}
+                <option value="Lore (Underworld)" />
+                <option value="Lore (Warfare)" />
+                <option value="Lore (Sailing)" />
+              </datalist>
+              <div className="space-y-2">
+                {skills.map((row, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      list="pf2e-skills"
+                      className="input flex-1"
+                      placeholder="e.g. Stealth"
+                      value={row.name}
+                      onChange={(e) => {
+                        const next = [...skills];
+                        next[i] = { ...next[i], name: e.target.value };
+                        setSkills(next);
+                      }}
+                    />
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-muted-foreground text-sm">+</span>
+                      <input
+                        type="number"
+                        className="input w-20 text-center"
+                        value={row.bonus}
+                        onChange={(e) => {
+                          const next = [...skills];
+                          next[i] = { ...next[i], bonus: e.target.value };
+                          setSkills(next);
+                        }}
+                        placeholder="0"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSkills(skills.filter((_, j) => j !== i))}
+                      className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                      title="Remove skill"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSkills([...skills, { name: PF2E_SKILLS[0], bonus: "" }])}
+                className="btn-outline text-sm flex items-center gap-1.5"
+              >
+                + Add Skill
+              </button>
             </div>
 
             {/* Description */}
