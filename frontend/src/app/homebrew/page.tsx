@@ -111,7 +111,14 @@ function HomebrewCard({
   const imageUrl = (entry.data as Record<string, unknown>).image_url as string | undefined;
 
   return (
-    <div className="card p-5 flex flex-col gap-3 hover:shadow-md transition-shadow">
+    <div className="card p-5 flex flex-col gap-3 hover:shadow-md transition-shadow relative group">
+      {/* Full-card link to detail page */}
+      <Link
+        href={`/homebrew/${entry.id}`}
+        className="absolute inset-0 z-0 rounded-[inherit]"
+        aria-label={`View ${entry.name}`}
+      />
+
       {/* Portrait thumbnail — shown when the entry has uploaded artwork */}
       {imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -123,13 +130,15 @@ function HomebrewCard({
       )}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-heading text-lg font-bold truncate">{entry.name}</h3>
+          <h3 className="font-heading text-lg font-bold truncate group-hover:text-primary transition-colors">
+            {entry.name}
+          </h3>
           {meta && (
             <p className="text-sm text-muted-foreground mt-0.5 truncate">{meta}</p>
           )}
         </div>
         {canWrite && (
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0 relative z-10">
             <Link
               href={`/homebrew/${entry.id}/edit`}
               className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
@@ -138,7 +147,7 @@ function HomebrewCard({
               <Pencil size={14} />
             </Link>
             <button
-              onClick={() => onDelete(entry.id)}
+              onClick={(e) => { e.preventDefault(); onDelete(entry.id); }}
               disabled={deleting}
               className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
               title="Delete homebrew entry"
