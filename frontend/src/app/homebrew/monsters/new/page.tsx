@@ -430,10 +430,14 @@ export default function NewMonsterPage() {
                 {weaknesses.length === 0 && <p className="text-sm text-muted-foreground">None added.</p>}
                 {weaknesses.map((row, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <input type="text" className="input flex-1" placeholder="e.g. cold iron"
-                      value={row.type} onChange={(e) => updateRow(setWeaknesses, i, { type: e.target.value })} />
-                    <input type="number" className="input w-20 text-center" placeholder="5"
-                      value={row.value} onChange={(e) => updateRow(setWeaknesses, i, { value: e.target.value })} />
+                    <div className="flex-1 min-w-0">
+                      <input type="text" className="input" placeholder="e.g. cold iron"
+                        value={row.type} onChange={(e) => updateRow(setWeaknesses, i, { type: e.target.value })} />
+                    </div>
+                    <div className="w-20 shrink-0">
+                      <input type="number" className="input text-center" placeholder="5"
+                        value={row.value} onChange={(e) => updateRow(setWeaknesses, i, { value: e.target.value })} />
+                    </div>
                     <button type="button" onClick={() => removeRow(setWeaknesses, i)}
                       className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0">
                       <X size={14} />
@@ -452,10 +456,14 @@ export default function NewMonsterPage() {
                 {resistances.length === 0 && <p className="text-sm text-muted-foreground">None added.</p>}
                 {resistances.map((row, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <input type="text" className="input flex-1" placeholder="e.g. fire"
-                      value={row.type} onChange={(e) => updateRow(setResistances, i, { type: e.target.value })} />
-                    <input type="number" className="input w-20 text-center" placeholder="10"
-                      value={row.value} onChange={(e) => updateRow(setResistances, i, { value: e.target.value })} />
+                    <div className="flex-1 min-w-0">
+                      <input type="text" className="input" placeholder="e.g. fire"
+                        value={row.type} onChange={(e) => updateRow(setResistances, i, { type: e.target.value })} />
+                    </div>
+                    <div className="w-20 shrink-0">
+                      <input type="number" className="input text-center" placeholder="10"
+                        value={row.value} onChange={(e) => updateRow(setResistances, i, { value: e.target.value })} />
+                    </div>
                     <button type="button" onClick={() => removeRow(setResistances, i)}
                       className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0">
                       <X size={14} />
