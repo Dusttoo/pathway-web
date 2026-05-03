@@ -203,6 +203,73 @@ export type Database = {
           },
         ]
       }
+      bag_items: {
+        Row: {
+          category: string
+          created_at: string
+          custom_name: string | null
+          display_name: string
+          homebrew_id: string | null
+          id: string
+          item_id: string | null
+          notes: string | null
+          quantity: number
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          custom_name?: string | null
+          display_name: string
+          homebrew_id?: string | null
+          id?: string
+          item_id?: string | null
+          notes?: string | null
+          quantity?: number
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          custom_name?: string | null
+          display_name?: string
+          homebrew_id?: string | null
+          id?: string
+          item_id?: string | null
+          notes?: string | null
+          quantity?: number
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bag_items_homebrew_id_fkey"
+            columns: ["homebrew_id"]
+            isOneToOne: false
+            referencedRelation: "homebrew_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bag_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bag_items_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bags: {
         Row: {
           bag_name: string
@@ -708,6 +775,7 @@ export type Database = {
           calendar: Json | null
           discord_guild_id: string
           id: string
+          settings: Json | null
           updated_at: string
           weather: Json | null
         }
@@ -715,6 +783,7 @@ export type Database = {
           calendar?: Json | null
           discord_guild_id: string
           id?: string
+          settings?: Json | null
           updated_at?: string
           weather?: Json | null
         }
@@ -722,6 +791,7 @@ export type Database = {
           calendar?: Json | null
           discord_guild_id?: string
           id?: string
+          settings?: Json | null
           updated_at?: string
           weather?: Json | null
         }
@@ -902,6 +972,30 @@ export type Database = {
         }
         Relationships: []
       }
+      monster_attacks: {
+        Row: {
+          attacks: Json
+          created_at: string
+          discord_guild_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          attacks?: Json
+          created_at?: string
+          discord_guild_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          attacks?: Json
+          created_at?: string
+          discord_guild_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       monster_edits: {
         Row: {
           discord_guild_id: string
@@ -922,6 +1016,61 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      monster_items: {
+        Row: {
+          custom_name: string | null
+          display_name: string
+          homebrew_id: string | null
+          id: string
+          item_id: string | null
+          monster_entry_id: string
+          quantity: number
+          sort_order: number
+        }
+        Insert: {
+          custom_name?: string | null
+          display_name: string
+          homebrew_id?: string | null
+          id?: string
+          item_id?: string | null
+          monster_entry_id: string
+          quantity?: number
+          sort_order?: number
+        }
+        Update: {
+          custom_name?: string | null
+          display_name?: string
+          homebrew_id?: string | null
+          id?: string
+          item_id?: string | null
+          monster_entry_id?: string
+          quantity?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monster_items_homebrew_id_fkey"
+            columns: ["homebrew_id"]
+            isOneToOne: false
+            referencedRelation: "homebrew_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monster_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monster_items_monster_entry_id_fkey"
+            columns: ["monster_entry_id"]
+            isOneToOne: false
+            referencedRelation: "homebrew_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       monsters: {
         Row: {

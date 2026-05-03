@@ -10,6 +10,7 @@ import {
   type HomebrewEntry,
 } from "@/lib/hooks/use-homebrew";
 import { ArrowLeft, Sparkles, Package, Swords, FileCode, LayoutList, Plus, X } from "lucide-react";
+import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import { HomebrewImageUpload } from "@/components/homebrew/HomebrewImageUpload";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -533,9 +534,10 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
   const [chaMod, setChaMod]     = useState(String(mods.cha ?? ""));
   const [imageUrl, setImageUrl] = useState<string | null>((d.image_url as string | null) ?? null);
   const [skills,  setSkills]  = useState<SkillRow[]>(() => skillsToRows(rich.skills));
-  const [items,   setItems]   = useState(
-    Array.isArray(rich.items) ? (rich.items as string[]).join(", ") : ""
+  const [items,     setItems]     = useState<string[]>(
+    Array.isArray(rich.items) ? (rich.items as string[]) : []
   );
+  const [itemDraft, setItemDraft] = useState("");
   const [attacks,   setAttacks]   = useState<AttackRow[]>(() => attacksFromRaw(rich.attacks));
   const [abilities, setAbilities] = useState<AbilityRow[]>(() => {
     const abils = (rich.abilities ?? {}) as { mid?: unknown };
@@ -590,7 +592,7 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
         str: parseMod(strMod), dex: parseMod(dexMod), con: parseMod(conMod),
         int: parseMod(intMod), wis: parseMod(wisMod), cha: parseMod(chaMod),
       },
-      items: items ? items.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      items,
       speed: speedObj,
       defenses: {
         ...((rich.defenses as object) ?? {}),
@@ -879,10 +881,33 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
           {/* Items */}
           <div className="card p-6 space-y-4">
             <SectionHeading>Items</SectionHeading>
-            <Field label="Items Carried" hint="Comma-separated, e.g. +1 striking longsword, leather armour">
-              <input type="text" className="input" value={items} onChange={(e) => setItems(e.target.value)}
-                placeholder="+1 striking longsword, pouch with 12 gp" />
-            </Field>
+            {items.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {items.map((item, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 bg-muted text-sm px-2.5 py-1 rounded-full">
+                    {item}
+                    <button
+                      type="button"
+                      onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                      aria-label={`Remove ${item}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <ItemSearchCombobox
+              value={itemDraft}
+              onChange={setItemDraft}
+              placeholder="Search or type an item name, then press Enter…"
+              onSelect={(name) => {
+                if (name && !items.includes(name)) setItems((prev) => [...prev, name]);
+                setItemDraft("");
+              }}
+            />
+            <p className="text-xs text-muted-foreground">Select from the dropdown or press Enter to add a custom item.</p>
           </div>
 
           {/* Attacks */}

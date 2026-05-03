@@ -2,6 +2,7 @@
 
 import { MainLayout } from "@/components/layout";
 import { useBag, type BagCategories, type BagItem } from "@/lib/hooks/use-bag";
+import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import { Package, Inbox, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -84,13 +85,11 @@ function AddItemForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <label className="text-xs text-muted-foreground mb-1 block">Item Name</label>
-          <input
-            className="input"
-            placeholder="e.g. Healing Potion"
+          <ItemSearchCombobox
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={setName}
+            placeholder="Search or enter item name…"
             autoFocus
-            required
           />
         </div>
         <div>

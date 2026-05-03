@@ -1,8 +1,9 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-type BagItem = { name: string; qty: number };
-type BagCategories = Record<string, BagItem[]>;
+export type BagItem       = { name: string; qty: number };
+export type BagCategories = Record<string, BagItem[]>;
+export type BagData       = { bag_name: string; categories: BagCategories };
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -22,6 +23,72 @@ async function resolveUserId(authUser: {
   return data?.id ?? null;
 }
 
+// ── Item resolution helper ────────────────────────────────────────────────────
+// Looks up an item name in the official items catalog, then homebrew_entries,
+// then falls back to custom_name. Returns the three nullable ref columns.
+
+async function resolveItemRef(itemName: string): Promise<{
+  item_id:     string | null;
+  homebrew_id: string | null;
+  custom_name: string | null;
+}> {
+  const service = createServiceClient();
+
+  const { data: itemRow } = await service
+    .from("items")
+    .select("id")
+    .ilike("name", itemName)
+    .maybeSingle();
+  if (itemRow) return { item_id: itemRow.id, homebrew_id: null, custom_name: null };
+
+  const { data: hbRow } = await service
+    .from("homebrew_entries")
+    .select("id")
+    .ilike("name", itemName)
+    .eq("type", "item")
+    .maybeSingle();
+  if (hbRow) return { item_id: null, homebrew_id: hbRow.id, custom_name: null };
+
+  return { item_id: null, homebrew_id: null, custom_name: itemName };
+}
+
+// ── GET /api/inventory ────────────────────────────────────────────────────────
+// Returns the user's bag in the canonical shape used across the whole app.
+
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const userId = await resolveUserId(authUser);
+  if (!userId) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  const service = createServiceClient();
+
+  const [{ data: bagRow }, { data: items, error: itemsErr }] = await Promise.all([
+    service.from("bags").select("bag_name").eq("user_id", userId).maybeSingle(),
+    service
+      .from("bag_items")
+      .select("category, display_name, quantity, sort_order")
+      .eq("user_id", userId)
+      .order("sort_order", { ascending: true }),
+  ]);
+
+  if (itemsErr) return NextResponse.json({ error: itemsErr.message }, { status: 500 });
+
+  const categories: BagCategories = {};
+  for (const item of items ?? []) {
+    const cat = item.category ?? "General";
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push({ name: item.display_name, qty: item.quantity });
+  }
+
+  return NextResponse.json({
+    bag_name:   bagRow?.bag_name ?? "My Bag",
+    categories,
+  } satisfies BagData);
+}
+
 // ── POST /api/inventory — add an item ─────────────────────────────────────────
 
 export async function POST(request: Request) {
@@ -37,47 +104,48 @@ export async function POST(request: Request) {
   if (!name || typeof name !== "string" || name.trim().length === 0) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
-  const qtyNum = Math.max(1, parseInt(String(qty), 10) || 1);
-  const catName = String(category).trim() || "General";
+  const qtyNum   = Math.max(1, parseInt(String(qty), 10) || 1);
+  const catName  = String(category).trim() || "General";
   const itemName = name.trim();
 
   const service = createServiceClient();
+
+  // Ensure bag metadata row exists (idempotent — never overwrites bag_name)
+  await service.from("bags").upsert(
+    { user_id: userId, bag_name: "My Bag", categories: {} },
+    { onConflict: "user_id", ignoreDuplicates: true }
+  );
+
+  // Increment qty if item already exists in this category
   const { data: existing } = await service
-    .from("bags")
-    .select("*")
+    .from("bag_items")
+    .select("id, quantity")
     .eq("user_id", userId)
+    .eq("category", catName)
+    .ilike("display_name", itemName)
     .maybeSingle();
 
-  const cats: BagCategories = (existing?.categories as BagCategories) ?? {};
-  const catItems: BagItem[] = cats[catName] ? [...cats[catName]] : [];
-
-  // Increment qty if item already exists, otherwise push
-  const idx = catItems.findIndex((i) => i.name.toLowerCase() === itemName.toLowerCase());
-  if (idx >= 0) {
-    catItems[idx] = { ...catItems[idx], qty: catItems[idx].qty + qtyNum };
-  } else {
-    catItems.push({ name: itemName, qty: qtyNum });
-  }
-  const newCats = { ...cats, [catName]: catItems };
-
   if (existing) {
-    const { data, error } = await service
-      .from("bags")
-      .update({ categories: newCats })
-      .eq("user_id", userId)
-      .select()
-      .single();
+    const { error } = await service
+      .from("bag_items")
+      .update({ quantity: existing.quantity + qtyNum })
+      .eq("id", existing.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
-  } else {
-    const { data, error } = await service
-      .from("bags")
-      .insert({ user_id: userId, bag_name: "My Bag", categories: newCats })
-      .select()
-      .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json({ ok: true });
   }
+
+  // New item — resolve catalog reference then insert
+  const ref = await resolveItemRef(itemName);
+  const { error } = await service.from("bag_items").insert({
+    user_id:      userId,
+    category:     catName,
+    display_name: itemName,
+    quantity:     qtyNum,
+    ...ref,
+  });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true }, { status: 201 });
 }
 
 // ── DELETE /api/inventory — remove an item ────────────────────────────────────
@@ -97,39 +165,18 @@ export async function DELETE(request: Request) {
   }
 
   const service = createServiceClient();
-  const { data: existing } = await service
-    .from("bags")
-    .select("categories")
+  const { error } = await service
+    .from("bag_items")
+    .delete()
     .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!existing) return NextResponse.json({ error: "No bag found" }, { status: 404 });
-
-  const cats: BagCategories = (existing.categories as BagCategories) ?? {};
-  const catItems = (cats[category] ?? []).filter(
-    (i) => i.name.toLowerCase() !== String(itemName).toLowerCase()
-  );
-
-  const newCats = { ...cats };
-  if (catItems.length === 0) {
-    delete newCats[category];
-  } else {
-    newCats[category] = catItems;
-  }
-
-  const { data, error } = await service
-    .from("bags")
-    .update({ categories: newCats })
-    .eq("user_id", userId)
-    .select()
-    .single();
+    .eq("category", String(category))
+    .ilike("display_name", String(itemName));
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json({ ok: true });
 }
 
-// ── PATCH /api/inventory — rename bag OR update item quantity ─────────────────
-//
+// ── PATCH /api/inventory ──────────────────────────────────────────────────────
 //  { bag_name: string }                          → rename the bag
 //  { category, itemName, qty: number }           → set an item's quantity
 
@@ -141,42 +188,22 @@ export async function PATCH(request: Request) {
   const userId = await resolveUserId(authUser);
   if (!userId) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const body     = await request.json();
-  const service  = createServiceClient();
+  const body    = await request.json();
+  const service = createServiceClient();
 
   // ── Update item quantity ──────────────────────────────────────────────────
   if (body.category !== undefined && body.itemName !== undefined && body.qty !== undefined) {
-    const { category, itemName, qty } = body;
-    const qtyNum = Math.max(1, parseInt(String(qty), 10) || 1);
+    const qtyNum = Math.max(1, parseInt(String(body.qty), 10) || 1);
 
-    const { data: existing } = await service
-      .from("bags")
-      .select("categories")
+    const { error } = await service
+      .from("bag_items")
+      .update({ quantity: qtyNum })
       .eq("user_id", userId)
-      .maybeSingle();
-
-    if (!existing) return NextResponse.json({ error: "No bag found" }, { status: 404 });
-
-    const cats: BagCategories = (existing.categories as BagCategories) ?? {};
-    const catItems            = cats[String(category)] ?? [];
-    const idx = catItems.findIndex(
-      (i) => i.name.toLowerCase() === String(itemName).toLowerCase()
-    );
-    if (idx < 0) return NextResponse.json({ error: "Item not found" }, { status: 404 });
-
-    const newCatItems   = [...catItems];
-    newCatItems[idx]    = { ...newCatItems[idx], qty: qtyNum };
-    const newCats       = { ...cats, [String(category)]: newCatItems };
-
-    const { data, error } = await service
-      .from("bags")
-      .update({ categories: newCats })
-      .eq("user_id", userId)
-      .select()
-      .single();
+      .eq("category", String(body.category))
+      .ilike("display_name", String(body.itemName));
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
+    return NextResponse.json({ ok: true });
   }
 
   // ── Rename bag ────────────────────────────────────────────────────────────
@@ -188,13 +215,11 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const { data, error } = await service
+  const { error } = await service
     .from("bags")
     .update({ bag_name: bag_name.trim() })
-    .eq("user_id", userId)
-    .select()
-    .single();
+    .eq("user_id", userId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json({ ok: true });
 }

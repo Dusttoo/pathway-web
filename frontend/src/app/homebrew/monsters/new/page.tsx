@@ -7,6 +7,7 @@ import { MainLayout } from "@/components/layout";
 import { useCreateHomebrew } from "@/lib/hooks/use-homebrew";
 import { HomebrewImageUpload } from "@/components/homebrew/HomebrewImageUpload";
 import { ArrowLeft, Swords, FileCode, LayoutList, Plus, X } from "lucide-react";
+import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ function buildMonsterData(fields: {
   skills: SkillRow[];
   immunities: string; hpNotes: string;
   weaknesses: DefenseRow[]; resistances: DefenseRow[];
-  items: string;
+  items: string[];
   attacks: AttackRow[];
   abilities: AbilityRow[];
 }) {
@@ -123,7 +124,7 @@ function buildMonsterData(fields: {
       con: parseMod(fields.conMod), int: parseMod(fields.intMod),
       wis: parseMod(fields.wisMod), cha: parseMod(fields.chaMod),
     },
-    items: fields.items ? fields.items.split(",").map((s) => s.trim()).filter(Boolean) : [],
+    items: fields.items,
     speed: speedObj,
     defenses: {
       ac: parseInt(fields.ac) || 0,
@@ -242,7 +243,8 @@ export default function NewMonsterPage() {
   const [languages, setLanguages]   = useState("");
 
   // Items
-  const [items, setItems] = useState("");
+  const [items,    setItems]    = useState<string[]>([]);
+  const [itemDraft, setItemDraft] = useState("");
 
   // Attacks
   const [attacks, setAttacks] = useState<AttackRow[]>([]);
@@ -560,10 +562,35 @@ export default function NewMonsterPage() {
             {/* Items */}
             <div className="card p-6 space-y-4">
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Items</h2>
-              <Field label="Items Carried" hint="Comma-separated, e.g. +1 striking longsword, leather armour">
-                <input type="text" className="input" value={items} onChange={(e) => setItems(e.target.value)}
-                  placeholder="+1 striking longsword, pouch with 12 gp" />
-              </Field>
+              {/* Existing item chips */}
+              {items.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {items.map((item, i) => (
+                    <span key={i} className="inline-flex items-center gap-1.5 bg-muted text-sm px-2.5 py-1 rounded-full">
+                      {item}
+                      <button
+                        type="button"
+                        onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        aria-label={`Remove ${item}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Add item combobox */}
+              <ItemSearchCombobox
+                value={itemDraft}
+                onChange={setItemDraft}
+                placeholder="Search or type an item name, then press Enter…"
+                onSelect={(name) => {
+                  if (name && !items.includes(name)) setItems((prev) => [...prev, name]);
+                  setItemDraft("");
+                }}
+              />
+              <p className="text-xs text-muted-foreground">Select from the dropdown or press Enter to add a custom item.</p>
             </div>
 
             {/* Attacks */}
