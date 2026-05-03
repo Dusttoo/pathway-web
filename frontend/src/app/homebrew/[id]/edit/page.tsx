@@ -9,7 +9,7 @@ import {
   useUpdateHomebrew,
   type HomebrewEntry,
 } from "@/lib/hooks/use-homebrew";
-import { ArrowLeft, Sparkles, Package, Swords, FileCode, LayoutList } from "lucide-react";
+import { ArrowLeft, Sparkles, Package, Swords, FileCode, LayoutList, Plus, X } from "lucide-react";
 import { HomebrewImageUpload } from "@/components/homebrew/HomebrewImageUpload";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -46,7 +46,10 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 }
 
 type Rarity = "Common" | "Uncommon" | "Rare" | "Unique";
-type SkillRow = { name: string; bonus: string };
+type SkillRow   = { name: string; bonus: string };
+type AttackRow  = { kind: "Melee" | "Ranged"; name: string; bonus: string; traits: string; damage: string };
+type DefenseRow = { type: string; value: string };
+type AbilityRow = { name: string; cost: string; traits: string; description: string };
 
 const PF2E_SKILLS = [
   "Acrobatics", "Arcana", "Athletics", "Crafting", "Deception",
@@ -57,6 +60,10 @@ const PF2E_SKILLS = [
 
 const TRADITIONS = ["arcane", "divine", "occult", "primal"] as const;
 type Tradition = (typeof TRADITIONS)[number];
+
+const ABILITY_COSTS = [
+  "Passive", "Free Action", "Reaction", "1 Action", "2 Actions", "3 Actions",
+] as const;
 
 const CAST_OPTIONS = [
   "Free Action", "Reaction", "1 Action", "2 Actions", "3 Actions",
@@ -89,6 +96,34 @@ function skillsToRows(raw: unknown): SkillRow[] {
       name: PF2E_SKILLS.find((s) => s.toLowerCase() === k) ?? k,
       bonus: String(v),
     }));
+}
+
+function defenseRowsFromRaw(raw: unknown): DefenseRow[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as { type?: string; value?: number }[])
+    .filter((r) => r.type)
+    .map((r) => ({ type: r.type ?? "", value: String(r.value ?? 0) }));
+}
+
+function attacksFromRaw(raw: unknown): AttackRow[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as Record<string, unknown>[]).map((a) => ({
+    kind:   (a.type === "Ranged" ? "Ranged" : "Melee") as "Melee" | "Ranged",
+    name:   String(a.name ?? ""),
+    bonus:  String(a.bonus ?? ""),
+    traits: Array.isArray(a.traits) ? (a.traits as string[]).join(", ") : String(a.traits ?? ""),
+    damage: String(a.damage ?? ""),
+  }));
+}
+
+function abilitiesFromRaw(raw: unknown): AbilityRow[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as Record<string, unknown>[]).map((a) => ({
+    name:        String(a.name ?? ""),
+    cost:        String(a.cost ?? "Passive"),
+    traits:      Array.isArray(a.traits) ? (a.traits as string[]).join(", ") : String(a.traits ?? ""),
+    description: String(a.description ?? ""),
+  }));
 }
 
 function toSlug(name: string) {
@@ -451,11 +486,12 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
   const [mode, setMode] = useState<"form" | "json">("form");
 
   const d = entry.data as Record<string, unknown>;
-  const core = (d.core ?? {}) as Record<string, unknown>;
-  const rich = (d.rich ?? {}) as Record<string, unknown>;
-  const saves = (core.saves ?? {}) as Record<string, unknown>;
-  const speed = (rich.speed ?? {}) as Record<string, unknown>;
-  const mods = (rich.ability_modifiers ?? {}) as Record<string, unknown>;
+  const core     = (d.core ?? {}) as Record<string, unknown>;
+  const rich     = (d.rich ?? {}) as Record<string, unknown>;
+  const saves    = (core.saves ?? {}) as Record<string, unknown>;
+  const speedRaw = (rich.speed ?? {}) as Record<string, unknown>;
+  const mods     = (rich.ability_modifiers ?? {}) as Record<string, unknown>;
+  const defsRaw  = (rich.defenses ?? {}) as Record<string, unknown>;
 
   // Form state — initialised from stored data
   const [name, setName]         = useState(String(core.name ?? d.name ?? entry.name));
@@ -471,9 +507,23 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
   const [fort, setFort]         = useState(String(saves.fort ?? ""));
   const [ref, setRef]           = useState(String(saves.ref ?? ""));
   const [will, setWill]         = useState(String(saves.will ?? ""));
-  const [landSpeed, setLandSpeed] = useState(String(speed.land ?? "25"));
-  const [senses, setSenses]     = useState((rich.senses as string[] | undefined)?.join(", ") ?? "");
-  const [languages, setLanguages] = useState((rich.languages as string[] | undefined)?.join(", ") ?? "");
+  const [immunities, setImmunities] = useState(
+    Array.isArray(defsRaw.immunities) ? (defsRaw.immunities as string[]).join(", ") : ""
+  );
+  const [hpNotes, setHpNotes]   = useState(
+    Array.isArray(defsRaw.hp_notes) && (defsRaw.hp_notes as string[]).length > 0
+      ? String((defsRaw.hp_notes as string[])[0])
+      : ""
+  );
+  const [weaknesses,  setWeaknesses]  = useState<DefenseRow[]>(() => defenseRowsFromRaw(defsRaw.weaknesses));
+  const [resistances, setResistances] = useState<DefenseRow[]>(() => defenseRowsFromRaw(defsRaw.resistances));
+  const [landSpeed, setLandSpeed]   = useState(String(speedRaw.land ?? "25"));
+  const [flySpeed,  setFlySpeed]    = useState(speedRaw.fly    != null ? String(speedRaw.fly)    : "");
+  const [burrowSpeed, setBurrowSpeed] = useState(speedRaw.burrow != null ? String(speedRaw.burrow) : "");
+  const [swimSpeed, setSwimSpeed]   = useState(speedRaw.swim   != null ? String(speedRaw.swim)   : "");
+  const [climbSpeed, setClimbSpeed] = useState(speedRaw.climb  != null ? String(speedRaw.climb)  : "");
+  const [senses, setSenses]         = useState((rich.senses as string[] | undefined)?.join(", ") ?? "");
+  const [languages, setLanguages]   = useState((rich.languages as string[] | undefined)?.join(", ") ?? "");
   const [description, setDescription] = useState(String(rich.description ?? ""));
   const [strMod, setStrMod]     = useState(String(mods.str ?? ""));
   const [dexMod, setDexMod]     = useState(String(mods.dex ?? ""));
@@ -482,7 +532,26 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
   const [wisMod, setWisMod]     = useState(String(mods.wis ?? ""));
   const [chaMod, setChaMod]     = useState(String(mods.cha ?? ""));
   const [imageUrl, setImageUrl] = useState<string | null>((d.image_url as string | null) ?? null);
-  const [skills, setSkills] = useState<SkillRow[]>(() => skillsToRows(rich.skills));
+  const [skills,  setSkills]  = useState<SkillRow[]>(() => skillsToRows(rich.skills));
+  const [items,   setItems]   = useState(
+    Array.isArray(rich.items) ? (rich.items as string[]).join(", ") : ""
+  );
+  const [attacks,   setAttacks]   = useState<AttackRow[]>(() => attacksFromRaw(rich.attacks));
+  const [abilities, setAbilities] = useState<AbilityRow[]>(() => {
+    const abils = (rich.abilities ?? {}) as { mid?: unknown };
+    return abilitiesFromRaw(abils.mid);
+  });
+
+  // ── Generic row helpers ─────────────────────────────────────────────────────
+  function addRow<T>(setter: React.Dispatch<React.SetStateAction<T[]>>, blank: T) {
+    setter((prev) => [...prev, blank]);
+  }
+  function removeRow<T>(setter: React.Dispatch<React.SetStateAction<T[]>>, i: number) {
+    setter((prev) => prev.filter((_, j) => j !== i));
+  }
+  function updateRow<T>(setter: React.Dispatch<React.SetStateAction<T[]>>, i: number, patch: Partial<T>) {
+    setter((prev) => prev.map((row, j) => (j === i ? { ...row, ...patch } : row)));
+  }
 
   // JSON mode — strip internal fields for display
   const cleanData = { ...d };
@@ -504,23 +573,61 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
       saves: { fort: parseInt(fort) || 0, ref: parseInt(ref) || 0, will: parseInt(will) || 0 },
       source: core.source ?? { summary_source: null }, has_rich_data: true,
     };
+    const speedObj: Record<string, number> = { land: parseInt(landSpeed) || 25 };
+    if (flySpeed.trim())    speedObj.fly    = parseInt(flySpeed)    || 0;
+    if (burrowSpeed.trim()) speedObj.burrow = parseInt(burrowSpeed) || 0;
+    if (swimSpeed.trim())   speedObj.swim   = parseInt(swimSpeed)   || 0;
+    if (climbSpeed.trim())  speedObj.climb  = parseInt(climbSpeed)  || 0;
+
     const newRich = {
       ...rich, name: name.trim(), level: parseInt(level) || 0, size,
       creature_traits: traitsList,
       perception: parseInt(perception) || 0,
-      senses: senses ? senses.split(",").map((s) => s.trim()) : [],
+      senses:    senses    ? senses.split(",").map((s) => s.trim())    : [],
       languages: languages ? languages.split(",").map((l) => l.trim()) : [],
       skills: buildSkillsObject(skills),
       ability_modifiers: {
         str: parseMod(strMod), dex: parseMod(dexMod), con: parseMod(conMod),
         int: parseMod(intMod), wis: parseMod(wisMod), cha: parseMod(chaMod),
       },
-      speed: { ...((rich.speed as object) ?? {}), land: parseInt(landSpeed) || 25 },
+      items: items ? items.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      speed: speedObj,
       defenses: {
         ...((rich.defenses as object) ?? {}),
         ac: parseInt(ac) || 0,
         saves: { Fort: parseInt(fort) || 0, Ref: parseInt(ref) || 0, Will: parseInt(will) || 0 },
         hp: parseInt(hp) || 0,
+        hp_notes: hpNotes.trim() ? [hpNotes.trim()] : [],
+        immunities: immunities
+          ? immunities.split(",").map((s) => s.trim()).filter(Boolean)
+          : [],
+        weaknesses: weaknesses
+          .filter((w) => w.type.trim())
+          .map((w) => ({ type: w.type.trim(), value: parseInt(w.value) || 0 })),
+        resistances: resistances
+          .filter((r) => r.type.trim())
+          .map((r) => ({ type: r.type.trim(), value: parseInt(r.value) || 0 })),
+      },
+      attacks: attacks
+        .filter((a) => a.name.trim())
+        .map((a) => ({
+          type:   a.kind,
+          name:   a.name.trim(),
+          bonus:  parseInt(a.bonus) || 0,
+          traits: a.traits ? a.traits.split(",").map((s) => s.trim()).filter(Boolean) : [],
+          damage: a.damage.trim(),
+        })),
+      abilities: {
+        top: (rich.abilities as { top?: unknown[] } | undefined)?.top ?? [],
+        mid: abilities
+          .filter((a) => a.name.trim())
+          .map((a) => ({
+            name:        a.name.trim(),
+            cost:        a.cost,
+            traits:      a.traits ? a.traits.split(",").map((s) => s.trim()).filter(Boolean) : [],
+            description: a.description.trim(),
+          })),
+        bot: (rich.abilities as { bot?: unknown[] } | undefined)?.bot ?? [],
       },
       description: description || null,
     };
@@ -606,6 +713,56 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
               <Field label="Reflex"><input type="number" className="input" value={ref} onChange={(e) => setRef(e.target.value)} /></Field>
               <Field label="Will"><input type="number" className="input" value={will} onChange={(e) => setWill(e.target.value)} /></Field>
             </div>
+            <Field label="HP Notes" hint="e.g. regeneration 10 (deactivated by cold)">
+              <input type="text" className="input" value={hpNotes} onChange={(e) => setHpNotes(e.target.value)}
+                placeholder="regeneration 10 (deactivated by cold)" />
+            </Field>
+            <Field label="Immunities" hint="Comma-separated, e.g. fire, paralyzed, sleep">
+              <input type="text" className="input" value={immunities} onChange={(e) => setImmunities(e.target.value)}
+                placeholder="fire, paralyzed, sleep" />
+            </Field>
+            {/* Weaknesses */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Weaknesses</label>
+              {weaknesses.length === 0 && <p className="text-sm text-muted-foreground">None added.</p>}
+              {weaknesses.map((row, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input type="text" className="input flex-1" placeholder="e.g. cold iron"
+                    value={row.type} onChange={(e) => updateRow(setWeaknesses, i, { type: e.target.value })} />
+                  <input type="number" className="input w-20 text-center" placeholder="5"
+                    value={row.value} onChange={(e) => updateRow(setWeaknesses, i, { value: e.target.value })} />
+                  <button type="button" onClick={() => removeRow(setWeaknesses, i)}
+                    className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={() => addRow(setWeaknesses, { type: "", value: "" })}
+                className="btn-outline text-sm flex items-center gap-1.5">
+                <Plus size={13} />Add Weakness
+              </button>
+            </div>
+            {/* Resistances */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Resistances</label>
+              {resistances.length === 0 && <p className="text-sm text-muted-foreground">None added.</p>}
+              {resistances.map((row, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input type="text" className="input flex-1" placeholder="e.g. fire"
+                    value={row.type} onChange={(e) => updateRow(setResistances, i, { type: e.target.value })} />
+                  <input type="number" className="input w-20 text-center" placeholder="10"
+                    value={row.value} onChange={(e) => updateRow(setResistances, i, { value: e.target.value })} />
+                  <button type="button" onClick={() => removeRow(setResistances, i)}
+                    className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={() => addRow(setResistances, { type: "", value: "" })}
+                className="btn-outline text-sm flex items-center gap-1.5">
+                <Plus size={13} />Add Resistance
+              </button>
+            </div>
           </div>
 
           <div className="card p-6 space-y-4">
@@ -686,18 +843,136 @@ function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
 
           <div className="card p-6 space-y-4">
             <SectionHeading>Movement, Senses &amp; Languages</SectionHeading>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Land Speed (feet)"><input type="number" className="input" value={landSpeed} onChange={(e) => setLandSpeed(e.target.value)} min={0} /></Field>
-              <Field label="Senses" hint="Comma-separated"><input className="input" value={senses} onChange={(e) => setSenses(e.target.value)} /></Field>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Field label="Land Speed (ft)">
+                <input type="number" className="input" value={landSpeed} onChange={(e) => setLandSpeed(e.target.value)} min={0} />
+              </Field>
+              <Field label="Fly Speed (ft)">
+                <input type="number" className="input" value={flySpeed} onChange={(e) => setFlySpeed(e.target.value)} placeholder="—" min={0} />
+              </Field>
+              <Field label="Burrow Speed (ft)">
+                <input type="number" className="input" value={burrowSpeed} onChange={(e) => setBurrowSpeed(e.target.value)} placeholder="—" min={0} />
+              </Field>
+              <Field label="Swim Speed (ft)">
+                <input type="number" className="input" value={swimSpeed} onChange={(e) => setSwimSpeed(e.target.value)} placeholder="—" min={0} />
+              </Field>
+              <Field label="Climb Speed (ft)">
+                <input type="number" className="input" value={climbSpeed} onChange={(e) => setClimbSpeed(e.target.value)} placeholder="—" min={0} />
+              </Field>
             </div>
+            <Field label="Senses" hint="Comma-separated">
+              <input className="input" value={senses} onChange={(e) => setSenses(e.target.value)} />
+            </Field>
             <Field label="Languages" hint="Comma-separated">
               <input className="input" value={languages} onChange={(e) => setLanguages(e.target.value)} />
             </Field>
           </div>
 
+          {/* Items */}
+          <div className="card p-6 space-y-4">
+            <SectionHeading>Items</SectionHeading>
+            <Field label="Items Carried" hint="Comma-separated, e.g. +1 striking longsword, leather armour">
+              <input type="text" className="input" value={items} onChange={(e) => setItems(e.target.value)}
+                placeholder="+1 striking longsword, pouch with 12 gp" />
+            </Field>
+          </div>
+
+          {/* Attacks */}
+          <div className="card p-6 space-y-4">
+            <SectionHeading>Attacks</SectionHeading>
+            {attacks.length === 0 && <p className="text-sm text-muted-foreground">No attacks added yet.</p>}
+            <div className="space-y-3">
+              {attacks.map((row, i) => (
+                <div key={i} className="border border-border rounded-lg p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Attack {i + 1}</span>
+                    <button type="button" onClick={() => removeRow(setAttacks, i)}
+                      className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <Field label="Type">
+                      <select className="input" value={row.kind}
+                        onChange={(e) => updateRow(setAttacks, i, { kind: e.target.value as "Melee" | "Ranged" })}>
+                        <option value="Melee">Melee</option>
+                        <option value="Ranged">Ranged</option>
+                      </select>
+                    </Field>
+                    <Field label="Name">
+                      <input type="text" className="input" placeholder="e.g. Jaws"
+                        value={row.name} onChange={(e) => updateRow(setAttacks, i, { name: e.target.value })} />
+                    </Field>
+                    <Field label="Attack Bonus">
+                      <input type="number" className="input" placeholder="+18"
+                        value={row.bonus} onChange={(e) => updateRow(setAttacks, i, { bonus: e.target.value })} />
+                    </Field>
+                  </div>
+                  <Field label="Traits" hint="Comma-separated">
+                    <input type="text" className="input" placeholder="fire, magical, reach 10 feet"
+                      value={row.traits} onChange={(e) => updateRow(setAttacks, i, { traits: e.target.value })} />
+                  </Field>
+                  <Field label="Damage">
+                    <input type="text" className="input" placeholder="2d12+10 piercing plus 1d6 fire"
+                      value={row.damage} onChange={(e) => updateRow(setAttacks, i, { damage: e.target.value })} />
+                  </Field>
+                </div>
+              ))}
+            </div>
+            <button type="button"
+              onClick={() => addRow(setAttacks, { kind: "Melee", name: "", bonus: "", traits: "", damage: "" })}
+              className="btn-outline text-sm flex items-center gap-1.5">
+              <Plus size={13} />Add Attack
+            </button>
+          </div>
+
+          {/* Abilities */}
+          <div className="card p-6 space-y-4">
+            <SectionHeading>Special Abilities</SectionHeading>
+            {abilities.length === 0 && <p className="text-sm text-muted-foreground">No abilities added yet.</p>}
+            <div className="space-y-3">
+              {abilities.map((row, i) => (
+                <div key={i} className="border border-border rounded-lg p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ability {i + 1}</span>
+                    <button type="button" onClick={() => removeRow(setAbilities, i)}
+                      className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Name">
+                      <input type="text" className="input" placeholder="e.g. Breath Weapon"
+                        value={row.name} onChange={(e) => updateRow(setAbilities, i, { name: e.target.value })} />
+                    </Field>
+                    <Field label="Action Cost">
+                      <select className="input" value={row.cost}
+                        onChange={(e) => updateRow(setAbilities, i, { cost: e.target.value })}>
+                        {ABILITY_COSTS.map((c) => <option key={c}>{c}</option>)}
+                      </select>
+                    </Field>
+                  </div>
+                  <Field label="Traits" hint="Comma-separated">
+                    <input type="text" className="input" placeholder="fire, evocation"
+                      value={row.traits} onChange={(e) => updateRow(setAbilities, i, { traits: e.target.value })} />
+                  </Field>
+                  <Field label="Description">
+                    <textarea className="input min-h-[80px] resize-y" placeholder="The dragon exhales a 60-foot cone of fire…"
+                      value={row.description} onChange={(e) => updateRow(setAbilities, i, { description: e.target.value })} />
+                  </Field>
+                </div>
+              ))}
+            </div>
+            <button type="button"
+              onClick={() => addRow(setAbilities, { name: "", cost: "2 Actions", traits: "", description: "" })}
+              className="btn-outline text-sm flex items-center gap-1.5">
+              <Plus size={13} />Add Ability
+            </button>
+          </div>
+
           <div className="card p-6 space-y-4">
             <SectionHeading>Description</SectionHeading>
-            <Field label="Creature Description" hint="Use /monsteredit in Discord to add attacks and abilities.">
+            <Field label="Creature Description">
               <textarea className="input min-h-[120px] resize-y" value={description} onChange={(e) => setDescription(e.target.value)} />
             </Field>
           </div>

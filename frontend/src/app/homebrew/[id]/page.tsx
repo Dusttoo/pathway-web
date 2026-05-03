@@ -134,18 +134,27 @@ function SpellDetail({ entry }: { entry: HomebrewEntry }) {
 
 function MonsterDetail({ entry }: { entry: HomebrewEntry }) {
   const d = entry.data as Record<string, unknown>;
-  const core = (d.core ?? {}) as Record<string, unknown>;
-  const rich = (d.rich ?? {}) as Record<string, unknown>;
+  const core  = (d.core ?? {}) as Record<string, unknown>;
+  const rich  = (d.rich ?? {}) as Record<string, unknown>;
   const saves = (core.saves ?? {}) as Record<string, unknown>;
-  const mods = (rich.ability_modifiers ?? {}) as Record<string, unknown>;
+  const mods  = (rich.ability_modifiers ?? {}) as Record<string, unknown>;
   const speed = (rich.speed ?? {}) as Record<string, unknown>;
+  const defs  = (rich.defenses ?? {}) as Record<string, unknown>;
   const skills = (rich.skills ?? {}) as Record<string, number>;
-  const traits = (Array.isArray(core.traits) ? core.traits as string[] : []);
-  const senses = (Array.isArray(rich.senses) ? rich.senses as string[] : []);
+  const traits    = (Array.isArray(core.traits)    ? core.traits    as string[] : []);
+  const senses    = (Array.isArray(rich.senses)    ? rich.senses    as string[] : []);
   const languages = (Array.isArray(rich.languages) ? rich.languages as string[] : []);
+  const immunities  = (Array.isArray(defs.immunities)  ? defs.immunities  as string[] : []);
+  const weaknesses  = (Array.isArray(defs.weaknesses)  ? defs.weaknesses  as {type:string;value:number}[] : []);
+  const resistances = (Array.isArray(defs.resistances) ? defs.resistances as {type:string;value:number}[] : []);
+  const hpNotes = (Array.isArray(defs.hp_notes) ? defs.hp_notes as string[] : []);
+  const items      = (Array.isArray(rich.items) ? rich.items as string[] : []);
+  const attacks    = (Array.isArray(rich.attacks) ? rich.attacks as Record<string,unknown>[] : []);
+  const abils = (rich.abilities ?? {}) as { mid?: unknown };
+  const abilities  = (Array.isArray(abils.mid) ? abils.mid as Record<string,unknown>[] : []);
   const skillEntries = Object.entries(skills);
   const coreRarity = str(core.rarity);
-  const coreSize = str(core.size);
+  const coreSize   = str(core.size);
 
   return (
     <div className="space-y-4">
@@ -153,7 +162,7 @@ function MonsterDetail({ entry }: { entry: HomebrewEntry }) {
         {core.level != null && (
           <Badge className="bg-muted/60 text-muted-foreground border border-border">Level {str(core.level)}</Badge>
         )}
-        {coreSize && <Badge className="bg-muted/60 text-muted-foreground border border-border">{coreSize}</Badge>}
+        {coreSize   && <Badge className="bg-muted/60 text-muted-foreground border border-border">{coreSize}</Badge>}
         {coreRarity && <Badge className={rarityColor(coreRarity)}>{coreRarity}</Badge>}
         {traits.map((t) => (
           <Badge key={t} className="bg-muted/40 text-muted-foreground border border-border/50">{t}</Badge>
@@ -168,9 +177,31 @@ function MonsterDetail({ entry }: { entry: HomebrewEntry }) {
         </div>
         <div className="grid grid-cols-3 gap-4 py-2">
           <StatBlock label="Fortitude" value={num(saves.fort)} />
-          <StatBlock label="Reflex" value={num(saves.ref)} />
-          <StatBlock label="Will" value={num(saves.will)} />
+          <StatBlock label="Reflex"    value={num(saves.ref)}  />
+          <StatBlock label="Will"      value={num(saves.will)} />
         </div>
+        {(immunities.length > 0 || weaknesses.length > 0 || resistances.length > 0 || hpNotes.length > 0) && (
+          <div className="space-y-1.5 pt-2 border-t border-border">
+            {hpNotes.length > 0 && (
+              <p className="text-sm"><span className="font-medium text-muted-foreground">HP Notes</span>{" "}{hpNotes.join("; ")}</p>
+            )}
+            {immunities.length > 0 && (
+              <p className="text-sm"><span className="font-medium text-muted-foreground">Immunities</span>{" "}{immunities.join(", ")}</p>
+            )}
+            {weaknesses.length > 0 && (
+              <p className="text-sm">
+                <span className="font-medium text-muted-foreground">Weaknesses</span>{" "}
+                {weaknesses.map((w) => `${w.type} ${w.value}`).join(", ")}
+              </p>
+            )}
+            {resistances.length > 0 && (
+              <p className="text-sm">
+                <span className="font-medium text-muted-foreground">Resistances</span>{" "}
+                {resistances.map((r) => `${r.type} ${r.value}`).join(", ")}
+              </p>
+            )}
+          </div>
+        )}
       </SectionCard>
 
       {Object.values(mods).some((v) => v !== null && v !== undefined) ? (
@@ -198,11 +229,70 @@ function MonsterDetail({ entry }: { entry: HomebrewEntry }) {
 
       <SectionCard title="Movement, Senses & Languages">
         <div className="space-y-2">
-          {speed.land != null ? <Row label="Speed" value={`${str(speed.land)} feet`} /> : null}
-          {senses.length > 0 ? <Row label="Senses" value={senses.join(", ")} /> : null}
-          {languages.length > 0 ? <Row label="Languages" value={languages.join(", ")} /> : null}
+          {speed.land   != null && <Row label="Speed"  value={`${str(speed.land)} feet`}   />}
+          {speed.fly    != null && <Row label="Fly"    value={`${str(speed.fly)} feet`}     />}
+          {speed.burrow != null && <Row label="Burrow" value={`${str(speed.burrow)} feet`}  />}
+          {speed.swim   != null && <Row label="Swim"   value={`${str(speed.swim)} feet`}    />}
+          {speed.climb  != null && <Row label="Climb"  value={`${str(speed.climb)} feet`}   />}
+          {senses.length > 0    && <Row label="Senses"    value={senses.join(", ")}    />}
+          {languages.length > 0 && <Row label="Languages" value={languages.join(", ")} />}
         </div>
       </SectionCard>
+
+      {items.length > 0 ? (
+        <SectionCard title="Items">
+          <p className="text-sm">{items.join(", ")}</p>
+        </SectionCard>
+      ) : null}
+
+      {attacks.length > 0 ? (
+        <SectionCard title="Attacks">
+          <div className="space-y-2">
+            {attacks.map((a, i) => {
+              const atTraits = Array.isArray(a.traits) ? (a.traits as string[]).join(", ") : str(a.traits);
+              return (
+                <div key={i} className="text-sm">
+                  <span className="font-medium">{str(a.type)} </span>
+                  <span className="font-semibold">{str(a.name)}</span>
+                  {a.bonus != null && (
+                    <span className="text-muted-foreground"> {Number(a.bonus) >= 0 ? `+${a.bonus}` : str(a.bonus)}</span>
+                  )}
+                  {atTraits && <span className="text-muted-foreground"> ({atTraits})</span>}
+                  {!!a.damage && <span>, <span className="font-medium">Damage</span> {str(a.damage)}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </SectionCard>
+      ) : null}
+
+      {abilities.length > 0 ? (
+        <SectionCard title="Special Abilities">
+          <div className="space-y-4">
+            {abilities.map((a, i) => {
+              const abTraits = Array.isArray(a.traits) ? (a.traits as string[]).join(", ") : str(a.traits);
+              return (
+                <div key={i}>
+                  <p className="text-sm font-semibold">
+                    {str(a.name)}
+                    {!!a.cost && a.cost !== "Passive" && (
+                      <span className="font-normal text-muted-foreground ml-1">({str(a.cost)})</span>
+                    )}
+                    {abTraits && (
+                      <span className="font-normal text-muted-foreground ml-1 text-xs">[{abTraits}]</span>
+                    )}
+                  </p>
+                  {!!a.description && (
+                    <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed whitespace-pre-wrap">
+                      {str(a.description)}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </SectionCard>
+      ) : null}
 
       {rich.description ? (
         <SectionCard title="Description">
