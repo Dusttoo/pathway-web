@@ -13,6 +13,7 @@ import {
   CalendarDays, BookOpen, RefreshCw, Plus, Trash2, X,
   Package, Inbox, ExternalLink,
 } from "lucide-react";
+import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -779,7 +780,12 @@ function AddItemForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <label className="text-xs text-muted-foreground mb-1 block">Item Name</label>
-          <input className="input text-sm" placeholder="e.g. Healing Potion" value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
+          <ItemSearchCombobox
+            value={name}
+            onChange={setName}
+            placeholder="Search or enter item name…"
+            autoFocus
+          />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Quantity</label>

@@ -16,7 +16,6 @@ import {
   MessageSquare,
   Sword,
   ScrollText,
-  Package,
   Zap,
   Wand2,
 } from "lucide-react";
@@ -35,7 +34,6 @@ const navItems: NavItem[] = [
   { name: "Characters", href: "/characters", icon: Swords },
   { name: "Combat", href: "/combat", icon: Sword },
   { name: "Sessions", href: "/sessions", icon: ScrollText },
-  { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Snippets", href: "/snippets", icon: Zap },
   { name: "Library", href: "/library", icon: BookOpen },
   { name: "Homebrew", href: "/homebrew", icon: Wand2 },
