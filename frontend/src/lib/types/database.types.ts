@@ -1,3 +1,45 @@
+npm warn exec The following package was not found and will be installed: supabase@2.98.2
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'agent-base@9.0.0',
+npm warn EBADENGINE   required: { node: '>= 20' },
+npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'bin-links@6.0.0',
+npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'cmd-shim@8.0.0',
+npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'https-proxy-agent@9.0.0',
+npm warn EBADENGINE   required: { node: '>= 20' },
+npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'npm-normalize-package-bin@5.0.0',
+npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'proc-log@6.1.0',
+npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'read-cmd-shim@6.0.0',
+npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'write-file-atomic@7.0.0',
+npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
+npm warn EBADENGINE }
+Using workdir /Users/dusty/pathfinder_bot/web
 export type Json =
   | string
   | number
@@ -481,6 +523,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "characters_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companions: {
+        Row: {
+          base_type: string
+          char_key: string
+          comp_key: string
+          created_at: string
+          current_hp: number | null
+          custom_stats: Json | null
+          display_name: string
+          form: string
+          id: string
+          is_active: boolean
+          notes: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_type: string
+          char_key: string
+          comp_key: string
+          created_at?: string
+          current_hp?: number | null
+          custom_stats?: Json | null
+          display_name: string
+          form?: string
+          id?: string
+          is_active?: boolean
+          notes?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_type?: string
+          char_key?: string
+          comp_key?: string
+          created_at?: string
+          current_hp?: number | null
+          custom_stats?: Json | null
+          display_name?: string
+          form?: string
+          id?: string
+          is_active?: boolean
+          notes?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -1501,3 +1599,9 @@ export const Constants = {
     Enums: {},
   },
 } as const
+<claude-code-hint v="1" type="plugin" value="supabase@claude-plugins-official" />
+npm notice
+npm notice New major version of npm available! 10.8.2 -> 11.13.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.13.0
+npm notice To update run: npm install -g npm@11.13.0
+npm notice
