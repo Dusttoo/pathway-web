@@ -23,11 +23,11 @@ async function resolveOwnership(id: string) {
 
   const { data: dbUser } = await service
     .from("users")
-    .select("is_admin")
+    .select("is_admin, discord_id")
     .eq("id", authUser.id)
     .maybeSingle();
 
-  const canWrite = entry.added_by === authUser.id || !!dbUser?.is_admin;
+  const canWrite = entry.added_by === dbUser?.discord_id || !!dbUser?.is_admin;
 
   return { entry, canWrite, service } as const;
 }
