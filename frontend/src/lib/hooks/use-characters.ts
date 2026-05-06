@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import type { Tables } from "@/lib/types/database.types";
+import type { CharacterOverlay } from "@/lib/types/bot-integration";
 import { createClient } from "@/lib/supabase/client";
 
 type Character = Tables<"characters">;
@@ -123,6 +124,62 @@ export function useDiscordGuilds() {
     },
     staleTime: 5 * 60_000,
     retry: false,
+  });
+}
+
+// ── Live stat mutations (HP, hero points, dying, wounded, overlay) ────────────
+
+export type PatchCharacterPayload = {
+  current_hp?:  number;
+  hero_points?: number;
+  dying?:       number;
+  wounded?:     number;
+  overlay?: Partial<CharacterOverlay>;
+};
+
+export function useUpdateCharacter(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation<Character, Error, PatchCharacterPayload, { prev: Character | undefined }>({
+    mutationFn: async (body) => {
+      const res = await fetch(`/api/characters/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error ?? res.statusText);
+      }
+      return res.json();
+    },
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey: characterKeys.detail(id) });
+      const prev = queryClient.getQueryData<Character>(characterKeys.detail(id));
+      queryClient.setQueryData<Character>(characterKeys.detail(id), (old) => {
+        if (!old) return old;
+        const existingOverlay = ((old as unknown as { overlay: CharacterOverlay }).overlay ?? {}) as CharacterOverlay;
+        const overlayPatch    = (vars.overlay ?? {}) as Partial<CharacterOverlay>;
+        return {
+          ...old,
+          ...(vars.current_hp  !== undefined && { current_hp:  vars.current_hp  }),
+          ...(vars.hero_points !== undefined && { hero_points: vars.hero_points }),
+          ...(vars.dying       !== undefined && { dying:       vars.dying       }),
+          ...(vars.wounded     !== undefined && { wounded:     vars.wounded     }),
+          overlay: {
+            ...existingOverlay,
+            ...overlayPatch,
+            daily: { ...existingOverlay.daily, ...overlayPatch.daily },
+          },
+        } as unknown as Character;
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(characterKeys.detail(id), context.prev);
+      }
+    },
+    // No invalidateQueries — Realtime subscription keeps the cache fresh.
   });
 }
 

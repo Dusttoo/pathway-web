@@ -16,7 +16,6 @@ export async function GET(request: Request) {
     .from("monsters")
     .select("id, name, level, size, creature_type, alignment, rarity, hp, ac, is_companion, source", { count: "exact" })
     .eq("is_official", true)
-    .order("level", { ascending: true })
     .order("name", { ascending: true })
     .range(offset, offset + limit - 1);
 

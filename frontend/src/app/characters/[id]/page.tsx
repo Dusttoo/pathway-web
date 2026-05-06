@@ -5,7 +5,9 @@ import { HealthBar } from "@/components/characters/HealthBar";
 import { useCharacterLive, useSyncCharacter } from "@/lib/hooks/use-characters";
 import { useCharacterDowntime, downtimeKeys, type DowntimeLogEntry } from "@/lib/hooks/use-downtime";
 import { useCharacterNotes, NOTE_CATEGORIES, NOTE_CATEGORY_ORDER, notesKeys, type BotNote } from "@/lib/hooks/use-notes";
-import { useCompanions } from "@/lib/hooks/use-companions";
+import { useCompanions, useUpdateCompanion } from "@/lib/hooks/use-companions";
+import { useUpdateCharacter } from "@/lib/hooks/use-characters";
+import { NumberStepper, InlineSelect, InlineTextarea } from "@/components/characters";
 import { useBag, bagKeys, type BagCategories, type BagItem } from "@/lib/hooks/use-bag";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay, BotCompanion } from "@/lib/types/bot-integration";
@@ -444,33 +446,66 @@ function companionMaxHp(comp: BotCompanion, charLevel: number): number | null {
   return (base + con + 1) * charLevel;
 }
 
-function CompanionCard({ comp, charLevel }: { comp: BotCompanion; charLevel: number }) {
+const COMPANION_FORM_OPTIONS = [
+  { value: "young",   label: "Young"   },
+  { value: "mature",  label: "Mature"  },
+  { value: "nimble",  label: "Nimble"  },
+  { value: "savage",  label: "Savage"  },
+];
+
+function CompanionCard({
+  comp,
+  compId,
+  charLevel,
+  updateMutation,
+}: {
+  comp: BotCompanion;
+  compId: string;
+  charLevel: number;
+  updateMutation: ReturnType<typeof useUpdateCompanion>;
+}) {
   const maxHp  = companionMaxHp(comp, charLevel);
   const curHp  = comp.currentHp;
   const hpPct  = maxHp && curHp !== null ? Math.max(0, Math.min(100, (curHp / maxHp) * 100)) : null;
+  const isPending = updateMutation.isPending && (updateMutation.variables as { compId: string })?.compId === compId;
+
   return (
-    <div className="p-3 bg-muted/40 rounded-lg space-y-2">
-      <div className="flex items-center justify-between">
+    <div className="p-4 bg-muted/40 rounded-lg space-y-3">
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-semibold text-sm">{comp.displayName}</p>
-          <p className="text-xs text-muted-foreground capitalize">{comp.baseType.replace(/-/g, " ")} · {comp.form}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-xs text-muted-foreground capitalize">{comp.baseType.replace(/-/g, " ")} ·</span>
+            <InlineSelect
+              value={comp.form}
+              options={COMPANION_FORM_OPTIONS}
+              onCommit={(form) => updateMutation.mutate({ compId, form })}
+              isPending={isPending}
+              aria-label="Companion form"
+            />
+          </div>
         </div>
+
+        {/* HP display */}
         {curHp !== null ? (
           maxHp ? (
-            <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
-              curHp === 0 ? "text-destructive bg-destructive/10"
+            <span className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
+              curHp === 0        ? "text-destructive bg-destructive/10"
               : curHp / maxHp < 0.3 ? "text-orange-400 bg-orange-500/10"
               : "text-green-400 bg-green-500/10"
             }`}>{curHp}/{maxHp} HP</span>
           ) : (
-            <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
+            <span className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
               curHp === 0 ? "text-destructive bg-destructive/10" : "text-green-400 bg-green-500/10"
             }`}>{curHp} HP</span>
           )
         ) : (
-          <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted">Not in combat</span>
+          <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted shrink-0">Not in combat</span>
         )}
       </div>
+
+      {/* HP bar */}
       {hpPct !== null && (
         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
           <div
@@ -479,7 +514,37 @@ function CompanionCard({ comp, charLevel }: { comp: BotCompanion; charLevel: num
           />
         </div>
       )}
-      {comp.notes && <p className="text-xs text-muted-foreground italic">{comp.notes}</p>}
+
+      {/* HP stepper */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">HP</span>
+        <NumberStepper
+          value={curHp ?? 0}
+          min={0}
+          max={maxHp ?? undefined}
+          onCommit={(v) => updateMutation.mutate({ compId, current_hp: v })}
+          isPending={isPending}
+        />
+        {curHp !== null && (
+          <button
+            onClick={() => updateMutation.mutate({ compId, current_hp: null })}
+            disabled={isPending}
+            className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors ml-1"
+            title="Clear HP (not in combat)"
+          >
+            clear
+          </button>
+        )}
+      </div>
+
+      {/* Notes */}
+      <InlineTextarea
+        value={comp.notes ?? ""}
+        placeholder="Add companion notes…"
+        emptyText="No notes."
+        onCommit={(notes) => updateMutation.mutate({ compId, notes })}
+        isPending={isPending}
+      />
     </div>
   );
 }
@@ -1258,9 +1323,12 @@ export default function CharacterDetailPage() {
   const charKey = character ? (character as unknown as { char_key: string | null }).char_key : null;
   const { data: downtime }    = useCharacterDowntime(charKey);
   const { data: notesRecord } = useCharacterNotes(charKey);
-  const { companions, companionRows } = useCompanions(characterId, {
+  const { companions, companionRows } = useCompanions(characterId, charKey, {
     enabled: !!characterId && !!user,
   });
+
+  const updateCharacter  = useUpdateCharacter(characterId);
+  const updateCompanion  = useUpdateCompanion(characterId);
 
   if (isLoading) {
     return (
@@ -1389,13 +1457,37 @@ export default function CharacterDetailPage() {
           </div>
 
           {hasLiveHp && maxHp ? (
-            <HealthBar currentHp={currentHp!} maxHp={maxHp} size="lg" />
-          ) : maxHp ? (
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-muted-foreground/20 rounded-full w-full" />
+            <div className="space-y-2">
+              <HealthBar currentHp={currentHp!} maxHp={maxHp} size="lg" />
+              <div className="flex items-center gap-3 pt-1">
+                <span className="text-xs text-muted-foreground">Adjust HP</span>
+                <NumberStepper
+                  value={currentHp!}
+                  min={0}
+                  max={maxHp}
+                  onCommit={(v) => updateCharacter.mutate({ current_hp: v })}
+                  isPending={updateCharacter.isPending}
+                />
               </div>
-              <span className="text-xs text-muted-foreground shrink-0">Max {maxHp} HP</span>
+            </div>
+          ) : maxHp ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-muted-foreground/20 rounded-full w-full" />
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">Max {maxHp} HP</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">Set HP</span>
+                <NumberStepper
+                  value={0}
+                  min={0}
+                  max={maxHp}
+                  onCommit={(v) => updateCharacter.mutate({ current_hp: v })}
+                  isPending={updateCharacter.isPending}
+                />
+              </div>
             </div>
           ) : (
             <div className="text-xs text-muted-foreground italic flex items-center gap-1.5">
@@ -1435,7 +1527,26 @@ export default function CharacterDetailPage() {
           )}
 
           <div className="space-y-2">
-            <PipRow count={heroPoints} max={3} color="bg-yellow-400" label="Hero Points" />
+            {/* Hero points — each pip is a button to set the value */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-24 shrink-0">Hero Points</span>
+              <div className="flex gap-1">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => updateCharacter.mutate({ hero_points: i < heroPoints ? i : i + 1 })}
+                    disabled={updateCharacter.isPending}
+                    title={`Set hero points to ${i < heroPoints ? i : i + 1}`}
+                    className={`w-4 h-4 rounded-full border-2 transition-all hover:scale-110 disabled:cursor-not-allowed ${
+                      i < heroPoints
+                        ? "bg-yellow-400 border-transparent hover:bg-yellow-300"
+                        : "border-muted-foreground/30 bg-transparent hover:border-yellow-400/50"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-xs text-muted-foreground tabular-nums">{heroPoints}/3</span>
+            </div>
             {focusMax > 0 && (
               <PipRow count={Math.max(0, focusMax - focusSpent)} max={focusMax} color="bg-blue-400" label="Focus Pool" />
             )}
@@ -1521,12 +1632,14 @@ export default function CharacterDetailPage() {
             {tab === "notes"    && <NotesTabPanel characterId={characterId} notesRecord={notesRecord} />}
             {tab === "downtime" && <DowntimeTabPanel characterId={characterId} downtime={downtime} />}
             {tab === "companions" && hasCompanions && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {companions.map((comp, i) => (
                   <CompanionCard
                     key={companionRows[i]?.comp_key ?? i}
                     comp={comp}
+                    compId={companionRows[i]?.id ?? ""}
                     charLevel={level}
+                    updateMutation={updateCompanion}
                   />
                 ))}
               </div>
