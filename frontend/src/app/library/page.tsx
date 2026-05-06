@@ -31,7 +31,7 @@ const LEGACY_TABS = new Set<Tab>(["ancestries", "classes", "spells", "feats", "b
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 /** Fetch legacy content tabs (ancestries, classes, spells, feats, backgrounds) */
-function useContent(tab: LegacyTab, q: string, page: number) {
+function useContent(tab: LegacyTab, q: string, page: number, enabled = true) {
   return useQuery({
     queryKey: ["library", tab, q, page],
     queryFn: async () => {
@@ -41,6 +41,7 @@ function useContent(tab: LegacyTab, q: string, page: number) {
       if (!res.ok) throw new Error(await res.text());
       return res.json() as Promise<{ data: Row[]; total: number; page: number; limit: number }>;
     },
+    enabled,
   });
 }
 
@@ -93,26 +94,21 @@ function LegacyCard({ item, tab }: { item: Row; tab: LegacyTab }) {
 type MonsterRow = Tables<"monsters">;
 
 function MonsterCard({ monster }: { monster: MonsterRow }) {
-  const meta = monster.monster_metadata as Record<string, unknown> | null;
-  const rarity = str(meta?.rarity ?? monster.rarity);
-  const creatureType = str(meta?.creature_type ?? "");
+  // NOTE: the API select() does NOT include monster_metadata — read from columns directly
+  const rarity       = str(monster.rarity ?? "");
+  const creatureType = str(monster.creature_type ?? "");
   return (
     <div className="card p-5">
       <div className="flex items-start justify-between mb-2">
         <p className="font-semibold">{monster.name}</p>
-        <div className="flex gap-1 ml-2 shrink-0">
-          {rarity && rarity !== "Common" && (
-            <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{rarity}</span>
-          )}
-        </div>
+        {rarity && rarity !== "Common" && (
+          <span className="text-xs bg-muted px-2 py-0.5 rounded-full ml-2 shrink-0">{rarity}</span>
+        )}
       </div>
-      <p className="text-xs text-muted-foreground mb-2">
+      <p className="text-xs text-muted-foreground">
         Level {monster.level ?? "?"}
         {creatureType ? ` · ${creatureType}` : ""}
         {monster.is_companion ? " · Companion" : ""}
-      </p>
-      <p className="text-sm text-muted-foreground line-clamp-2">
-        {str(meta?.description ?? "") || "—"}
       </p>
     </div>
   );
@@ -220,10 +216,13 @@ function LibraryContent() {
 
   // ── Data fetching ───────────────────────────────────────────────────────────
 
+  const isLegacy = LEGACY_TABS.has(tab);
+
   const legacyResult = useContent(
     tab as LegacyTab,
     search,
     page,
+    isLegacy, // don't fire for monsters/items tabs
   );
 
   const monstersResult = useMonsters(
@@ -237,7 +236,6 @@ function LibraryContent() {
   );
 
   // Unify loading / data across tabs
-  const isLegacy = LEGACY_TABS.has(tab);
   const isLoading = isLegacy
     ? legacyResult.isLoading
     : tab === "monsters"
@@ -352,6 +350,12 @@ function LibraryContent() {
 
           {/* Monsters tab */}
           {tab === "monsters" && (() => {
+            if (monstersResult.error) return (
+              <div className="card text-center py-12">
+                <p className="text-destructive text-sm font-medium mb-1">Failed to load monsters</p>
+                <p className="text-muted-foreground text-xs">{monstersResult.error.message}</p>
+              </div>
+            );
             const monsters = monstersResult.data?.data ?? [];
             return monsters.length === 0 ? (
               <div className="card text-center py-12">
@@ -371,6 +375,12 @@ function LibraryContent() {
 
           {/* Items tab */}
           {tab === "items" && (() => {
+            if (itemsResult.error) return (
+              <div className="card text-center py-12">
+                <p className="text-destructive text-sm font-medium mb-1">Failed to load items</p>
+                <p className="text-muted-foreground text-xs">{itemsResult.error.message}</p>
+              </div>
+            );
             const items = itemsResult.data?.data ?? [];
             return items.length === 0 ? (
               <div className="card text-center py-12">
