@@ -1,45 +1,3 @@
-npm warn exec The following package was not found and will be installed: supabase@2.98.2
-npm warn EBADENGINE Unsupported engine {
-npm warn EBADENGINE   package: 'agent-base@9.0.0',
-npm warn EBADENGINE   required: { node: '>= 20' },
-npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
-npm warn EBADENGINE }
-npm warn EBADENGINE Unsupported engine {
-npm warn EBADENGINE   package: 'bin-links@6.0.0',
-npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
-npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
-npm warn EBADENGINE }
-npm warn EBADENGINE Unsupported engine {
-npm warn EBADENGINE   package: 'cmd-shim@8.0.0',
-npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
-npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
-npm warn EBADENGINE }
-npm warn EBADENGINE Unsupported engine {
-npm warn EBADENGINE   package: 'https-proxy-agent@9.0.0',
-npm warn EBADENGINE   required: { node: '>= 20' },
-npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
-npm warn EBADENGINE }
-npm warn EBADENGINE Unsupported engine {
-npm warn EBADENGINE   package: 'npm-normalize-package-bin@5.0.0',
-npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
-npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
-npm warn EBADENGINE }
-npm warn EBADENGINE Unsupported engine {
-npm warn EBADENGINE   package: 'proc-log@6.1.0',
-npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
-npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
-npm warn EBADENGINE }
-npm warn EBADENGINE Unsupported engine {
-npm warn EBADENGINE   package: 'read-cmd-shim@6.0.0',
-npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
-npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
-npm warn EBADENGINE }
-npm warn EBADENGINE Unsupported engine {
-npm warn EBADENGINE   package: 'write-file-atomic@7.0.0',
-npm warn EBADENGINE   required: { node: '^20.17.0 || >=22.9.0' },
-npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
-npm warn EBADENGINE }
-Using workdir /Users/dusty/pathfinder_bot/web
 export type Json =
   | string
   | number
@@ -1431,7 +1389,7 @@ export type Database = {
           discord_avatar: string | null
           discord_discriminator: string | null
           discord_id: string
-          discord_username: string
+          discord_username: string | null
           email: string | null
           id: string
           is_admin: boolean
@@ -1442,7 +1400,7 @@ export type Database = {
           discord_avatar?: string | null
           discord_discriminator?: string | null
           discord_id: string
-          discord_username: string
+          discord_username?: string | null
           email?: string | null
           id?: string
           is_admin?: boolean
@@ -1453,7 +1411,7 @@ export type Database = {
           discord_avatar?: string | null
           discord_discriminator?: string | null
           discord_id?: string
-          discord_username?: string
+          discord_username?: string | null
           email?: string | null
           id?: string
           is_admin?: boolean
@@ -1599,9 +1557,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-<claude-code-hint v="1" type="plugin" value="supabase@claude-plugins-official" />
-npm notice
-npm notice New major version of npm available! 10.8.2 -> 11.13.0
-npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.13.0
-npm notice To update run: npm install -g npm@11.13.0
-npm notice
