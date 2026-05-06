@@ -13,9 +13,15 @@ type MonsterParams = {
   limit?: number;
 };
 
+export const monsterKeys = {
+  all:    ["monsters"] as const,
+  list:   (p: MonsterParams) => [...monsterKeys.all, "list", p] as const,
+  detail: (id: string)       => [...monsterKeys.all, "detail", id] as const,
+};
+
 export function useMonsters(params: MonsterParams = {}, options?: { enabled?: boolean }) {
   return useQuery<MonsterPage, Error>({
-    queryKey: ["monsters", "list", params],
+    queryKey: monsterKeys.list(params),
     queryFn: async () => {
       const qs = new URLSearchParams();
       if (params.q) qs.set("q", params.q);
@@ -34,7 +40,7 @@ export function useMonsters(params: MonsterParams = {}, options?: { enabled?: bo
 
 export function useMonster(id: string, options?: { enabled?: boolean }) {
   return useQuery<Monster, Error>({
-    queryKey: ["monsters", "detail", id],
+    queryKey: monsterKeys.detail(id),
     queryFn: async () => {
       const res = await fetch(`/api/content/monsters/${id}`);
       if (!res.ok) throw new Error(await res.text());

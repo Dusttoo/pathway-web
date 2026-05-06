@@ -5,6 +5,7 @@ import { HealthBar } from "@/components/characters/HealthBar";
 import { useCharacterLive, useSyncCharacter } from "@/lib/hooks/use-characters";
 import { useCharacterDowntime, downtimeKeys, type DowntimeLogEntry } from "@/lib/hooks/use-downtime";
 import { useCharacterNotes, NOTE_CATEGORIES, NOTE_CATEGORY_ORDER, notesKeys, type BotNote } from "@/lib/hooks/use-notes";
+import { useCompanions } from "@/lib/hooks/use-companions";
 import { useBag, bagKeys, type BagCategories, type BagItem } from "@/lib/hooks/use-bag";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay, BotCompanion } from "@/lib/types/bot-integration";
@@ -1257,6 +1258,9 @@ export default function CharacterDetailPage() {
   const charKey = character ? (character as unknown as { char_key: string | null }).char_key : null;
   const { data: downtime }    = useCharacterDowntime(charKey);
   const { data: notesRecord } = useCharacterNotes(charKey);
+  const { companions, companionRows } = useCompanions(characterId, {
+    enabled: !!characterId && !!user,
+  });
 
   if (isLoading) {
     return (
@@ -1301,7 +1305,8 @@ export default function CharacterDetailPage() {
   );
 
   const profs         = build?.proficiencies ?? {};
-  const hasCompanions = overlay.companions && Object.keys(overlay.companions).length > 0;
+  // Companions come from the dedicated `companions` table via useCompanions()
+  const hasCompanions = companions.length > 0;
 
   type TabDef = { key: TabKey; label: string };
   const tabs: TabDef[] = [
@@ -1517,8 +1522,12 @@ export default function CharacterDetailPage() {
             {tab === "downtime" && <DowntimeTabPanel characterId={characterId} downtime={downtime} />}
             {tab === "companions" && hasCompanions && (
               <div className="space-y-2">
-                {Object.entries(overlay.companions!).map(([key, comp]) => (
-                  <CompanionCard key={key} comp={comp} charLevel={level} />
+                {companions.map((comp, i) => (
+                  <CompanionCard
+                    key={companionRows[i]?.comp_key ?? i}
+                    comp={comp}
+                    charLevel={level}
+                  />
                 ))}
               </div>
             )}

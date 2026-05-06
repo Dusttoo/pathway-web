@@ -93,7 +93,8 @@ export interface CharacterOverlay {
     slots_used: Record<string, Record<string, number>>;
     last_rest_at: string | null;
   };
-  companions?: Record<string, BotCompanion>;
+  // NOTE: companions are no longer stored in overlay — they live in the
+  // dedicated `companions` table. Use useCompanions() from use-companions.ts.
 }
 
 export interface CharacterLiveFields {
