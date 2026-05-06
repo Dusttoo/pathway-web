@@ -42,6 +42,9 @@ export async function GET(
 
   if (!character) return NextResponse.json({ error: "Character not found" }, { status: 404 });
 
+  // char_key is null for web-only characters that the bot hasn't synced yet — no companions possible.
+  if (!character.char_key) return NextResponse.json({ data: [] });
+
   const { data: companions, error } = await service
     .from("companions")
     .select("*")
