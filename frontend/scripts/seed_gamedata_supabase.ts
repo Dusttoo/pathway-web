@@ -246,6 +246,41 @@ async function main() {
     console.log(`  ✓ harvest_rewards: ${n}/${harvestRows.length} rows`);
   }
 
+  // Seed single-document config files as one row each
+  function seedSingleDocument(category: string, filename: string, slug: string): GamedataRow[] {
+    const data = load<Record<string, unknown>>(filename);
+    // Strip _meta key — it's documentation, not runtime data
+    const { _meta: _, ...rest } = data as { _meta?: unknown } & Record<string, unknown>;
+    return [{ category, slug, name: slug, data: rest }];
+  }
+
+  // Spell effects (slug = spell name)
+  const spellEffectRows = seedTopLevelSlugMap("spell_effects", "spell-effects.json");
+  if (spellEffectRows.length) {
+    const n = await upsertBatches(spellEffectRows);
+    console.log(`  ✓ spell_effects: ${n}/${spellEffectRows.length} rows`);
+  }
+
+  // Calendar rules (one row per calendar variant)
+  const calendarRows = [
+    ...seedSingleDocument("calendar_rules", "calendar.json", "golarion"),
+    ...seedSingleDocument("calendar_rules", "eberron-calendar.json", "eberron"),
+  ];
+  if (calendarRows.length) {
+    const n = await upsertBatches(calendarRows);
+    console.log(`  ✓ calendar_rules: ${n}/${calendarRows.length} rows`);
+  }
+
+  // Weather rules (one row per setting)
+  const weatherRows = [
+    ...seedSingleDocument("weather_rules", "weather.json", "golarion"),
+    ...seedSingleDocument("weather_rules", "eberron-weather.json", "eberron"),
+  ];
+  if (weatherRows.length) {
+    const n = await upsertBatches(weatherRows);
+    console.log(`  ✓ weather_rules: ${n}/${weatherRows.length} rows`);
+  }
+
   console.log("\n✓ Gamedata seeding complete!");
 }
 
