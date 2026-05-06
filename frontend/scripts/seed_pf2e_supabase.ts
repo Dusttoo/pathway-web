@@ -292,7 +292,8 @@ async function seedSpells() {
       rarity: String(s.rarity ?? "Common"),
       source: String(s.source ?? ""),
       is_official: true,
-      spell_metadata: {},
+      // Full spell object for the bot — loaded at startup into spellDatabase
+      spell_metadata: s as Record<string, unknown>,
     };
   });
   await insertBatches("spells", rows);
@@ -316,7 +317,8 @@ async function seedItems() {
     usage: item.usage ? String(item.usage) : null,
     source: String(item.source ?? ""),
     is_official: true,
-    item_metadata: {},
+    // Full item object for the bot — loaded at startup into itemDatabase
+    item_metadata: item as Record<string, unknown>,
   }));
   await insertBatches("items", rows);
 }
@@ -326,7 +328,9 @@ async function seedBestiary() {
   const data = load<Record<string, unknown>>("bestiary.json");
   const creatures = data.creatures as Record<string, Record<string, unknown>>;
 
-  const toMonsterRow = (m: Record<string, unknown>, isCompanion: boolean) => {
+  // key is the creature's lookup slug (e.g. "goblin"). It is passed in so
+  // monster_metadata can include it — the bot indexes bestiaryDatabase by key.
+  const toMonsterRow = (key: string, m: Record<string, unknown>, isCompanion: boolean) => {
     // core.saves is { fort, ref, will }; rich.defenses may hold similar data
     const saves = (m.saves ?? m.defenses) as Record<string, number> | null;
     const speedRaw = m.speed;
@@ -368,22 +372,24 @@ async function seedBestiary() {
         ? String(typeof m.source === "object" ? JSON.stringify(m.source) : m.source)
         : null,
       is_official: true,
-      monster_metadata: {},
+      // Full creature object for the bot — loaded at startup into bestiaryDatabase.
+      // key is included so the bot can index as bestiaryDatabase[monster_metadata.key].
+      monster_metadata: { key, ...m } as Record<string, unknown>,
     };
   };
 
-  const bestiaryRows = Object.values(creatures).map((c) => {
+  const bestiaryRows = Object.entries(creatures).map(([key, c]) => {
     const core = (c.core ?? {}) as Record<string, unknown>;
     const rich = (c.rich ?? {}) as Record<string, unknown>;
     // name lives at the top-level creature entry, not in core/rich
-    return toMonsterRow({ name: c.name, source: c.source, ...core, ...rich }, false);
+    return toMonsterRow(key, { name: c.name, source: c.source, ...core, ...rich }, false);
   });
   await insertBatches("monsters", bestiaryRows);
 
   // Companions — nested under .companions key
   const compData = load<Record<string, unknown>>("companions.json");
   const companions = compData.companions as Record<string, Record<string, unknown>>;
-  const companionRows = Object.values(companions).map((c) => toMonsterRow(c, true));
+  const companionRows = Object.entries(companions).map(([key, c]) => toMonsterRow(key, c, true));
   await insertBatches("monsters", companionRows);
 }
 
