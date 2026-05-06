@@ -112,6 +112,54 @@ function seedArray(
     .filter((r) => r.slug);
 }
 
+// ancestries.json and archetypes.json are flat top-level slug maps
+// (entries live at the root, not under a wrapper key).
+function seedTopLevelSlugMap(
+  category: string,
+  filename: string
+): GamedataRow[] {
+  const file = load<Record<string, Record<string, unknown>>>(filename);
+  return Object.entries(file)
+    .filter(([slug]) => !slug.startsWith("_"))
+    .map(([slug, entry]) => ({
+      category,
+      slug,
+      name: (entry?.name as string) ?? null,
+      data: entry,
+    }))
+    .filter((r) => r.slug);
+}
+
+// feats.json is a top-level array (no wrapper object).
+// Uses aon_id as slug (stable across name changes).
+function seedTopLevelFeatArray(category: string, filename: string): GamedataRow[] {
+  const feats = load<Array<Record<string, unknown>>>(filename);
+  if (!Array.isArray(feats)) {
+    console.warn(`  ⚠ ${filename}: expected top-level array`);
+    return [];
+  }
+  return feats
+    .filter((f) => f && typeof f === "object")
+    .map((f) => {
+      const slug = (f.aon_id as string) || toSlug((f.lookup_name as string) ?? (f.name as string) ?? "");
+      return { category, slug, name: (f.name as string) ?? null, data: f };
+    })
+    .filter((r) => r.slug);
+}
+
+// harvest-rewards.json stores one row per creature type in the gamedata table.
+// type_name is embedded in each row so the loader can reconstruct the original key.
+function seedHarvestRewardsRows(category: string, filename: string): GamedataRow[] {
+  const file = load<{ creature_types?: Record<string, Record<string, unknown>> }>(filename);
+  const creatureTypes = file.creature_types ?? {};
+  return Object.entries(creatureTypes).map(([typeName, entry]) => ({
+    category,
+    slug: toSlug(typeName),
+    name: typeName,
+    data: { type_name: typeName, ...entry },
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Per-file seeders
 // ---------------------------------------------------------------------------
@@ -168,7 +216,35 @@ async function main() {
   await seedCategory("vehicles",        "vehicles.json",        "vehicles");
 
   // Array format (top-level value is an array, not a slug-keyed object)
-  await seedCategory("deities", "deities.json", "deities", "array");
+  await seedCategory("deities",        "deities.json",        "deities", "array");
+  await seedCategory("eberron_deities","eberron-deities.json","deities", "array");
+  await seedCategory("eberron_houses", "eberron-houses.json", "houses",  "array");
+
+  // Top-level slug maps (entries live at root, no wrapper key)
+  const ancestryRows = seedTopLevelSlugMap("ancestries", "ancestries.json");
+  if (ancestryRows.length) {
+    const n = await upsertBatches(ancestryRows);
+    console.log(`  ✓ ancestries: ${n}/${ancestryRows.length} rows`);
+  }
+  const archetypeRows = seedTopLevelSlugMap("archetypes", "archetypes.json");
+  if (archetypeRows.length) {
+    const n = await upsertBatches(archetypeRows);
+    console.log(`  ✓ archetypes: ${n}/${archetypeRows.length} rows`);
+  }
+
+  // Feats — top-level array, keyed by aon_id
+  const featRows = seedTopLevelFeatArray("feats", "feats.json");
+  if (featRows.length) {
+    const n = await upsertBatches(featRows);
+    console.log(`  ✓ feats: ${n}/${featRows.length} rows`);
+  }
+
+  // Harvest rewards — one row per creature type
+  const harvestRows = seedHarvestRewardsRows("harvest_rewards", "harvest-rewards.json");
+  if (harvestRows.length) {
+    const n = await upsertBatches(harvestRows);
+    console.log(`  ✓ harvest_rewards: ${n}/${harvestRows.length} rows`);
+  }
 
   console.log("\n✓ Gamedata seeding complete!");
 }
