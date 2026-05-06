@@ -91,6 +91,7 @@ function seedSlugMap(
 }
 
 // For files where the top-level value is an array (e.g. deities)
+// Deduplicates by slug, keeping the last occurrence (newer/remaster entry wins).
 function seedArray(
   category: string,
   filename: string,
@@ -102,7 +103,7 @@ function seedArray(
     console.warn(`  ⚠ ${filename}: expected array at key "${topKey}"`);
     return [];
   }
-  return arr
+  const rows = arr
     .filter((entry) => entry && typeof entry === "object")
     .map((entry) => {
       const name = (entry.name as string) ?? "";
@@ -110,6 +111,16 @@ function seedArray(
       return { category, slug, name: name || null, data: entry };
     })
     .filter((r) => r.slug);
+
+  // Deduplicate: last-wins (avoids "ON CONFLICT DO UPDATE command cannot affect
+  // row a second time" when two entries share the same slug in one batch).
+  const seen = new Map<string, GamedataRow>();
+  for (const row of rows) seen.set(row.slug, row);
+  const deduped = Array.from(seen.values());
+  if (deduped.length < rows.length) {
+    console.warn(`  ⚠ ${filename}: deduplicated ${rows.length - deduped.length} duplicate slug(s)`);
+  }
+  return deduped;
 }
 
 // ancestries.json and archetypes.json are flat top-level slug maps
