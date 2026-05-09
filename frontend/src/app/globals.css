@@ -1,9 +1,7 @@
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
-/* Pathway — Google Fonts */
-@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
-
-/* Pathway Theme — Light (parchment-navy) */
+/* Pathway Theme - Light (parchment-navy) */
 :root {
   /* Base Colors */
   --background: #f4f3ef;
@@ -65,7 +63,7 @@
   --font-mono: "JetBrains Mono", Consolas, Monaco, "Courier New", monospace;
 }
 
-/* Pathway Theme — Dark (deep navy) */
+/* Pathway Theme - Dark (deep navy) */
 [data-theme="dark"] {
   /* Base Colors */
   --background: #141830;
@@ -173,8 +171,8 @@
   body {
     @apply bg-background text-foreground;
     font-family:
-      -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-      "Ubuntu", "Cantarell", sans-serif;
+      -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell",
+      sans-serif;
     line-height: 1.5;
     min-height: 100vh;
   }
@@ -256,7 +254,7 @@ a:hover {
 
 /* Card Component */
 .card {
-  @apply bg-card text-card-foreground rounded-xl border-2 border-border;
+  @apply bg-card text-card-foreground rounded-lg border-2 border-border;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -318,8 +316,12 @@ a:hover {
 
 /* Fade-in for badge/chip swap animations */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .animate-fade-in {

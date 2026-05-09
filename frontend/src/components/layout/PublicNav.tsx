@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useAuth } from "@/lib/providers/auth-provider";
-import { Shield, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
 export function PublicNav() {
@@ -21,14 +22,15 @@ export function PublicNav() {
       <div className="container max-w-7xl mx-auto px-4 md:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link
-            href="/"
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          >
-            <Shield className="h-8 w-8 text-primary" />
-            <span className="text-xl font-heading font-bold text-foreground">
-              Pathway
-            </span>
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <Image
+              src="/images/pathway-avatar.png"
+              alt=""
+              width={34}
+              height={34}
+              className="h-8 w-8 rounded-md object-cover"
+            />
+            <span className="text-xl font-heading font-bold text-foreground">Pathway</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -66,11 +68,7 @@ export function PublicNav() {
               className="btn-outline p-2"
               aria-label="Toggle menu"
             >
-              {mobileMenuOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>

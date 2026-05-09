@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Shield, Github, MessageCircle } from "lucide-react";
+import Image from "next/image";
+import { Github, MessageCircle } from "lucide-react";
 
 export function PublicFooter() {
   const currentYear = new Date().getFullYear();
@@ -44,10 +45,14 @@ export function PublicFooter() {
           {/* Brand Column */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <Shield className="h-8 w-8 text-primary" />
-              <span className="text-xl font-heading font-bold text-foreground">
-                Pathway
-              </span>
+              <Image
+                src="/images/pathway-avatar.png"
+                alt=""
+                width={34}
+                height={34}
+                className="h-8 w-8 rounded-md object-cover"
+              />
+              <span className="text-xl font-heading font-bold text-foreground">Pathway</span>
             </Link>
             <p className="text-sm text-muted-foreground mb-4">
               Web companion for the Pathway PF2e Discord bot
@@ -72,9 +77,7 @@ export function PublicFooter() {
 
           {footerSections.map((section) => (
             <div key={section.title}>
-              <h4 className="font-medium text-foreground mb-3">
-                {section.title}
-              </h4>
+              <h4 className="font-medium text-foreground mb-3">{section.title}</h4>
               <ul className="space-y-2">
                 {section.links.map((link) => (
                   <li key={link.label}>
