@@ -5,10 +5,10 @@
  */
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Home,
-  Shield,
   LogOut,
   Settings,
   Swords,
@@ -57,8 +57,15 @@ export function Sidebar() {
           href="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <div className="p-2 rounded-lg bg-primary text-primary-foreground">
-            <Shield className="h-6 w-6" />
+          <div className="relative h-11 w-11 overflow-hidden rounded-lg border border-primary/35 bg-background shadow-sm">
+            <Image
+              src="/images/pathway-avatar.png"
+              alt="Pathway"
+              fill
+              sizes="44px"
+              className="object-cover"
+              priority
+            />
           </div>
           <div>
             <h2 className="font-medium">Pathway</h2>

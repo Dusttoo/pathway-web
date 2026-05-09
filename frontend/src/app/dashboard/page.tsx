@@ -2,36 +2,222 @@
 
 import { MainLayout } from "@/components/layout";
 import { useCharacters } from "@/lib/hooks/use-characters";
-import { useGuildState, type CalendarSnapshot, type WeatherSnapshot } from "@/lib/hooks/use-guild-state";
+import {
+  useGuildState,
+  type CalendarSnapshot,
+  type WeatherSnapshot,
+} from "@/lib/hooks/use-guild-state";
 import { useAuth } from "@/lib/providers/auth-provider";
-import { BookOpen, Plus, Shield, Swords, CalendarDays, Cloud, Radio } from "lucide-react";
+import type { Json, Tables } from "@/lib/types/database.types";
+import {
+  BookOpen,
+  CalendarDays,
+  Cloud,
+  ExternalLink,
+  Plus,
+  Radio,
+  Shield,
+  Swords,
+} from "lucide-react";
 import Link from "next/link";
 
-function CharacterCard({ character }: { character: { id: string; name: string; class_name: string | null; ancestry_name: string | null; level: number; status: string } }) {
+type Character = Tables<"characters">;
+type DashboardUser = Tables<"users">;
+
+const PATHWAY_AVATAR = "/images/pathway-avatar.png";
+
+function isRecord(value: Json | unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getNestedString(value: Json | null, paths: string[][]) {
+  for (const path of paths) {
+    let cursor: unknown = value;
+    for (const key of path) {
+      if (!isRecord(cursor)) {
+        cursor = null;
+        break;
+      }
+      cursor = cursor[key];
+    }
+    if (typeof cursor === "string" && cursor.trim()) {
+      return cursor.trim();
+    }
+  }
+
+  return null;
+}
+
+function getDiscordAvatarUrl(user: DashboardUser | null) {
+  if (!user?.discord_avatar) return PATHWAY_AVATAR;
+  if (user.discord_avatar.startsWith("http")) return user.discord_avatar;
+  return `https://cdn.discordapp.com/avatars/${user.discord_id}/${user.discord_avatar}.png?size=256`;
+}
+
+function getDiscordName(user: DashboardUser | null) {
+  if (!user?.discord_username) return "Adventurer";
+  if (!user.discord_discriminator || user.discord_discriminator === "0") {
+    return user.discord_username;
+  }
+  return `${user.discord_username}#${user.discord_discriminator}`;
+}
+
+function getCharacterImage(character: Character) {
+  return getNestedString(character.pathbuilder_data, [
+    ["image"],
+    ["img"],
+    ["avatar"],
+    ["portrait"],
+    ["art"],
+    ["thumbnail"],
+    ["build", "image"],
+    ["build", "img"],
+    ["build", "avatar"],
+    ["build", "portrait"],
+    ["build", "art"],
+    ["build", "thumbnail"],
+    ["build", "character", "image"],
+    ["build", "character", "portrait"],
+    ["character", "image"],
+    ["character", "portrait"],
+  ]);
+}
+
+function CharacterImageFallback({ name }: { name: string }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_35%,rgba(211,171,53,0.2),transparent_42%),linear-gradient(145deg,rgba(15,23,42,0.96),rgba(5,8,18,0.98))] text-center">
+      <img
+        src={PATHWAY_AVATAR}
+        alt=""
+        className="h-20 w-20 rounded-full border border-primary/30 object-cover opacity-75 shadow-xl"
+      />
+      <span className="mt-4 max-w-[80%] text-sm font-semibold text-foreground/85">
+        Image for {name}
+      </span>
+    </div>
+  );
+}
+
+function CharacterCard({ character }: { character: Character }) {
+  const image = getCharacterImage(character);
+  const subtitle = [character.ancestry_name, character.class_name]
+    .filter(Boolean)
+    .join(" · ");
+  const updated = new Date(character.updated_at).toLocaleDateString(undefined, {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+  });
+
   return (
     <Link
       href={`/characters/${character.id}`}
-      className="card p-4 hover:shadow-md transition-all bg-secondary bg-opacity-30 block"
+      className="group overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg"
     >
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <p className="font-semibold">{character.name}</p>
-          <p className="text-sm text-muted-foreground">
-            {[character.ancestry_name, character.class_name].filter(Boolean).join(" ")}
-          </p>
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        {image ? (
+          <img
+            src={image}
+            alt={`Image for ${character.name}`}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <CharacterImageFallback name={character.name} />
+        )}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/95 via-background/55 to-transparent p-4">
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-lg font-semibold text-foreground">
+                {character.name}
+              </p>
+              <p className="truncate text-sm text-muted-foreground">
+                {subtitle || "Pathfinder 2e character"}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
+              Lvl {character.level}
+            </span>
+          </div>
         </div>
-        <span className="text-xs bg-muted px-2 py-1 rounded-full">Lvl {character.level}</span>
       </div>
-      <span className={`text-xs px-2 py-0.5 rounded-full ${character.status === "active" ? "bg-green-500/20 text-green-400" : "bg-muted text-muted-foreground"}`}>
-        {character.status}
-      </span>
+      <div className="space-y-4 p-4">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+              character.status === "active"
+                ? "bg-emerald-500/15 text-emerald-300"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {character.status}
+          </span>
+          <span className="text-muted-foreground">{updated}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">
+          View Sheet
+          <ExternalLink size={15} />
+        </div>
+      </div>
     </Link>
+  );
+}
+
+function ProfileHero({
+  user,
+  characterCount,
+  activeCount,
+  isLoading,
+}: {
+  user: DashboardUser | null;
+  characterCount: number;
+  activeCount: number;
+  isLoading: boolean;
+}) {
+  const discordName = getDiscordName(user);
+  const avatar = getDiscordAvatarUrl(user);
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="relative min-h-[280px] bg-[linear-gradient(100deg,rgba(5,8,18,0.96),rgba(19,28,63,0.94)),url('/images/pathway-banner.png')] bg-cover bg-center">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_25%,rgba(211,171,53,0.18),transparent_28%),linear-gradient(180deg,transparent,rgba(5,8,18,0.72))]" />
+        <div className="relative grid min-h-[280px] items-center gap-8 p-6 md:grid-cols-[minmax(180px,300px)_1fr] md:p-10">
+          <div className="flex justify-center md:justify-end">
+            <img
+              src={avatar}
+              alt={`${discordName} profile picture`}
+              className="h-40 w-40 rounded-full border-4 border-background object-cover shadow-2xl md:h-56 md:w-56"
+            />
+          </div>
+          <div className="text-center md:text-left">
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+              Discord Profile
+            </p>
+            <h1 className="text-4xl font-semibold text-white md:text-6xl">
+              {discordName}
+            </h1>
+            <div className="mt-6 flex flex-wrap justify-center gap-3 md:justify-start">
+              <span className="rounded-md bg-background/75 px-4 py-2 text-sm font-semibold text-foreground backdrop-blur">
+                Characters: {isLoading ? "..." : characterCount}
+              </span>
+              <span className="rounded-md bg-background/75 px-4 py-2 text-sm font-semibold text-foreground backdrop-blur">
+                Active: {isLoading ? "..." : activeCount}
+              </span>
+              {user?.email && (
+                <span className="rounded-md bg-background/75 px-4 py-2 text-sm text-muted-foreground backdrop-blur">
+                  {user.email}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
 function LiveChip() {
   return (
-    <span className="flex items-center gap-1 text-xs font-medium text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
+    <span className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400">
       <Radio size={9} className="animate-pulse" />
       Live
     </span>
@@ -40,7 +226,7 @@ function LiveChip() {
 
 function CalendarCard({ cal }: { cal: CalendarSnapshot }) {
   return (
-    <div className="card p-5 space-y-3">
+    <div className="card space-y-3 p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarDays size={16} className="text-muted-foreground" />
@@ -49,37 +235,52 @@ function CalendarCard({ cal }: { cal: CalendarSnapshot }) {
         <LiveChip />
       </div>
       <div>
-        <p className="text-lg font-bold">{cal.seasonEmoji} {cal.description}</p>
-        <p className="text-sm text-muted-foreground capitalize">{cal.weekday} · {cal.season}</p>
+        <p className="text-lg font-bold">{cal.description}</p>
+        <p className="text-sm capitalize text-muted-foreground">
+          {cal.weekday} · {cal.season}
+        </p>
       </div>
       {cal.holidays.length > 0 && (
-        <p className="text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
-          🎉 {cal.holidays.join(" · ")}
+        <p className="rounded bg-amber-500/10 px-2 py-1 text-xs text-amber-400">
+          Holidays: {cal.holidays.join(" · ")}
         </p>
       )}
       {cal.nextHoliday && (
         <p className="text-xs text-muted-foreground">
-          Next: <span className="text-foreground">{cal.nextHoliday.name}</span> in {cal.nextHoliday.daysAway} day{cal.nextHoliday.daysAway === 1 ? "" : "s"} ({cal.nextHoliday.dateString})
+          Next:{" "}
+          <span className="text-foreground">{cal.nextHoliday.name}</span> in{" "}
+          {cal.nextHoliday.daysAway} day
+          {cal.nextHoliday.daysAway === 1 ? "" : "s"} (
+          {cal.nextHoliday.dateString})
         </p>
       )}
     </div>
   );
 }
 
-const PRECIP_EMOJI: Record<string, string> = {
-  none: "☀️", drizzle: "🌦️", light: "🌧️", moderate: "🌧️",
-  heavy: "⛈️", downpour: "🌊", snow: "❄️", blizzard: "🌨️",
-  hail: "🌩️", freezingRain: "🧊",
+const PRECIP_LABEL: Record<string, string> = {
+  none: "Clear",
+  drizzle: "Drizzle",
+  light: "Light rain",
+  moderate: "Moderate rain",
+  heavy: "Heavy rain",
+  downpour: "Downpour",
+  snow: "Snow",
+  blizzard: "Blizzard",
+  hail: "Hail",
+  freezingRain: "Freezing rain",
 };
 
 function WeatherCard({ wx }: { wx: WeatherSnapshot }) {
-  const precipEmoji = PRECIP_EMOJI[wx.precipitation] ?? "🌤️";
   const tempColor =
-    wx.temperatureF >= 90 ? "text-orange-400" :
-    wx.temperatureF <= 32 ? "text-blue-400" : "text-foreground";
+    wx.temperatureF >= 90
+      ? "text-orange-400"
+      : wx.temperatureF <= 32
+        ? "text-blue-400"
+        : "text-foreground";
 
   return (
-    <div className="card p-5 space-y-3">
+    <div className="card space-y-3 p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Cloud size={16} className="text-muted-foreground" />
@@ -88,22 +289,28 @@ function WeatherCard({ wx }: { wx: WeatherSnapshot }) {
         <LiveChip />
       </div>
       <div className="flex items-baseline gap-3">
-        <span className={`text-3xl font-bold tabular-nums ${tempColor}`}>{wx.temperatureF}°F</span>
-        <span className="text-sm text-muted-foreground capitalize">{wx.temperatureCategory.replace(/([A-Z])/g, " $1").trim()}</span>
+        <span className={`text-3xl font-bold tabular-nums ${tempColor}`}>
+          {wx.temperatureF}F
+        </span>
+        <span className="text-sm capitalize text-muted-foreground">
+          {wx.temperatureCategory.replace(/([A-Z])/g, " $1").trim()}
+        </span>
       </div>
       <div className="flex flex-wrap gap-2 text-sm">
-        <span className="bg-muted px-2 py-0.5 rounded-full">
-          {precipEmoji} {wx.precipitation === "none" ? "Clear" : wx.precipitation}
+        <span className="rounded-full bg-muted px-2 py-0.5">
+          {PRECIP_LABEL[wx.precipitation] ?? wx.precipitation}
           {wx.soaked ? " (soaked)" : ""}
         </span>
         {wx.wind !== "calm" && (
-          <span className="bg-muted px-2 py-0.5 rounded-full">💨 {wx.wind}</span>
+          <span className="rounded-full bg-muted px-2 py-0.5">{wx.wind}</span>
         )}
         {wx.fog !== "none" && (
-          <span className="bg-muted px-2 py-0.5 rounded-full">🌫️ {wx.fog}</span>
+          <span className="rounded-full bg-muted px-2 py-0.5">{wx.fog}</span>
         )}
       </div>
-      <p className="text-xs text-muted-foreground capitalize">{wx.climate} · {wx.season}</p>
+      <p className="text-xs capitalize text-muted-foreground">
+        {wx.climate} · {wx.season}
+      </p>
     </div>
   );
 }
@@ -113,10 +320,10 @@ function DashboardOverview() {
   const { data: characters, isLoading } = useCharacters({}, { enabled: !!user });
 
   const activeChars = characters?.filter((c) => c.status === "active") ?? [];
-  // Derive guild ID from the first character. For players in multiple servers
-  // this shows their primary campaign — a full guild picker is a future feature.
   const guildId = characters?.[0]?.discord_guild_id ?? null;
-  const uniqueGuilds = new Set(characters?.map((c) => c.discord_guild_id).filter(Boolean));
+  const uniqueGuilds = new Set(
+    characters?.map((c) => c.discord_guild_id).filter(Boolean),
+  );
   const isMultiGuild = uniqueGuilds.size > 1;
   const { calendar, weather } = useGuildState(guildId);
 
@@ -124,25 +331,70 @@ function DashboardOverview() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1>Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back, {user?.discord_username ?? "Adventurer"}.
-        </p>
-      </div>
+      <ProfileHero
+        user={user}
+        characterCount={characters?.length ?? 0}
+        activeCount={activeChars.length}
+        isLoading={isLoading}
+      />
 
-      {/* Campaign State — calendar + weather */}
       {!isLoading && !guildId && (
-        <div className="card p-4 border-dashed text-center text-sm text-muted-foreground">
-          Import a character via <code className="text-xs bg-muted px-1 rounded">/char import</code> in Discord to see your campaign state here.
+        <div className="card border-dashed p-4 text-center text-sm text-muted-foreground">
+          Import a character via{" "}
+          <code className="rounded bg-muted px-1 text-xs">/char import</code>{" "}
+          in Discord to see your campaign state here.
         </div>
       )}
+
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold">Characters</h2>
+            <p className="text-sm text-muted-foreground">
+              Your Pathfinder 2e character sheets and imported art.
+            </p>
+          </div>
+          <Link href="/characters/new" className="btn-primary inline-flex gap-2">
+            <Plus size={18} />
+            Import Character
+          </Link>
+        </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {[0, 1, 2, 3, 4, 5].map((item) => (
+              <div
+                key={item}
+                className="h-80 animate-pulse rounded-lg border border-border bg-card"
+              />
+            ))}
+          </div>
+        ) : characters && characters.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {characters.map((c) => (
+              <CharacterCard key={c.id} character={c} />
+            ))}
+          </div>
+        ) : (
+          <div className="card py-12 text-center">
+            <Swords className="mx-auto mb-3 h-12 w-12 text-muted-foreground opacity-50" />
+            <p className="mb-4 text-muted-foreground">No characters yet</p>
+            <Link href="/characters/new" className="btn-primary inline-flex gap-2">
+              <Plus size={18} />
+              Import from Pathbuilder
+            </Link>
+          </div>
+        )}
+      </section>
+
       {hasCampaignData && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Campaign</h3>
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Campaign
+            </h3>
             {isMultiGuild && (
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                 Showing primary server
               </span>
             )}
@@ -151,26 +403,35 @@ function DashboardOverview() {
             {calendar && <CalendarCard cal={calendar} />}
             {weather && <WeatherCard wx={weather} />}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Link href="/characters" className="card p-6 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer">
+        <Link
+          href="/characters"
+          className="card cursor-pointer p-6 transition-all hover:scale-[1.02] hover:shadow-lg"
+        >
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-muted-foreground text-sm">My Characters</p>
-              <p className="text-3xl text-chart-1">{isLoading ? "—" : (characters?.length ?? 0)}</p>
-              <p className="text-xs text-muted-foreground">{activeChars.length} active</p>
+              <p className="text-sm text-muted-foreground">My Characters</p>
+              <p className="text-3xl text-chart-1">
+                {isLoading ? "..." : (characters?.length ?? 0)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {activeChars.length} active
+              </p>
             </div>
             <Swords className="h-5 w-5 text-chart-1 opacity-70" />
           </div>
         </Link>
 
-        <Link href="/library/spells" className="card p-6 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer">
+        <Link
+          href="/library/spells"
+          className="card cursor-pointer p-6 transition-all hover:scale-[1.02] hover:shadow-lg"
+        >
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-muted-foreground text-sm">Spell Library</p>
+              <p className="text-sm text-muted-foreground">Spell Library</p>
               <p className="text-3xl text-chart-2">PF2e</p>
               <p className="text-xs text-muted-foreground">Browse spells</p>
             </div>
@@ -178,56 +439,33 @@ function DashboardOverview() {
           </div>
         </Link>
 
-        <Link href="/library" className="card p-6 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer">
+        <Link
+          href="/library"
+          className="card cursor-pointer p-6 transition-all hover:scale-[1.02] hover:shadow-lg"
+        >
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-muted-foreground text-sm">Content Library</p>
+              <p className="text-sm text-muted-foreground">Content Library</p>
               <p className="text-3xl text-chart-3">Rules</p>
-              <p className="text-xs text-muted-foreground">Feats, classes, ancestries</p>
+              <p className="text-xs text-muted-foreground">
+                Feats, classes, ancestries
+              </p>
             </div>
             <Shield className="h-5 w-5 text-chart-3 opacity-70" />
           </div>
         </Link>
       </div>
 
-      {/* Characters */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3>My Characters</h3>
-          <Link href="/characters" className="text-sm text-primary hover:underline">View all</Link>
-        </div>
-
-        {isLoading ? (
-          <p className="text-muted-foreground text-sm py-4">Loading characters…</p>
-        ) : characters && characters.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {characters.slice(0, 6).map((c) => (
-              <CharacterCard key={c.id} character={c} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <Swords className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <p className="text-muted-foreground mb-4">No characters yet</p>
-            <Link href="/characters/new" className="btn-primary inline-flex gap-2">
-              <Plus size={18} />
-              Import from Pathbuilder
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {/* Quick Links */}
       <div className="card p-6">
         <h3 className="mb-4">Quick Links</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
             { href: "/library/spells", label: "Spells" },
             { href: "/library/feats", label: "Feats" },
             { href: "/library/classes", label: "Classes" },
             { href: "/library/ancestries", label: "Ancestries" },
           ].map(({ href, label }) => (
-            <Link key={href} href={href} className="btn-outline text-center py-3">
+            <Link key={href} href={href} className="btn-outline py-3 text-center">
               {label}
             </Link>
           ))}
