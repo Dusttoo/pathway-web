@@ -2,15 +2,15 @@
 
 import { MainLayout } from "@/components/layout";
 import {
-  characterKeys,
+  useCharacterImages,
   useCharacters,
   useDeleteCharacter,
-  useUpdateCharacter,
+  useDeleteCharacterImage,
+  useUploadCharacterImage,
 } from "@/lib/hooks/use-characters";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay } from "@/lib/types/bot-integration";
 import type { Json, Tables } from "@/lib/types/database.types";
-import { useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Loader2, Plus, Swords, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
@@ -65,45 +65,26 @@ function getPathbuilderCharacterImage(character: Character) {
   ]);
 }
 
-function getCharacterImage(character: Character) {
-  return getCustomCharacterImage(character) ?? getPathbuilderCharacterImage(character);
-}
-
-async function uploadImage(file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const uploadRes = await fetch("/api/homebrew/images", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes
-      .json()
-      .catch(() => ({ error: uploadRes.statusText }));
-    throw new Error(err.error ?? "Image upload failed");
-  }
-
-  const body = (await uploadRes.json()) as { url?: string };
-  if (!body.url) throw new Error("Image upload did not return a URL");
-  return body.url;
+function getCharacterImage(character: Character, storedImage?: string | null) {
+  return storedImage ?? getCustomCharacterImage(character) ?? getPathbuilderCharacterImage(character);
 }
 
 function CharacterCard({
   character,
+  storedImage,
   onDelete,
   isDeleting,
 }: {
   character: Character;
+  storedImage?: string | null;
   onDelete: (id: string, name: string) => void;
   isDeleting: boolean;
 }) {
-  const customImage = getCustomCharacterImage(character);
-  const image = getCharacterImage(character);
+  const customImage = storedImage ?? getCustomCharacterImage(character);
+  const image = getCharacterImage(character, storedImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const queryClient = useQueryClient();
-  const updateCharacter = useUpdateCharacter(character.id);
+  const uploadCharacterImage = useUploadCharacterImage();
+  const deleteCharacterImage = useDeleteCharacterImage();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -115,13 +96,6 @@ function CharacterCard({
     .filter(Boolean)
     .join(" · ");
 
-  async function saveImageUrl(url: string | null) {
-    await updateCharacter.mutateAsync({
-      overlay: { profile_image_url: url },
-    });
-    await queryClient.invalidateQueries({ queryKey: characterKeys.all });
-  }
-
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -130,8 +104,7 @@ function CharacterCard({
     setUploadError(null);
     setIsUploading(true);
     try {
-      const url = await uploadImage(file);
-      await saveImageUrl(url);
+      await uploadCharacterImage.mutateAsync({ characterId: character.id, file });
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Image upload failed");
     } finally {
@@ -143,7 +116,7 @@ function CharacterCard({
     setUploadError(null);
     setIsUploading(true);
     try {
-      await saveImageUrl(null);
+      await deleteCharacterImage.mutateAsync(character.id);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Could not remove image");
     } finally {
@@ -151,7 +124,8 @@ function CharacterCard({
     }
   }
 
-  const isBusy = isUploading || updateCharacter.isPending;
+  const isBusy =
+    isUploading || uploadCharacterImage.isPending || deleteCharacterImage.isPending;
 
   return (
     <div className="card group relative overflow-hidden transition-all hover:shadow-lg">
@@ -298,6 +272,7 @@ export default function CharactersPage() {
     {},
     { enabled: !!user },
   );
+  const { data: characterImages = {} } = useCharacterImages({ enabled: !!user });
   const deleteMutation = useDeleteCharacter();
 
   const handleDelete = async (id: string, name: string) => {
@@ -358,6 +333,7 @@ export default function CharactersPage() {
             <CharacterCard
               key={character.id}
               character={character}
+              storedImage={characterImages[character.id]}
               onDelete={handleDelete}
               isDeleting={deletingId === character.id}
             />

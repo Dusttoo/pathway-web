@@ -2,9 +2,10 @@
 
 import { MainLayout } from "@/components/layout";
 import {
-  characterKeys,
+  useCharacterImages,
   useCharacters,
-  useUpdateCharacter,
+  useDeleteCharacterImage,
+  useUploadCharacterImage,
 } from "@/lib/hooks/use-characters";
 import {
   useGuildState,
@@ -27,7 +28,6 @@ import {
   Swords,
   Trash2,
 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
@@ -98,27 +98,8 @@ function getPathbuilderCharacterImage(character: Character) {
   ]);
 }
 
-function getCharacterImage(character: Character) {
-  return getCustomCharacterImage(character) ?? getPathbuilderCharacterImage(character);
-}
-
-async function uploadImage(file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const uploadRes = await fetch("/api/homebrew/images", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.json().catch(() => ({ error: uploadRes.statusText }));
-    throw new Error(err.error ?? "Image upload failed");
-  }
-
-  const body = (await uploadRes.json()) as { url?: string };
-  if (!body.url) throw new Error("Image upload did not return a URL");
-  return body.url;
+function getCharacterImage(character: Character, storedImage?: string | null) {
+  return storedImage ?? getCustomCharacterImage(character) ?? getPathbuilderCharacterImage(character);
 }
 
 function CharacterImageFallback({ name }: { name: string }) {
@@ -136,12 +117,18 @@ function CharacterImageFallback({ name }: { name: string }) {
   );
 }
 
-function CharacterCard({ character }: { character: Character }) {
-  const customImage = getCustomCharacterImage(character);
-  const image = getCharacterImage(character);
+function CharacterCard({
+  character,
+  storedImage,
+}: {
+  character: Character;
+  storedImage?: string | null;
+}) {
+  const customImage = storedImage ?? getCustomCharacterImage(character);
+  const image = getCharacterImage(character, storedImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const queryClient = useQueryClient();
-  const updateCharacter = useUpdateCharacter(character.id);
+  const uploadCharacterImage = useUploadCharacterImage();
+  const deleteCharacterImage = useDeleteCharacterImage();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const subtitle = [character.ancestry_name, character.class_name]
@@ -153,13 +140,6 @@ function CharacterCard({ character }: { character: Character }) {
     year: "numeric",
   });
 
-  async function saveImageUrl(url: string | null) {
-    await updateCharacter.mutateAsync({
-      overlay: { profile_image_url: url },
-    });
-    await queryClient.invalidateQueries({ queryKey: characterKeys.all });
-  }
-
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -168,8 +148,7 @@ function CharacterCard({ character }: { character: Character }) {
     setUploadError(null);
     setIsUploading(true);
     try {
-      const url = await uploadImage(file);
-      await saveImageUrl(url);
+      await uploadCharacterImage.mutateAsync({ characterId: character.id, file });
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Image upload failed");
     } finally {
@@ -181,7 +160,7 @@ function CharacterCard({ character }: { character: Character }) {
     setUploadError(null);
     setIsUploading(true);
     try {
-      await saveImageUrl(null);
+      await deleteCharacterImage.mutateAsync(character.id);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Could not remove image");
     } finally {
@@ -189,7 +168,8 @@ function CharacterCard({ character }: { character: Character }) {
     }
   }
 
-  const isBusy = isUploading || updateCharacter.isPending;
+  const isBusy =
+    isUploading || uploadCharacterImage.isPending || deleteCharacterImage.isPending;
 
   return (
     <div className="group overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg">
@@ -445,6 +425,7 @@ function WeatherCard({ wx }: { wx: WeatherSnapshot }) {
 function DashboardOverview() {
   const { user } = useAuth();
   const { data: characters, isLoading } = useCharacters({}, { enabled: !!user });
+  const { data: characterImages = {} } = useCharacterImages({ enabled: !!user });
 
   const activeChars = characters?.filter((c) => c.status === "active") ?? [];
   const guildId = characters?.[0]?.discord_guild_id ?? null;
@@ -499,7 +480,11 @@ function DashboardOverview() {
         ) : characters && characters.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {characters.map((c) => (
-              <CharacterCard key={c.id} character={c} />
+              <CharacterCard
+                key={c.id}
+                character={c}
+                storedImage={characterImages[c.id]}
+              />
             ))}
           </div>
         ) : (

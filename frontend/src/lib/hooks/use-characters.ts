@@ -15,6 +15,7 @@ export const characterKeys = {
   all: ["characters"] as const,
   list: (params: CharacterListParams) => [...characterKeys.all, "list", params] as const,
   detail: (id: string) => [...characterKeys.all, "detail", id] as const,
+  images: ["characters", "images"] as const,
 };
 
 export function useCharacters(params: CharacterListParams = {}, options?: { enabled?: boolean }) {
@@ -72,6 +73,60 @@ export function useCreateCharacter() {
       return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: characterKeys.all }),
+  });
+}
+
+export function useCharacterImages(options?: { enabled?: boolean }) {
+  return useQuery<Record<string, string>, Error>({
+    queryKey: characterKeys.images,
+    queryFn: async () => {
+      const res = await fetch("/api/characters/images");
+      if (!res.ok) throw new Error(await res.text());
+      const body = (await res.json()) as { images?: Record<string, string> };
+      return body.images ?? {};
+    },
+    enabled: options?.enabled !== false,
+  });
+}
+
+export function useUploadCharacterImage() {
+  const queryClient = useQueryClient();
+  return useMutation<string, Error, { characterId: string; file: File }>({
+    mutationFn: async ({ characterId, file }) => {
+      const formData = new FormData();
+      formData.append("character_id", characterId);
+      formData.append("file", file);
+
+      const res = await fetch("/api/characters/images", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error ?? "Image upload failed");
+      }
+      const body = (await res.json()) as { url?: string };
+      if (!body.url) throw new Error("Image upload did not return a URL");
+      return body.url;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: characterKeys.images }),
+  });
+}
+
+export function useDeleteCharacterImage() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: async (characterId) => {
+      const res = await fetch(
+        `/api/characters/images?character_id=${encodeURIComponent(characterId)}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error ?? "Could not remove image");
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: characterKeys.images }),
   });
 }
 
