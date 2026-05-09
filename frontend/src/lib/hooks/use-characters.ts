@@ -46,15 +46,26 @@ export function useCharacter(id: string, options?: { enabled?: boolean }) {
   });
 }
 
+import type { NativeBuildInput } from "@/lib/types/character";
+
 type PathbuilderImport = {
+  source?: "pathbuilder";
   discord_guild_id: string;
   pathbuilder_id?: number;
   pathbuilder_data?: unknown; // full { success, build } or just build
 };
 
+type NativeCharacterCreate = {
+  source: "native";
+  discord_guild_id?: string;
+  native_build: NativeBuildInput;
+};
+
+type CharacterCreatePayload = PathbuilderImport | NativeCharacterCreate;
+
 export function useCreateCharacter() {
   const queryClient = useQueryClient();
-  return useMutation<Character, Error, PathbuilderImport>({
+  return useMutation<Character, Error, CharacterCreatePayload>({
     mutationFn: async (data) => {
       const res = await fetch("/api/characters", {
         method: "POST",
