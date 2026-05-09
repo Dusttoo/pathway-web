@@ -220,7 +220,7 @@ function CharacterCard({
         <div className="relative z-10 flex items-center gap-2">
           <Link
             href={`/characters/${character.id}`}
-            className="btn-primary flex-1 text-center text-sm"
+            className="btn-primary flex-1 text-center text-sm text-slate-950"
           >
             View Sheet
           </Link>
