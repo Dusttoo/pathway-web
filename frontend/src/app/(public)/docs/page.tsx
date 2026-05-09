@@ -21,6 +21,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { DOC_CATEGORIES, getAllDocs } from "@/lib/docs";
+import { DISCORD_SUPPORT_SERVER_URL } from "@/lib/external-links";
 
 // Icon mapping for dynamic rendering
 const iconMap: Record<string, any> = {
@@ -262,9 +263,14 @@ export default function DocsPage() {
             Our community and support team are here to help
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="#" className="btn-primary">
+            <a
+              href={DISCORD_SUPPORT_SERVER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary"
+            >
               Join Discord Community
-            </Link>
+            </a>
             <Link href="/contact" className="btn-outline">
               Contact Support
             </Link>

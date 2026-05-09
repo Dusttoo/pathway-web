@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
+import { DISCORD_SUPPORT_SERVER_URL } from "@/lib/external-links";
 
 interface FormData {
   name: string;
@@ -64,7 +65,7 @@ export default function ContactPage() {
       title: "Discord Community",
       description: "Join the community for quick help and updates",
       contact: "Join Server",
-      href: "#",
+      href: DISCORD_SUPPORT_SERVER_URL,
       response: "Immediate",
     },
     {

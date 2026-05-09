@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Check, ArrowRight, Shield, Heart } from "lucide-react";
+import { DISCORD_SUPPORT_SERVER_URL } from "@/lib/external-links";
 
 export default function PricingPage() {
   return (
@@ -57,7 +58,14 @@ export default function PricingPage() {
 
           <p className="text-center text-sm text-muted-foreground mt-8">
             Pathway is a community project. If you&apos;d like to support development,{" "}
-            <a href="#" className="text-primary underline">say hi on Discord</a>.
+            <a
+              href={DISCORD_SUPPORT_SERVER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline"
+            >
+              say hi on Discord
+            </a>.
           </p>
         </div>
       </section>

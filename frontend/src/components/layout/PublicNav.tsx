@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useAuth } from "@/lib/providers/auth-provider";
+import { DISCORD_BOT_INVITE_URL, DISCORD_SUPPORT_SERVER_URL } from "@/lib/external-links";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
@@ -15,6 +16,7 @@ export function PublicNav() {
     { label: "Commands", href: "/commands" },
     { label: "Features", href: "/features" },
     { label: "About", href: "/about" },
+    { label: "Support Server", href: DISCORD_SUPPORT_SERVER_URL, external: true },
     { label: "Feedback", href: "/feedback" },
   ];
 
@@ -37,19 +39,39 @@ export function PublicNav() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-foreground hover:text-primary transition-colors font-medium"
-              >
-                {item.label}
-              </Link>
+              "external" in item && item.external ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground hover:text-primary transition-colors font-medium"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="text-foreground hover:text-primary transition-colors font-medium"
+                >
+                  {item.label}
+                </Link>
+              )
             ))}
           </div>
 
           {/* Right Side */}
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle />
+            <a
+              href={DISCORD_BOT_INVITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-outline"
+            >
+              Invite Bot
+            </a>
             {user ? (
               <Link href="/dashboard" className="btn-primary">
                 Dashboard
@@ -78,16 +100,38 @@ export function PublicNav() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 space-y-3 border-t border-border">
             {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block py-2 text-foreground hover:text-primary transition-colors font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {item.label}
-              </Link>
+              "external" in item && item.external ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-2 text-foreground hover:text-primary transition-colors font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="block py-2 text-foreground hover:text-primary transition-colors font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              )
             ))}
             <div className="pt-3 border-t border-border">
+              <a
+                href={DISCORD_BOT_INVITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-outline mb-3 block w-full text-center"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Invite Bot
+              </a>
               {user ? (
                 <Link
                   href="/dashboard"

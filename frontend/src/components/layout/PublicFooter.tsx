@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Github, MessageCircle } from "lucide-react";
+import { DISCORD_BOT_INVITE_URL, DISCORD_SUPPORT_SERVER_URL } from "@/lib/external-links";
 
 export function PublicFooter() {
   const currentYear = new Date().getFullYear();
@@ -32,7 +33,8 @@ export function PublicFooter() {
     {
       title: "Community",
       links: [
-        { label: "Discord Server", href: "#", external: true },
+        { label: "Invite Bot", href: DISCORD_BOT_INVITE_URL, external: true },
+        { label: "Support Server", href: DISCORD_SUPPORT_SERVER_URL, external: true },
         { label: "GitHub", href: "#", external: true },
       ],
     },
@@ -66,9 +68,11 @@ export function PublicFooter() {
                 <Github className="h-5 w-5" />
               </a>
               <a
-                href="#"
+                href={DISCORD_SUPPORT_SERVER_URL}
                 className="text-muted-foreground hover:text-primary transition-colors"
                 aria-label="Discord"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <MessageCircle className="h-5 w-5" />
               </a>

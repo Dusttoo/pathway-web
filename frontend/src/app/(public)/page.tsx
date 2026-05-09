@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { DISCORD_BOT_INVITE_URL, DISCORD_SUPPORT_SERVER_URL } from "@/lib/external-links";
 
 type Feature = {
   icon: LucideIcon;
@@ -136,10 +137,24 @@ export default function LandingPage() {
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/login" className="btn-primary px-6 py-3 text-base">
-                Invite with Discord
+              <a
+                href={DISCORD_BOT_INVITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary px-6 py-3 text-base"
+              >
+                Invite Bot
                 <ArrowRight className="h-5 w-5" />
-              </Link>
+              </a>
+              <a
+                href={DISCORD_SUPPORT_SERVER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-outline border-white/25 bg-white/[0.08] px-6 py-3 text-base text-white hover:bg-white/[0.14] hover:text-white"
+              >
+                Support Server
+                <Users className="h-5 w-5" />
+              </a>
               <Link
                 href="/docs"
                 className="btn-outline border-white/25 bg-white/[0.08] px-6 py-3 text-base text-white hover:bg-white/[0.14] hover:text-white"
@@ -309,10 +324,15 @@ export default function LandingPage() {
               Invite Pathway, import your table, and keep the rules conversation in Discord.
             </p>
           </div>
-          <Link href="/login" className="btn-primary shrink-0 px-6 py-3 text-base">
-            Sign in with Discord
+          <a
+            href={DISCORD_BOT_INVITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary shrink-0 px-6 py-3 text-base"
+          >
+            Invite Bot
             <ArrowRight className="h-5 w-5" />
-          </Link>
+          </a>
         </div>
       </section>
     </div>
