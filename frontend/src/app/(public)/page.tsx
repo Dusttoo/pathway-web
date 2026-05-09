@@ -210,7 +210,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-[#f4f3ef] py-16 text-[#192448]">
+      <section className="bg-[#f4f3ef] py-16 text-[#192448] [[data-theme='dark']_&]:bg-[#141830] [[data-theme='dark']_&]:text-[#f4f3ef]">
         <div className="container mx-auto max-w-7xl px-4 md:px-8">
           <div className="grid gap-6 md:grid-cols-3">
             {features.map((feature) => {
@@ -218,7 +218,7 @@ export default function LandingPage() {
               return (
                 <article
                   key={feature.title}
-                  className="overflow-hidden rounded-lg border border-[#192448]/12 bg-white shadow-sm"
+                  className="overflow-hidden rounded-lg border border-[#192448]/12 bg-white shadow-sm [[data-theme='dark']_&]:border-[#c9a227]/15 [[data-theme='dark']_&]:bg-[#1c2348] [[data-theme='dark']_&]:shadow-none"
                 >
                   <div className="bg-[#0a0c14] p-4">
                     <Image
@@ -235,8 +235,12 @@ export default function LandingPage() {
                     >
                       <Icon className="h-5 w-5 text-white" />
                     </div>
-                    <h2 className="text-xl font-semibold text-[#192448]">{feature.title}</h2>
-                    <p className="mt-3 text-sm leading-6 text-[#3c5075]">{feature.description}</p>
+                    <h2 className="text-xl font-semibold text-[#192448] [[data-theme='dark']_&]:text-[#f4f3ef]">
+                      {feature.title}
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-[#3c5075] [[data-theme='dark']_&]:text-[#b8c1df]">
+                      {feature.description}
+                    </p>
                   </div>
                 </article>
               );
@@ -245,14 +249,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-white py-20 text-[#192448]">
+      <section className="bg-white py-20 text-[#192448] [[data-theme='dark']_&]:bg-[#111528] [[data-theme='dark']_&]:text-[#f4f3ef]">
         <div className="container mx-auto max-w-7xl px-4 md:px-8">
           <div className="max-w-3xl">
             <p className="mb-3 text-sm font-semibold text-[#1d9db0]">Discord companion</p>
-            <h2 className="font-heading text-3xl font-bold text-[#192448] md:text-5xl">
+            <h2 className="font-heading text-3xl font-bold text-[#192448] md:text-5xl [[data-theme='dark']_&]:text-[#f4f3ef]">
               Designed around real channel output.
             </h2>
-            <p className="mt-5 text-lg leading-8 text-[#3c5075]">
+            <p className="mt-5 text-lg leading-8 text-[#3c5075] [[data-theme='dark']_&]:text-[#b8c1df]">
               Pathway's front page now shows the bot doing actual table work: rolling, tracking
               initiative, answering lookup commands, and rendering full character references.
             </p>
@@ -272,7 +276,7 @@ export default function LandingPage() {
             {botScreenshots.map((screenshot) => (
               <article
                 key={screenshot.title}
-                className="overflow-hidden rounded-lg border border-[#192448]/12 bg-[#0a0c14] shadow-xl"
+                className="overflow-hidden rounded-lg border border-[#192448]/12 bg-[#0a0c14] shadow-xl [[data-theme='dark']_&]:border-[#c9a227]/15"
               >
                 <Image
                   src={screenshot.image}
@@ -281,9 +285,13 @@ export default function LandingPage() {
                   height={screenshot.height}
                   className="w-full object-contain"
                 />
-                <div className="border-t border-white/10 bg-white p-5">
-                  <h3 className="text-lg font-semibold text-[#192448]">{screenshot.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-[#3c5075]">{screenshot.description}</p>
+                <div className="border-t border-white/10 bg-white p-5 [[data-theme='dark']_&]:bg-[#1c2348]">
+                  <h3 className="text-lg font-semibold text-[#192448] [[data-theme='dark']_&]:text-[#f4f3ef]">
+                    {screenshot.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#3c5075] [[data-theme='dark']_&]:text-[#b8c1df]">
+                    {screenshot.description}
+                  </p>
                 </div>
               </article>
             ))}

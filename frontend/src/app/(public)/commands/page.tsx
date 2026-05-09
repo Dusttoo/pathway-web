@@ -706,21 +706,25 @@ function CommandCard({ command }: { command: BotCommand }) {
   return (
     <article
       id={command.name}
-      className="scroll-mt-28 rounded-lg border border-[#192448]/12 bg-white p-5 shadow-sm"
+      className="scroll-mt-28 rounded-lg border border-[#192448]/12 bg-white p-5 shadow-sm [[data-theme='dark']_&]:border-[#c9a227]/15 [[data-theme='dark']_&]:bg-[#1c2348] [[data-theme='dark']_&]:shadow-none"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-mono text-xl font-semibold text-[#192448]">/{command.name}</h3>
+            <h3 className="font-mono text-xl font-semibold text-[#192448] [[data-theme='dark']_&]:text-[#f4f3ef]">
+              /{command.name}
+            </h3>
             {command.ownerOnly && (
               <span className="rounded-md bg-[#d96b4c]/12 px-2 py-1 text-xs font-semibold text-[#9f432b]">
                 Bot owner
               </span>
             )}
           </div>
-          <p className="mt-2 text-sm leading-6 text-[#3c5075]">{command.description}</p>
+          <p className="mt-2 text-sm leading-6 text-[#3c5075] [[data-theme='dark']_&]:text-[#b8c1df]">
+            {command.description}
+          </p>
         </div>
-        <code className="rounded-md border border-[#192448]/10 bg-[#f4f3ef] px-3 py-2 font-mono text-xs text-[#192448]">
+        <code className="rounded-md border border-[#192448]/10 bg-[#f4f3ef] px-3 py-2 font-mono text-xs text-[#192448] [[data-theme='dark']_&]:border-[#c9a227]/15 [[data-theme='dark']_&]:bg-[#111528] [[data-theme='dark']_&]:text-[#f4f3ef]">
           {command.syntax}
         </code>
       </div>
@@ -730,9 +734,12 @@ function CommandCard({ command }: { command: BotCommand }) {
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#1d9db0]">
             Options
           </p>
-          <ul className="mt-2 grid gap-2 text-sm text-[#3c5075] md:grid-cols-2">
+          <ul className="mt-2 grid gap-2 text-sm text-[#3c5075] md:grid-cols-2 [[data-theme='dark']_&]:text-[#b8c1df]">
             {command.options.map((option) => (
-              <li key={option} className="rounded-md bg-[#f4f3ef] px-3 py-2">
+              <li
+                key={option}
+                className="rounded-md bg-[#f4f3ef] px-3 py-2 [[data-theme='dark']_&]:bg-[#111528]"
+              >
                 {option}
               </li>
             ))}
@@ -749,7 +756,7 @@ function CommandCard({ command }: { command: BotCommand }) {
             {command.subcommands.map((subcommand) => (
               <span
                 key={subcommand}
-                className="rounded-md border border-[#192448]/10 bg-[#f4f3ef] px-2.5 py-1 font-mono text-xs text-[#192448]"
+                className="rounded-md border border-[#192448]/10 bg-[#f4f3ef] px-2.5 py-1 font-mono text-xs text-[#192448] [[data-theme='dark']_&]:border-[#c9a227]/15 [[data-theme='dark']_&]:bg-[#111528] [[data-theme='dark']_&]:text-[#f4f3ef]"
               >
                 {subcommand}
               </span>
@@ -781,7 +788,7 @@ function CommandCard({ command }: { command: BotCommand }) {
 
 export default function CommandsPage() {
   return (
-    <div className="bg-[#f4f3ef] text-[#192448]">
+    <div className="bg-[#f4f3ef] text-[#192448] [[data-theme='dark']_&]:bg-[#141830] [[data-theme='dark']_&]:text-[#f4f3ef]">
       <section className="relative isolate overflow-hidden bg-[#101421] text-white">
         <div className="absolute inset-0 -z-20 bg-[url('/images/pathway-banner.png')] bg-cover bg-center opacity-70" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(8,10,18,0.98),rgba(10,14,25,0.9)_52%,rgba(10,14,25,0.48))]" />
@@ -834,7 +841,7 @@ export default function CommandsPage() {
         </div>
       </section>
 
-      <section className="border-b border-[#192448]/10 bg-white">
+      <section className="border-b border-[#192448]/10 bg-white [[data-theme='dark']_&]:border-[#c9a227]/15 [[data-theme='dark']_&]:bg-[#1c2348]">
         <div className="container mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 md:px-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
             <Image
@@ -845,15 +852,15 @@ export default function CommandsPage() {
               className="h-10 w-10 rounded-md object-cover"
             />
             <div>
-              <p className="font-semibold text-[#192448]">
+              <p className="font-semibold text-[#192448] [[data-theme='dark']_&]:text-[#f4f3ef]">
                 Slash commands use Discord autocomplete.
               </p>
-              <p className="text-sm text-[#3c5075]">
+              <p className="text-sm text-[#3c5075] [[data-theme='dark']_&]:text-[#b8c1df]">
                 Required options are shown with angle brackets or named fields.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-[#192448]/12 bg-[#f4f3ef] px-3 py-2 text-sm text-[#3c5075]">
+          <div className="flex items-center gap-2 rounded-md border border-[#192448]/12 bg-[#f4f3ef] px-3 py-2 text-sm text-[#3c5075] [[data-theme='dark']_&]:border-[#c9a227]/15 [[data-theme='dark']_&]:bg-[#111528] [[data-theme='dark']_&]:text-[#b8c1df]">
             <Search className="h-4 w-4 text-[#1d9db0]" />
             Use browser find to jump to a command.
           </div>
@@ -862,7 +869,7 @@ export default function CommandsPage() {
 
       <div className="container mx-auto grid max-w-7xl gap-8 px-4 py-14 md:px-8 lg:grid-cols-[260px_1fr]">
         <aside className="hidden lg:block">
-          <nav className="sticky top-24 rounded-lg border border-[#192448]/12 bg-white p-4 shadow-sm">
+          <nav className="sticky top-24 rounded-lg border border-[#192448]/12 bg-white p-4 shadow-sm [[data-theme='dark']_&]:border-[#c9a227]/15 [[data-theme='dark']_&]:bg-[#1c2348] [[data-theme='dark']_&]:shadow-none">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#1d9db0]">
               Categories
             </p>
@@ -871,7 +878,7 @@ export default function CommandsPage() {
                 <a
                   key={group.id}
                   href={`#${group.id}`}
-                  className="block rounded-md px-3 py-2 text-sm font-medium text-[#3c5075] hover:bg-[#f4f3ef] hover:text-[#192448]"
+                  className="block rounded-md px-3 py-2 text-sm font-medium text-[#3c5075] hover:bg-[#f4f3ef] hover:text-[#192448] [[data-theme='dark']_&]:text-[#b8c1df] [[data-theme='dark']_&]:hover:bg-[#111528] [[data-theme='dark']_&]:hover:text-[#f4f3ef]"
                 >
                   {group.title}
                 </a>
@@ -883,12 +890,16 @@ export default function CommandsPage() {
         <main className="space-y-12">
           {commandGroups.map((group) => (
             <section key={group.id} id={group.id} className="scroll-mt-24">
-              <div className="mb-5 flex flex-col gap-2 border-b border-[#192448]/12 pb-5">
+              <div className="mb-5 flex flex-col gap-2 border-b border-[#192448]/12 pb-5 [[data-theme='dark']_&]:border-[#c9a227]/15">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-[#d5a63a]" />
-                  <h2 className="font-heading text-3xl font-bold text-[#192448]">{group.title}</h2>
+                  <h2 className="font-heading text-3xl font-bold text-[#192448] [[data-theme='dark']_&]:text-[#f4f3ef]">
+                    {group.title}
+                  </h2>
                 </div>
-                <p className="max-w-3xl text-sm leading-6 text-[#3c5075]">{group.summary}</p>
+                <p className="max-w-3xl text-sm leading-6 text-[#3c5075] [[data-theme='dark']_&]:text-[#b8c1df]">
+                  {group.summary}
+                </p>
               </div>
               <div className="grid gap-4">
                 {group.commands.map((command) => (
