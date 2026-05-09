@@ -12,6 +12,7 @@ export function PublicNav() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
+    { label: "Commands", href: "/commands" },
     { label: "Features", href: "/features" },
     { label: "About", href: "/about" },
     { label: "Feedback", href: "/feedback" },
