@@ -235,10 +235,11 @@ function CharacterCard({ character }: { character: Character }) {
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Link
             href={`/characters/${character.id}`}
-            className="flex items-center justify-between gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold !text-slate-950 transition-colors hover:bg-primary/90 [&_svg]:text-slate-950"
+            className="flex items-center justify-between gap-3 rounded-md bg-primary px-3 py-2 text-sm font-bold transition-colors hover:bg-primary/90"
+            style={{ color: "#050505" }}
           >
-            View Sheet
-            <ExternalLink size={15} />
+            <span style={{ color: "#050505" }}>View Sheet</span>
+            <ExternalLink size={15} style={{ color: "#050505" }} />
           </Link>
           <button
             type="button"
