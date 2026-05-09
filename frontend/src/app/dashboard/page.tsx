@@ -1,25 +1,35 @@
 "use client";
 
 import { MainLayout } from "@/components/layout";
-import { useCharacters } from "@/lib/hooks/use-characters";
+import {
+  characterKeys,
+  useCharacters,
+  useUpdateCharacter,
+} from "@/lib/hooks/use-characters";
 import {
   useGuildState,
   type CalendarSnapshot,
   type WeatherSnapshot,
 } from "@/lib/hooks/use-guild-state";
 import { useAuth } from "@/lib/providers/auth-provider";
+import type { CharacterOverlay } from "@/lib/types/bot-integration";
 import type { Json, Tables } from "@/lib/types/database.types";
 import {
   BookOpen,
   CalendarDays,
   Cloud,
   ExternalLink,
+  ImagePlus,
+  Loader2,
   Plus,
   Radio,
   Shield,
   Swords,
+  Trash2,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRef, useState } from "react";
 
 type Character = Tables<"characters">;
 type DashboardUser = Tables<"users">;
@@ -62,7 +72,12 @@ function getDiscordName(user: DashboardUser | null) {
   return `${user.discord_username}#${user.discord_discriminator}`;
 }
 
-function getCharacterImage(character: Character) {
+function getCustomCharacterImage(character: Character) {
+  const overlay = (character.overlay ?? {}) as CharacterOverlay;
+  return overlay.profile_image_url?.trim() || null;
+}
+
+function getPathbuilderCharacterImage(character: Character) {
   return getNestedString(character.pathbuilder_data, [
     ["image"],
     ["img"],
@@ -83,6 +98,29 @@ function getCharacterImage(character: Character) {
   ]);
 }
 
+function getCharacterImage(character: Character) {
+  return getCustomCharacterImage(character) ?? getPathbuilderCharacterImage(character);
+}
+
+async function uploadImage(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const uploadRes = await fetch("/api/homebrew/images", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!uploadRes.ok) {
+    const err = await uploadRes.json().catch(() => ({ error: uploadRes.statusText }));
+    throw new Error(err.error ?? "Image upload failed");
+  }
+
+  const body = (await uploadRes.json()) as { url?: string };
+  if (!body.url) throw new Error("Image upload did not return a URL");
+  return body.url;
+}
+
 function CharacterImageFallback({ name }: { name: string }) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_35%,rgba(211,171,53,0.2),transparent_42%),linear-gradient(145deg,rgba(15,23,42,0.96),rgba(5,8,18,0.98))] text-center">
@@ -99,7 +137,13 @@ function CharacterImageFallback({ name }: { name: string }) {
 }
 
 function CharacterCard({ character }: { character: Character }) {
+  const customImage = getCustomCharacterImage(character);
   const image = getCharacterImage(character);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const updateCharacter = useUpdateCharacter(character.id);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const subtitle = [character.ancestry_name, character.class_name]
     .filter(Boolean)
     .join(" · ");
@@ -109,11 +153,46 @@ function CharacterCard({ character }: { character: Character }) {
     year: "numeric",
   });
 
+  async function saveImageUrl(url: string | null) {
+    await updateCharacter.mutateAsync({
+      overlay: { profile_image_url: url },
+    });
+    await queryClient.invalidateQueries({ queryKey: characterKeys.all });
+  }
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setUploadError(null);
+    setIsUploading(true);
+    try {
+      const url = await uploadImage(file);
+      await saveImageUrl(url);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Image upload failed");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  async function removeImage() {
+    setUploadError(null);
+    setIsUploading(true);
+    try {
+      await saveImageUrl(null);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Could not remove image");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  const isBusy = isUploading || updateCharacter.isPending;
+
   return (
-    <Link
-      href={`/characters/${character.id}`}
-      className="group overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg"
-    >
+    <div className="group overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         {image ? (
           <img
@@ -153,12 +232,59 @@ function CharacterCard({ character }: { character: Character }) {
           </span>
           <span className="text-muted-foreground">{updated}</span>
         </div>
-        <div className="flex items-center justify-between gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">
-          View Sheet
-          <ExternalLink size={15} />
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <Link
+            href={`/characters/${character.id}`}
+            className="flex items-center justify-between gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            View Sheet
+            <ExternalLink size={15} />
+          </Link>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isBusy}
+            className="btn-outline h-10 w-10 p-0"
+            title={image ? "Replace character image" : "Upload character image"}
+            aria-label={image ? "Replace character image" : "Upload character image"}
+          >
+            {isBusy ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <ImagePlus size={16} />
+            )}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+            onChange={handleFileChange}
+            className="hidden"
+          />
         </div>
+        <div className="flex min-h-5 items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            {customImage
+              ? "Custom dashboard image"
+              : image
+                ? "Pathbuilder sheet image"
+                : "Add art for this sheet"}
+          </p>
+          {customImage && (
+            <button
+              type="button"
+              onClick={removeImage}
+              disabled={isBusy}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
+            >
+              <Trash2 size={12} />
+              Remove
+            </button>
+          )}
+        </div>
+        {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
       </div>
-    </Link>
+    </div>
   );
 }
 

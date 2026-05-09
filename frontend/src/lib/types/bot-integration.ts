@@ -84,6 +84,7 @@ export interface BotCompanion {
 
 // Extended character row (adds columns from the bot-integration migration)
 export interface CharacterOverlay {
+  profile_image_url?: string | null;
   spellbook?: Array<{ caster: string; spell: string; rank: number }>;
   repertoire_swaps?: Array<{ caster: string; rank: number; remove: string; add: string }>;
   prepared_override?: Record<string, Array<{ rank: number; spell: string; slot_index: number }>>;

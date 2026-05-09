@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import type { TablesUpdate } from "@/lib/types/database.types";
+import type { CharacterOverlay } from "@/lib/types/bot-integration";
 
 async function resolveUserId(authUser: { id: string; identities?: { provider: string; identity_data?: Record<string, string> }[] }): Promise<string | null> {
   const discordId =
@@ -137,12 +138,7 @@ export async function PATCH(
     hero_points?: number;
     dying?:       number;
     wounded?:     number;
-    overlay?: {
-      daily?: {
-        focus_spent?: number;
-        hero_points?: number;
-      };
-    };
+    overlay?: Partial<CharacterOverlay>;
   };
 
   const service = createServiceClient();
