@@ -21,6 +21,7 @@ import * as path from "path";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 const GAMEDATA_DIR = path.resolve(__dirname, "../../../Pathway/gamedata");
+const BOT_SUPABASE_DIR = path.resolve(__dirname, "../../../Pathway/my discord bot/supabase");
 const BATCH = 200;
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
@@ -40,6 +41,12 @@ const db = createClient(SUPABASE_URL, SERVICE_KEY);
 function load<T = unknown>(filename: string): T {
   return JSON.parse(
     fs.readFileSync(path.join(GAMEDATA_DIR, filename), "utf8")
+  ) as T;
+}
+
+function loadBotSupabase<T = unknown>(filename: string): T {
+  return JSON.parse(
+    fs.readFileSync(path.join(BOT_SUPABASE_DIR, filename), "utf8")
   ) as T;
 }
 
@@ -258,8 +265,13 @@ async function main() {
   }
 
   // Seed single-document config files as one row each
-  function seedSingleDocument(category: string, filename: string, slug: string): GamedataRow[] {
-    const data = load<Record<string, unknown>>(filename);
+  function seedSingleDocument(
+    category: string,
+    filename: string,
+    slug: string,
+    loader: <T = unknown>(filename: string) => T = load
+  ): GamedataRow[] {
+    const data = loader<Record<string, unknown>>(filename);
     // Strip _meta key — it's documentation, not runtime data
     const { _meta: _, ...rest } = data as { _meta?: unknown } & Record<string, unknown>;
     return [{ category, slug, name: slug, data: rest }];
@@ -274,8 +286,8 @@ async function main() {
 
   // Calendar rules (one row per calendar variant)
   const calendarRows = [
-    ...seedSingleDocument("calendar_rules", "calendar.json", "golarion"),
-    ...seedSingleDocument("calendar_rules", "eberron-calendar.json", "eberron"),
+    ...seedSingleDocument("calendar_rules", "calendar-rules/golarion.json", "golarion", loadBotSupabase),
+    ...seedSingleDocument("calendar_rules", "calendar-rules/eberron.json", "eberron", loadBotSupabase),
   ];
   if (calendarRows.length) {
     const n = await upsertBatches(calendarRows);
@@ -284,8 +296,8 @@ async function main() {
 
   // Weather rules (one row per setting)
   const weatherRows = [
-    ...seedSingleDocument("weather_rules", "weather.json", "golarion"),
-    ...seedSingleDocument("weather_rules", "eberron-weather.json", "eberron"),
+    ...seedSingleDocument("weather_rules", "weather-rules/golarion.json", "golarion", loadBotSupabase),
+    ...seedSingleDocument("weather_rules", "weather-rules/eberron.json", "eberron", loadBotSupabase),
   ];
   if (weatherRows.length) {
     const n = await upsertBatches(weatherRows);
