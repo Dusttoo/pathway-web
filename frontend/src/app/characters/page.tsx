@@ -13,7 +13,7 @@ import type { CharacterOverlay } from "@/lib/types/bot-integration";
 import type { Json, Tables } from "@/lib/types/database.types";
 import { ImagePlus, Loader2, Plus, Swords, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Character = Tables<"characters">;
 
@@ -87,6 +87,10 @@ function CharacterCard({
   const deleteCharacterImage = useDeleteCharacterImage();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Reset error state whenever the resolved image URL changes (e.g. after upload).
+  useEffect(() => { setImageError(false); }, [image]);
 
   const subtitle = [
     character.ancestry_name,
@@ -130,11 +134,12 @@ function CharacterCard({
   return (
     <div className="card group relative overflow-hidden transition-all hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        {image ? (
+        {image && !imageError ? (
           <img
             src={image}
             alt={`Image for ${character.name}`}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            onError={() => setImageError(true)}
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_35%,rgba(211,171,53,0.2),transparent_42%),linear-gradient(145deg,rgba(15,23,42,0.96),rgba(5,8,18,0.98))] text-center">

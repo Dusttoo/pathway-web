@@ -86,6 +86,9 @@ export function useCharacterImages(options?: { enabled?: boolean }) {
       return body.images ?? {};
     },
     enabled: options?.enabled !== false,
+    // Uploads/deletes invalidate this cache explicitly, so we can hold it for
+    // a while without refetching on every navigation back to /characters.
+    staleTime: 60_000,
   });
 }
 

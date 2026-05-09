@@ -8,6 +8,7 @@
 "use client";
 
 import { User } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface CharacterPortraitProps {
   name: string;
@@ -28,6 +29,9 @@ export function CharacterPortrait({
   size = "md",
   showDetails = true,
 }: CharacterPortraitProps) {
+  const [imageError, setImageError] = useState(false);
+  useEffect(() => { setImageError(false); }, [imageUrl]);
+
   // Size classes
   const sizeClasses = {
     sm: "w-12 h-12 text-lg",
@@ -58,13 +62,13 @@ export function CharacterPortrait({
 
   // Render avatar
   const renderAvatar = () => {
-    if (imageUrl) {
-      // Future: display actual image
+    if (imageUrl && !imageError) {
       return (
         <img
           src={imageUrl}
           alt={`${name} portrait`}
           className="w-full h-full object-cover"
+          onError={() => setImageError(true)}
         />
       );
     }
