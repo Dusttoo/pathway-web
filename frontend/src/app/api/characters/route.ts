@@ -1,121 +1,250 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import type { Json, Tables } from "@/lib/types/database.types";
+import type { NativeBuildInput } from "@/lib/types/character";
 import { NextResponse } from "next/server";
 
-export async function GET(request: Request) {
+// ── Types ────────────────────────────────────────────────────────────────────
+
+type AncestryRow = Tables<"ancestries">;
+type ClassRow    = Tables<"character_classes">;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+const ANCESTRY_SIZE_MAP: Record<string, number> = {
+  tiny: 1, small: 1, medium: 2, large: 3, huge: 4, gargantuan: 5,
+};
+
+const ALL_SKILLS = [
+  "acrobatics", "arcana", "athletics", "crafting", "deception", "diplomacy",
+  "intimidation", "medicine", "nature", "occultism", "performance", "religion",
+  "society", "stealth", "survival", "thievery", "piloting", "computers",
+];
+
+function synthesizeBuild(
+  input: NativeBuildInput,
+  ancestry: AncestryRow,
+  charClass: ClassRow,
+): object {
+  const classProfs = (charClass.initial_proficiencies ?? {}) as Record<string, number>;
+  const baseSkills = Object.fromEntries(ALL_SKILLS.map((s) => [s, 0]));
+
+  const trainedSkillProfs = Object.fromEntries(
+    (input.trained_skills ?? []).map((skill) => [
+      skill,
+      Math.max(classProfs[skill] ?? 0, 2),
+    ]),
+  );
+
+  const mergedProfs = { ...baseSkills, ...classProfs, ...trainedSkillProfs };
+
+  const dexMod = Math.floor((input.abilities.dex - 10) / 2);
+  const unarmoredRank = mergedProfs.unarmored ?? 2;
+  const acProfBonus = unarmoredRank > 0 ? unarmoredRank * 2 + input.level : 0;
+  const sizeStr = (ancestry.size ?? "medium").toLowerCase();
+  const sizeNum = ANCESTRY_SIZE_MAP[sizeStr] ?? 2;
+
+  return {
+    success: true,
+    build: {
+      name:       input.name,
+      class:      input.class,
+      dualClass:  null,
+      level:      input.level,
+      xp:         0,
+      ancestry:   input.ancestry,
+      heritage:   input.heritage,
+      background: input.background,
+      alignment:  input.alignment,
+      gender:     input.gender  || "Not set",
+      age:        input.age     || "Not set",
+      deity:      input.deity   || "Not set",
+      size:       sizeNum,
+      sizeName:   ancestry.size ?? "Medium",
+      keyability: input.keyability,
+      languages:  input.languages.length ? input.languages : ["None selected"],
+      rituals: [], resistances: [], inventorMods: [],
+      abilities: {
+        ...input.abilities,
+        breakdown: {
+          ancestryFree: [], ancestryBoosts: [], ancestryFlaws: [],
+          backgroundBoosts: [], classBoosts: [], mapLevelledBoosts: {},
+        },
+      },
+      attributes: {
+        ancestryhp:      ancestry.ancestry_hp ?? 8,
+        classhp:         charClass.class_hp   ?? 8,
+        bonushp:         0,
+        bonushpPerLevel: 0,
+        speed:           ancestry.speed ?? 25,
+        speedBonus:      0,
+      },
+      proficiencies: mergedProfs,
+      mods: {},
+      feats:    [],
+      specials: [],
+      lores:    input.lore ? [[input.lore, 2]] : [],
+      equipmentContainers: {},
+      equipment: [],
+      specificProficiencies: { trained: [], expert: [], master: [], legendary: [] },
+      weapons: [],
+      armor:   [],
+      money:   input.money,
+      spellCasters: [],
+      focusPoints: 0,
+      focus:   {},
+      formula: [],
+      acTotal: {
+        acProfBonus,
+        acAbilityBonus: dexMod,
+        acItemBonus:    0,
+        acTotal:        10 + acProfBonus + dexMod,
+        shieldBonus:    null,
+      },
+      pets: [], familiars: [],
+    },
+  };
+}
+
+// ── Auth helper ───────────────────────────────────────────────────────────────
+
+async function resolveUser() {
   const supabase = await createClient();
   const { data: { user: authUser } } = await supabase.auth.getUser();
-
-  if (!authUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const guildId = searchParams.get("guild_id");
-  const status = searchParams.get("status") ?? "active";
+  if (!authUser) return null;
 
   const service = createServiceClient();
   const discordId =
     authUser.identities?.find((i) => i.provider === "discord")
       ?.identity_data?.provider_id ?? authUser.id;
 
-  const userResult = await service
+  const { data: dbUser } = await service
     .from("users")
     .select("id")
     .eq("discord_id", discordId)
     .single();
 
-  if (!userResult.data) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+  return dbUser ? { authUser, appUserId: dbUser.id, service } : null;
+}
 
-  let query = service
+// ── GET — list characters ─────────────────────────────────────────────────────
+
+export async function GET(request: Request) {
+  const ctx = await resolveUser();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(request.url);
+  const guildId = searchParams.get("guild_id");
+  const status  = searchParams.get("status") ?? "active";
+
+  let query = ctx.service
     .from("characters")
     .select("*")
-    .eq("user_id", userResult.data.id)
+    .eq("user_id", ctx.appUserId)
     .eq("status", status)
     .order("updated_at", { ascending: false });
 
   if (guildId) query = query.eq("discord_guild_id", guildId);
 
   const { data, error } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json(data);
 }
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+// ── POST — create character ───────────────────────────────────────────────────
 
-  if (!authUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function POST(request: Request) {
+  const ctx = await resolveUser();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { pathbuilder_data, pathbuilder_id, discord_guild_id } = body;
+  const { source = "pathbuilder", discord_guild_id } = body;
+
+  // ── Native build path ────────────────────────────────────────────────────
+
+  if (source === "native") {
+    const nb: NativeBuildInput = body.native_build;
+
+    if (!nb?.name || !nb.ancestry_id || !nb.class_id || !nb.background || !nb.abilities) {
+      return NextResponse.json(
+        { error: "native_build requires name, ancestry_id, class_id, background, and abilities" },
+        { status: 400 },
+      );
+    }
+
+    const [ancestryResult, classResult] = await Promise.all([
+      ctx.service.from("ancestries").select("*").eq("id", nb.ancestry_id).single(),
+      ctx.service.from("character_classes").select("*").eq("id", nb.class_id).single(),
+    ]);
+
+    if (ancestryResult.error || !ancestryResult.data) {
+      return NextResponse.json({ error: "Ancestry not found" }, { status: 400 });
+    }
+    if (classResult.error || !classResult.data) {
+      return NextResponse.json({ error: "Class not found" }, { status: 400 });
+    }
+
+    const pathbuilderData = synthesizeBuild(nb, ancestryResult.data, classResult.data);
+
+    const { data, error } = await ctx.service
+      .from("characters")
+      .insert({
+        user_id:          ctx.appUserId,
+        discord_guild_id: discord_guild_id ?? null,
+        source:           "native",
+        name:             nb.name,
+        char_key:         nb.name.toLowerCase().replace(/\s+/g, "-"),
+        ancestry_name:    nb.ancestry,
+        heritage_name:    nb.heritage || null,
+        class_name:       nb.class,
+        background_name:  nb.background,
+        level:            nb.level ?? 1,
+        pathbuilder_data: pathbuilderData as Json,
+        currency:         (nb.money ?? { cp: 0, sp: 0, gp: 15, pp: 0 }) as Json,
+      })
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json(data, { status: 201 });
+  }
+
+  // ── Pathbuilder import path (existing) ───────────────────────────────────
 
   if (!discord_guild_id) {
     return NextResponse.json({ error: "discord_guild_id is required" }, { status: 400 });
   }
 
-  if (!pathbuilder_data && !pathbuilder_id) {
-    return NextResponse.json(
-      { error: "Either pathbuilder_data or pathbuilder_id is required" },
-      { status: 400 }
-    );
-  }
+  const { pathbuilder_data, pathbuilder_id } = body;
 
   if (!pathbuilder_data) {
     return NextResponse.json({ error: "pathbuilder_data is required" }, { status: 400 });
   }
 
-  // Accept either the full { success, build } envelope or just the build object
-  const sheetData = pathbuilder_data;
-
-  const build = sheetData?.build ?? sheetData;
+  const build = pathbuilder_data?.build ?? pathbuilder_data;
   if (!build?.name) {
     return NextResponse.json({ error: "Invalid Pathbuilder data" }, { status: 400 });
   }
 
-  const service = createServiceClient();
-  const discordId =
-    authUser.identities?.find((i) => i.provider === "discord")
-      ?.identity_data?.provider_id ?? authUser.id;
-
-  const userResult = await service
-    .from("users")
-    .select("id")
-    .eq("discord_id", discordId)
-    .single();
-
-  if (!userResult.data) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  const { data, error } = await service
+  const { data, error } = await ctx.service
     .from("characters")
     .insert({
-      user_id: userResult.data.id,
+      user_id:          ctx.appUserId,
       discord_guild_id,
-      name: build.name,
-      char_key: build.name.toLowerCase().replace(/\s+/g, '-'),
-      ancestry_name: build.ancestry ?? null,
-      heritage_name: build.heritage ?? null,
-      class_name: build.class ?? null,
-      background_name: build.background ?? null,
-      level: build.level ?? 1,
-      pathbuilder_id: pathbuilder_id ?? null,
-      pathbuilder_data: sheetData,
+      source:           "pathbuilder",
+      name:             build.name,
+      char_key:         build.name.toLowerCase().replace(/\s+/g, "-"),
+      ancestry_name:    build.ancestry   ?? null,
+      heritage_name:    build.heritage   ?? null,
+      class_name:       build.class      ?? null,
+      background_name:  build.background ?? null,
+      level:            build.level      ?? 1,
+      pathbuilder_id:   pathbuilder_id   ?? null,
+      pathbuilder_data,
     })
     .select()
     .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json(data, { status: 201 });
 }

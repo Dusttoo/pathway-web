@@ -423,6 +423,7 @@ export type Database = {
           overlay: Json
           pathbuilder_data: Json | null
           pathbuilder_id: number | null
+          source: string
           status: string
           updated_at: string
           user_id: string
@@ -448,6 +449,7 @@ export type Database = {
           overlay?: Json
           pathbuilder_data?: Json | null
           pathbuilder_id?: number | null
+          source?: string
           status?: string
           updated_at?: string
           user_id: string
@@ -473,6 +475,7 @@ export type Database = {
           overlay?: Json
           pathbuilder_data?: Json | null
           pathbuilder_id?: number | null
+          source?: string
           status?: string
           updated_at?: string
           user_id?: string
@@ -1385,6 +1388,7 @@ export type Database = {
       }
       users: {
         Row: {
+          active_char_key: string | null
           created_at: string
           discord_avatar: string | null
           discord_discriminator: string | null
@@ -1396,6 +1400,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active_char_key?: string | null
           created_at?: string
           discord_avatar?: string | null
           discord_discriminator?: string | null
@@ -1407,6 +1412,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active_char_key?: string | null
           created_at?: string
           discord_avatar?: string | null
           discord_discriminator?: string | null
