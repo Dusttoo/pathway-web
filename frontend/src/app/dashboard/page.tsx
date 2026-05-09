@@ -235,7 +235,7 @@ function CharacterCard({ character }: { character: Character }) {
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Link
             href={`/characters/${character.id}`}
-            className="flex items-center justify-between gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-primary/90"
+            className="flex items-center justify-between gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold !text-slate-950 transition-colors hover:bg-primary/90 [&_svg]:text-slate-950"
           >
             View Sheet
             <ExternalLink size={15} />
