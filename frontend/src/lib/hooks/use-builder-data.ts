@@ -28,6 +28,7 @@ export function useAncestries(q = "") {
     queryFn:   async () => {
       const qs = new URLSearchParams({ limit: "100" });
       if (q) qs.set("q", q);
+      qs.set("include_homebrew", "true");
       const res = await fetch(`/api/content/ancestries?${qs}`);
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -63,6 +64,7 @@ export function useClasses(q = "") {
     queryFn:   async () => {
       const qs = new URLSearchParams({ limit: "100" });
       if (q) qs.set("q", q);
+      qs.set("include_homebrew", "true");
       const res = await fetch(`/api/content/classes?${qs}`);
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -99,6 +101,7 @@ export function useBackgroundsList(q = "") {
     queryFn:   async () => {
       const qs = new URLSearchParams({ limit: "100" });
       if (q) qs.set("q", q);
+      qs.set("include_homebrew", "true");
       const res = await fetch(`/api/content/backgrounds?${qs}`);
       if (!res.ok) throw new Error(await res.text());
       return res.json();

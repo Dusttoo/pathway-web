@@ -22,6 +22,7 @@ import {
   Package,
   Info,
   AlertTriangle,
+  Users,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -336,6 +337,19 @@ function HomebrewContent() {
           bot restart.
         </p>
       </div>
+
+      {/* Character Content link */}
+      <Link
+        href="/homebrew/character-content"
+        className="flex items-center gap-3 card p-4 hover:border-primary/50 transition-colors group"
+      >
+        <Users size={20} className="text-primary shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm group-hover:text-primary transition-colors">Character Content</p>
+          <p className="text-xs text-muted-foreground">Custom ancestries, classes &amp; backgrounds for the character builder</p>
+        </div>
+        <span className="text-xs text-muted-foreground">→</span>
+      </Link>
 
       {/* Tabs */}
       <div className="border-b-2 border-border">
