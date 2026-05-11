@@ -139,6 +139,10 @@ export async function PATCH(
     dying?:       number;
     wounded?:     number;
     overlay?: Partial<CharacterOverlay>;
+    build_patch?: {
+      feats?: Array<[string, string | null, string | null, string | null]>;
+      proficiencies?: Record<string, number>;
+    };
   };
 
   const service = createServiceClient();
@@ -192,6 +196,26 @@ export async function PATCH(
         ...(body.overlay.daily ?? {}),
       },
     };
+  }
+
+  if (body.build_patch) {
+    const pb = existing.pathbuilder_data as { build?: Record<string, unknown> } | Record<string, unknown> | null;
+    const hasWrapper = !!pb && "build" in pb;
+    const build = pb ? ({ ...((pb as { build?: Record<string, unknown> }).build ?? pb) } as Record<string, unknown>) : {};
+
+    if (body.build_patch.feats) {
+      build.feats = body.build_patch.feats;
+    }
+    if (body.build_patch.proficiencies) {
+      build.proficiencies = {
+        ...((build.proficiencies ?? {}) as Record<string, number>),
+        ...body.build_patch.proficiencies,
+      };
+    }
+
+    updates.pathbuilder_data = (hasWrapper
+      ? { ...(pb as Record<string, unknown>), build }
+      : build) as TablesUpdate<"characters">["pathbuilder_data"];
   }
 
   if (Object.keys(updates).length === 0) {

@@ -42,11 +42,30 @@ function synthesizeBuild(
     ]),
   );
 
+  const additionalSkillProfs = Object.fromEntries(
+    (input.additional_skills ?? [])
+      .filter((skill) => skill.name.trim())
+      .map((skill) => [
+        skill.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""),
+        Math.max(2, Math.min(5, Math.round(skill.rank || 2))),
+      ]),
+  );
+
+  const customFeats = (input.custom_feats ?? [])
+    .filter((feat) => feat.name.trim())
+    .map((feat) => [
+      feat.name.trim(),
+      null,
+      feat.featType || "Other",
+      feat.level ? `Level ${feat.level}` : null,
+    ]);
+
   const mergedProfs: Record<string, number> = {
     ...baseSkills,
     ...classProfs,
     ...bgSkillProfs,
     ...trainedSkillProfs,
+    ...additionalSkillProfs,
   };
 
   // All characters are at least Trained (rank 2) in Perception
@@ -95,9 +114,14 @@ function synthesizeBuild(
       },
       proficiencies: mergedProfs,
       mods: {},
-      feats:    [],
+      feats:    customFeats,
       specials: [],
-      lores:    input.lore ? [[input.lore, 2]] : [],
+      lores:    [
+        ...(input.lore ? [[input.lore, 2]] : []),
+        ...(input.additional_skills ?? [])
+          .filter((skill) => /lore$/i.test(skill.name.trim()))
+          .map((skill) => [skill.name.trim().replace(/\s+lore$/i, ""), Math.max(2, Math.min(5, Math.round(skill.rank || 2)))]),
+      ],
       equipmentContainers: {},
       equipment: [],
       specificProficiencies: { trained: [], expert: [], master: [], legendary: [] },

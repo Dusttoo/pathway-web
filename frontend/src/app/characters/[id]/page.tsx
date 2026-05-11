@@ -96,6 +96,14 @@ function signedTotal(total: number): string {
   return total >= 0 ? `+${total}` : `${total}`;
 }
 
+function customKey(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function customLabel(key: string): string {
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function deriveMaxHp(build: PBBuild, level: number): number | null {
   const attr = build.attributes;
   if (!attr) return null;
@@ -151,6 +159,14 @@ const SAVE_ABILITY: Record<string, keyof NonNullable<PBBuild["abilities"]>> = {
 const COMBAT_PROF_KEYS = new Set([
   "light_armor", "medium_armor", "heavy_armor", "unarmored",
   "simple_weapons", "martial_weapons", "advanced_weapons", "unarmed",
+]);
+const NON_SKILL_PROF_KEYS = new Set([
+  ...SKILL_ORDER,
+  ...Object.keys(SAVE_LABELS),
+  ...COMBAT_PROF_KEYS,
+  "perception",
+  "class_dc",
+  "spell_dc",
 ]);
 
 // ── Content modal helpers ─────────────────────────────────────────────────────
@@ -890,9 +906,34 @@ function AddItemForm({
 
 // ── Tab panels ────────────────────────────────────────────────────────────────
 
-function StatsTabPanel({ build, level }: { build: PBBuild; level: number }) {
+function StatsTabPanel({
+  build,
+  level,
+  onSaveProficiencies,
+  isSaving,
+}: {
+  build: PBBuild;
+  level: number;
+  onSaveProficiencies: (proficiencies: Record<string, number>) => void;
+  isSaving: boolean;
+}) {
   const abs   = build.abilities;
   const profs = build.proficiencies ?? {};
+  const extraProfs = Object.entries(profs).filter(([key, rank]) => !NON_SKILL_PROF_KEYS.has(key) && rank > 0);
+  const [extraSkillName, setExtraSkillName] = useState("");
+  const [extraSkillRank, setExtraSkillRank] = useState(2);
+
+  function addExtraSkill() {
+    const key = customKey(extraSkillName);
+    if (!key) return;
+    onSaveProficiencies({ [key]: extraSkillRank });
+    setExtraSkillName("");
+    setExtraSkillRank(2);
+  }
+
+  function removeExtraSkill(key: string) {
+    onSaveProficiencies({ [key]: 0 });
+  }
 
   return (
     <div className="space-y-5">
@@ -930,6 +971,63 @@ function StatsTabPanel({ build, level }: { build: PBBuild; level: number }) {
         </div>
       </div>
 
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Additional Skills</h4>
+            <p className="text-xs text-muted-foreground mt-1">Add or remove unlimited homebrew, lore, and campaign skills.</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {extraProfs.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
+              {extraProfs.map(([key, rank]) => (
+                <div key={key} className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors">
+                  <ProfBadge rank={rank} />
+                  <span className="flex-1 text-sm">{customLabel(key)}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeExtraSkill(key)}
+                    disabled={isSaving}
+                    className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                    title="Remove skill"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-cols-[1fr_150px_auto] gap-2">
+            <input
+              className="input text-sm"
+              value={extraSkillName}
+              onChange={(e) => setExtraSkillName(e.target.value)}
+              placeholder="e.g. Airship Lore, Piloting, Dragonmark Lore"
+            />
+            <select
+              className="input text-sm"
+              value={extraSkillRank}
+              onChange={(e) => setExtraSkillRank(Number(e.target.value))}
+            >
+              <option value={2}>Trained</option>
+              <option value={3}>Expert</option>
+              <option value={4}>Master</option>
+              <option value={5}>Legendary</option>
+            </select>
+            <button
+              type="button"
+              onClick={addExtraSkill}
+              disabled={isSaving || !extraSkillName.trim()}
+              className="btn-outline text-sm flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Plus size={14} />
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+
       {(() => {
         const combatProfs = Object.entries(profs).filter(([k]) => COMBAT_PROF_KEYS.has(k));
         if (combatProfs.length === 0) return null;
@@ -955,26 +1053,87 @@ function StatsTabPanel({ build, level }: { build: PBBuild; level: number }) {
 function FeatsTabPanel({
   build,
   onSelect,
+  onSaveFeats,
+  isSaving,
 }: {
   build: PBBuild;
   onSelect: (name: string) => void;
+  onSaveFeats: (feats: Array<[string, string | null, string | null, string | null]>) => void;
+  isSaving: boolean;
 }) {
   const feats    = build.feats ?? [];
   const specials = build.specials ?? [];
+  const [featName, setFeatName] = useState("");
+  const [featType, setFeatType] = useState("Ancestry");
+  const [featLevel, setFeatLevel] = useState(String(build.level ?? 1));
 
-  const grouped: Record<string, string[]> = {};
-  feats.forEach((feat) => {
+  const normalizedFeats = feats.map((feat): [string, string | null, string | null, string | null] => {
     const name = Array.isArray(feat) ? (feat[0] as string) : String(feat);
     const type = (Array.isArray(feat) ? (feat[2] as string | null) : null) ?? "Other";
+    const levelText = Array.isArray(feat) ? (feat[3] as string | null) : null;
+    return [name, null, type, levelText];
+  });
+
+  const grouped: Record<string, { name: string; index: number }[]> = {};
+  normalizedFeats.forEach((feat, index) => {
+    const name = feat[0];
+    const type = feat[2] ?? "Other";
     if (!grouped[type]) grouped[type] = [];
-    grouped[type].push(name);
+    grouped[type].push({ name, index });
   });
 
   const TYPE_ORDER = ["Class", "Ancestry", "Skill", "General", "Archetype", "Other"];
 
+  function addFeat() {
+    const name = featName.trim();
+    if (!name) return;
+    onSaveFeats([...normalizedFeats, [name, null, featType, featLevel ? `Level ${featLevel}` : null]]);
+    setFeatName("");
+    setFeatType("Ancestry");
+    setFeatLevel(String(build.level ?? 1));
+  }
+
+  function removeFeat(index: number) {
+    onSaveFeats(normalizedFeats.filter((_, i) => i !== index));
+  }
+
   return (
     <div className="space-y-5">
       <p className="text-xs text-muted-foreground">Click a feat to see its description and details.</p>
+
+      <div className="card p-4 bg-muted/20 space-y-3">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add Custom Feat</h4>
+        <div className="grid grid-cols-[1fr_150px_100px_auto] gap-2">
+          <input
+            className="input text-sm"
+            value={featName}
+            onChange={(e) => setFeatName(e.target.value)}
+            placeholder="e.g. Stormmarked Cantrip"
+          />
+          <select className="input text-sm" value={featType} onChange={(e) => setFeatType(e.target.value)}>
+            {["Ancestry", "Class", "Skill", "General", "Archetype", "Other"].map((type) => (
+              <option key={type}>{type}</option>
+            ))}
+          </select>
+          <input
+            className="input text-sm"
+            type="number"
+            min={1}
+            value={featLevel}
+            onChange={(e) => setFeatLevel(e.target.value)}
+            aria-label="Feat level"
+          />
+          <button
+            type="button"
+            onClick={addFeat}
+            disabled={isSaving || !featName.trim()}
+            className="btn-outline text-sm flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <Plus size={14} />
+            Add
+          </button>
+        </div>
+      </div>
 
       {[...TYPE_ORDER, ...Object.keys(grouped).filter((t) => !TYPE_ORDER.includes(t))].map((type) => {
         const list = grouped[type];
@@ -983,14 +1142,23 @@ function FeatsTabPanel({
           <div key={type}>
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{type} Feats</h4>
             <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
-              {list.map((featName, i) => (
-                <li key={i}>
+              {list.map((feat) => (
+                <li key={`${feat.name}-${feat.index}`} className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => onSelect(featName)}
-                    className="w-full text-left text-sm py-1.5 px-3 bg-muted/40 rounded-md hover:bg-muted/70 hover:text-primary transition-colors"
+                    onClick={() => onSelect(feat.name)}
+                    className="flex-1 text-left text-sm py-1.5 px-3 bg-muted/40 rounded-md hover:bg-muted/70 hover:text-primary transition-colors"
                   >
-                    {featName}
+                    {feat.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeFeat(feat.index)}
+                    disabled={isSaving}
+                    className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                    title="Remove feat"
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </li>
               ))}
@@ -1616,12 +1784,26 @@ export default function CharacterDetailPage() {
           <div className="p-5">
             {tab === "stats" && (
               build
-                ? <StatsTabPanel build={build} level={level} />
+                ? (
+                  <StatsTabPanel
+                    build={build}
+                    level={level}
+                    isSaving={updateCharacter.isPending}
+                    onSaveProficiencies={(proficiencies) => updateCharacter.mutate({ build_patch: { proficiencies } })}
+                  />
+                )
                 : <p className="text-sm text-muted-foreground italic">No Pathbuilder data available.</p>
             )}
             {tab === "feats" && (
               build
-                ? <FeatsTabPanel build={build} onSelect={(name) => setModal({ type: "feat", name })} />
+                ? (
+                  <FeatsTabPanel
+                    build={build}
+                    isSaving={updateCharacter.isPending}
+                    onSaveFeats={(feats) => updateCharacter.mutate({ build_patch: { feats } })}
+                    onSelect={(name) => setModal({ type: "feat", name })}
+                  />
+                )
                 : <p className="text-sm text-muted-foreground italic">No Pathbuilder data available.</p>
             )}
             {tab === "gear" && (

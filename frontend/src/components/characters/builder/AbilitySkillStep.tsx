@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus, Trash2 } from "lucide-react";
 import type { StepProps } from "./types";
 
 type Ability = "str" | "dex" | "con" | "int" | "wis" | "cha";
@@ -38,7 +39,16 @@ function abilityMod(score: number) {
 }
 
 export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
-  const { classInitialProfs, classTrainedCount, backgroundTrainedSkill, trainedSkills, abilities } = state;
+  const {
+    classInitialProfs,
+    classTrainedCount,
+    backgroundTrainedSkill,
+    trainedSkills,
+    abilities,
+    additionalSkills,
+    customFeats,
+    level,
+  } = state;
 
   // Skills auto-granted by the class (rank >= 2 in initial_proficiencies)
   const classGrantedSkills = new Set(
@@ -71,6 +81,22 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
   function setAbility(key: Ability, raw: string) {
     const val = Math.max(8, Math.min(20, parseInt(raw) || 10));
     update({ abilities: { ...abilities, [key]: val } });
+  }
+
+  function updateAdditionalSkill(index: number, patch: Partial<{ name: string; rank: number }>) {
+    update({
+      additionalSkills: additionalSkills.map((skill, i) =>
+        i === index ? { ...skill, ...patch } : skill
+      ),
+    });
+  }
+
+  function updateCustomFeat(index: number, patch: Partial<{ name: string; featType: string; level: number }>) {
+    update({
+      customFeats: customFeats.map((feat, i) =>
+        i === index ? { ...feat, ...patch } : feat
+      ),
+    });
   }
 
   return (
@@ -153,6 +179,119 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
             );
           })}
         </div>
+      </div>
+
+      {/* Additional skill proficiencies */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Additional Skills</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Add unlimited homebrew, lore, campaign, or vehicle skills beyond the class picks above.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => update({ additionalSkills: [...additionalSkills, { name: "", rank: 2 }] })}
+            className="btn-outline text-sm flex items-center gap-1.5"
+          >
+            <Plus size={14} />
+            Add Skill
+          </button>
+        </div>
+
+        {additionalSkills.length > 0 && (
+          <div className="space-y-2">
+            {additionalSkills.map((skill, index) => (
+              <div key={index} className="grid grid-cols-[1fr_150px_auto] gap-2 items-center">
+                <input
+                  className="input text-sm"
+                  value={skill.name}
+                  onChange={(e) => updateAdditionalSkill(index, { name: e.target.value })}
+                  placeholder="e.g. Airship Lore, Piloting, Dragonmark Lore"
+                />
+                <select
+                  className="input text-sm"
+                  value={skill.rank}
+                  onChange={(e) => updateAdditionalSkill(index, { rank: Number(e.target.value) })}
+                >
+                  <option value={2}>Trained</option>
+                  <option value={3}>Expert</option>
+                  <option value={4}>Master</option>
+                  <option value={5}>Legendary</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => update({ additionalSkills: additionalSkills.filter((_, i) => i !== index) })}
+                  className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  title="Remove skill"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Custom feats */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Custom Feats</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Add unlimited homebrew ancestry, class, skill, general, or campaign feats.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => update({ customFeats: [...customFeats, { name: "", featType: "Ancestry", level }] })}
+            className="btn-outline text-sm flex items-center gap-1.5"
+          >
+            <Plus size={14} />
+            Add Feat
+          </button>
+        </div>
+
+        {customFeats.length > 0 && (
+          <div className="space-y-2">
+            {customFeats.map((feat, index) => (
+              <div key={index} className="grid grid-cols-[1fr_150px_100px_auto] gap-2 items-center">
+                <input
+                  className="input text-sm"
+                  value={feat.name}
+                  onChange={(e) => updateCustomFeat(index, { name: e.target.value })}
+                  placeholder="e.g. Stormmarked Cantrip"
+                />
+                <select
+                  className="input text-sm"
+                  value={feat.featType}
+                  onChange={(e) => updateCustomFeat(index, { featType: e.target.value })}
+                >
+                  {["Ancestry", "Class", "Skill", "General", "Archetype", "Other"].map((type) => (
+                    <option key={type}>{type}</option>
+                  ))}
+                </select>
+                <input
+                  className="input text-sm"
+                  type="number"
+                  min={1}
+                  value={feat.level}
+                  onChange={(e) => updateCustomFeat(index, { level: Math.max(1, Number(e.target.value) || 1) })}
+                  aria-label="Feat level"
+                />
+                <button
+                  type="button"
+                  onClick={() => update({ customFeats: customFeats.filter((_, i) => i !== index) })}
+                  className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  title="Remove feat"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex justify-between pt-2">

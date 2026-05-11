@@ -53,6 +53,8 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
       abilities:     state.abilities,
       trained_skills:           state.trainedSkills,
       background_trained_skill: state.backgroundTrainedSkill || undefined,
+      additional_skills: state.additionalSkills.filter((skill) => skill.name.trim()),
+      custom_feats: state.customFeats.filter((feat) => feat.name.trim()),
       deity:         state.deity,
       languages:     state.languages.length ? state.languages : ["None selected"],
       money:         state.money,
@@ -157,6 +159,10 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
           <dd>{state.backgroundName || "—"}</dd>
           <dt className="text-muted-foreground">HP (estimated)</dt>
           <dd className="font-bold text-green-400">{maxHp}</dd>
+          <dt className="text-muted-foreground">Extra Skills</dt>
+          <dd>{state.additionalSkills.filter((skill) => skill.name.trim()).length}</dd>
+          <dt className="text-muted-foreground">Custom Feats</dt>
+          <dd>{state.customFeats.filter((feat) => feat.name.trim()).length}</dd>
         </div>
 
         <div className="pt-2 border-t border-border">

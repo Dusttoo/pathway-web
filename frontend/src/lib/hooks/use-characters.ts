@@ -204,6 +204,10 @@ export type PatchCharacterPayload = {
   dying?:       number;
   wounded?:     number;
   overlay?: Partial<CharacterOverlay>;
+  build_patch?: {
+    feats?: Array<[string, string | null, string | null, string | null]>;
+    proficiencies?: Record<string, number>;
+  };
 };
 
 export function useUpdateCharacter(id: string) {
@@ -248,7 +252,10 @@ export function useUpdateCharacter(id: string) {
         queryClient.setQueryData(characterKeys.detail(id), context.prev);
       }
     },
-    // No invalidateQueries — Realtime subscription keeps the cache fresh.
+    onSuccess: (data) => {
+      queryClient.setQueryData(characterKeys.detail(id), data);
+      queryClient.invalidateQueries({ queryKey: characterKeys.all });
+    },
   });
 }
 

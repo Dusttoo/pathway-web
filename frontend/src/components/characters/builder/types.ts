@@ -30,6 +30,8 @@ export type BuilderState = {
   // Step 4 — Ability Scores & Skills
   abilities: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
   trainedSkills: string[];
+  additionalSkills: { name: string; rank: number }[];
+  customFeats: { name: string; featType: string; level: number }[];
   // Step 5 — Details & Review
   deity: string;
   languages: string[];
@@ -43,7 +45,7 @@ export const DEFAULT_STATE: BuilderState = {
   classId: "", className: "", classHp: 8, classInitialProfs: {},
   classTrainedCount: 3, backgroundName: "", backgroundTrainedSkill: "", keyability: "", lore: "",
   abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-  trainedSkills: [],
+  trainedSkills: [], additionalSkills: [], customFeats: [],
   deity: "", languages: [], money: { cp: 0, sp: 0, gp: 15, pp: 0 },
 };
 
