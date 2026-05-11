@@ -9,7 +9,7 @@ import {
   useUpdateHomebrew,
   type HomebrewEntry,
 } from "@/lib/hooks/use-homebrew";
-import { ArrowLeft, Sparkles, Package, Swords, FileCode, LayoutList, Plus, X } from "lucide-react";
+import { ArrowLeft, Sparkles, Package, Swords, FileCode, LayoutList, Plus, X, BadgeCheck, Gem } from "lucide-react";
 import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import { HomebrewImageUpload } from "@/components/homebrew/HomebrewImageUpload";
 
@@ -78,6 +78,17 @@ const ITEM_CATEGORIES = [
 ] as const;
 
 const BULK_OPTIONS = ["—", "L", "1", "2", "3", "4", "5", "6"] as const;
+
+const FEAT_TYPES = [
+  "General Feat", "Skill Feat", "Ancestry Feat", "Class Feat",
+  "Archetype Feat", "Heritage Feat", "Lineage Feat", "Bonus Feat", "Other",
+] as const;
+const HERITAGE_TYPES = [
+  "Ancestry Heritage", "Versatile Heritage", "Lineage", "Special Heritage", "Other",
+] as const;
+const ACTION_COSTS = [
+  "Passive", "Free Action", "Reaction", "1 Action", "2 Actions", "3 Actions",
+] as const;
 
 function buildSkillsObject(rows: SkillRow[]): Record<string, number> {
   const result: Record<string, number> = {};
@@ -479,6 +490,271 @@ function ItemEditForm({ entry }: { entry: HomebrewEntry }) {
 }
 
 // ── Monster edit form ─────────────────────────────────────────────────────────
+
+function FeatEditForm({ entry }: { entry: HomebrewEntry }) {
+  const router = useRouter();
+  const update = useUpdateHomebrew();
+  const [formError, setFormError] = useState<string | null>(null);
+  const d = entry.data as Record<string, unknown>;
+  const src = d.source as Record<string, unknown> | undefined;
+
+  const [name, setName] = useState(String(d.name ?? entry.name));
+  const [featType, setFeatType] = useState(String(d.feat_type ?? "General Feat"));
+  const [level, setLevel] = useState(String(d.level ?? "1"));
+  const [rarity, setRarity] = useState<Rarity>((d.rarity as Rarity) ?? "Common");
+  const [traits, setTraits] = useState(Array.isArray(d.traits) ? (d.traits as string[]).join(", ") : String(d.traits ?? ""));
+  const [prerequisites, setPrerequisites] = useState(String(d.prerequisites ?? ""));
+  const [frequency, setFrequency] = useState(String(d.frequency ?? ""));
+  const [trigger, setTrigger] = useState(String(d.trigger ?? ""));
+  const [requirements, setRequirements] = useState(String(d.requirements ?? ""));
+  const [actionCost, setActionCost] = useState(String(d.action_cost ?? "Passive"));
+  const [description, setDescription] = useState(String(d.description ?? ""));
+  const [special, setSpecial] = useState(String(d.special ?? ""));
+  const [sourceBook, setSourceBook] = useState(String(src?.book ?? "Homebrew"));
+  const [sourcePage, setSourcePage] = useState(String(src?.page ?? ""));
+  const [imageUrl, setImageUrl] = useState<string | null>((d.image_url as string | null) ?? null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    if (!name.trim()) { setFormError("Name is required."); return; }
+    if (!description.trim()) { setFormError("Benefit is required."); return; }
+    try {
+      await update.mutateAsync({
+        id: entry.id,
+        name: name.trim(),
+        data: {
+          id: entry.entry_key,
+          name: name.trim(),
+          lookup_name: name.trim().toLowerCase(),
+          feat_type: featType,
+          level: parseInt(level) || 1,
+          rarity,
+          traits: traits.split(",").map((t) => t.trim()).filter(Boolean),
+          prerequisites: prerequisites || null,
+          frequency: frequency || null,
+          trigger: trigger || null,
+          requirements: requirements || null,
+          action_cost: actionCost === "Passive" ? null : actionCost,
+          description: description.trim(),
+          special: special || null,
+          source: {
+            book: sourceBook || "Homebrew",
+            page: sourcePage || null,
+            source_text: [sourceBook, sourcePage ? `p. ${sourcePage}` : ""].filter(Boolean).join(" ") || "Homebrew",
+          },
+          image_url: imageUrl,
+        },
+      });
+      router.push("/homebrew?tab=feat");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to save.");
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Identity</SectionHeading>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
+          <Field label="Feat Name" required>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+          </Field>
+          <HomebrewImageUpload value={imageUrl} onChange={setImageUrl} label="Artwork" recommendedSize="256x256 px" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Feat Type">
+            <select className="input" value={featType} onChange={(e) => setFeatType(e.target.value)}>
+              {FEAT_TYPES.map((type) => <option key={type}>{type}</option>)}
+            </select>
+          </Field>
+          <Field label="Level">
+            <select className="input" value={level} onChange={(e) => setLevel(e.target.value)}>
+              {Array.from({ length: 21 }, (_, i) => String(i)).map((value) => <option key={value}>{value}</option>)}
+            </select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Rarity">
+            <select className="input" value={rarity} onChange={(e) => setRarity(e.target.value as Rarity)}>
+              {(["Common","Uncommon","Rare","Unique"] as const).map((r) => <option key={r}>{r}</option>)}
+            </select>
+          </Field>
+          <Field label="Action Cost">
+            <select className="input" value={actionCost} onChange={(e) => setActionCost(e.target.value)}>
+              {ACTION_COSTS.map((cost) => <option key={cost}>{cost}</option>)}
+            </select>
+          </Field>
+        </div>
+        <Field label="Traits" hint="Comma-separated">
+          <input className="input" value={traits} onChange={(e) => setTraits(e.target.value)} />
+        </Field>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Requirements</SectionHeading>
+        <Field label="Prerequisites"><input className="input" value={prerequisites} onChange={(e) => setPrerequisites(e.target.value)} /></Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Frequency"><input className="input" value={frequency} onChange={(e) => setFrequency(e.target.value)} /></Field>
+          <Field label="Trigger"><input className="input" value={trigger} onChange={(e) => setTrigger(e.target.value)} /></Field>
+        </div>
+        <Field label="Requirements"><input className="input" value={requirements} onChange={(e) => setRequirements(e.target.value)} /></Field>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Rules Text</SectionHeading>
+        <Field label="Benefit" required>
+          <textarea className="input min-h-[160px] resize-y" value={description} onChange={(e) => setDescription(e.target.value)} required />
+        </Field>
+        <Field label="Special">
+          <textarea className="input min-h-[80px] resize-y" value={special} onChange={(e) => setSpecial(e.target.value)} />
+        </Field>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Source</SectionHeading>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Source Book"><input className="input" value={sourceBook} onChange={(e) => setSourceBook(e.target.value)} /></Field>
+          <Field label="Page"><input className="input" value={sourcePage} onChange={(e) => setSourcePage(e.target.value)} /></Field>
+        </div>
+      </div>
+
+      {formError && <p className="text-sm text-destructive font-medium">{formError}</p>}
+      <div className="flex gap-3">
+        <button type="submit" disabled={update.isPending} className="btn-primary flex items-center gap-2">
+          {update.isPending ? <><div className="spinner w-4 h-4" />Saving...</> : <><BadgeCheck size={16} />Save Feat</>}
+        </button>
+        <Link href="/homebrew?tab=feat" className="btn-outline">Cancel</Link>
+      </div>
+    </form>
+  );
+}
+
+function HeritageEditForm({ entry }: { entry: HomebrewEntry }) {
+  const router = useRouter();
+  const update = useUpdateHomebrew();
+  const [formError, setFormError] = useState<string | null>(null);
+  const d = entry.data as Record<string, unknown>;
+  const src = d.source as Record<string, unknown> | undefined;
+
+  const [name, setName] = useState(String(d.name ?? entry.name));
+  const [heritageType, setHeritageType] = useState(String(d.heritage_type ?? "Ancestry Heritage"));
+  const [ancestry, setAncestry] = useState(String(d.ancestry ?? ""));
+  const [level, setLevel] = useState(String(d.level ?? "1"));
+  const [rarity, setRarity] = useState<Rarity>((d.rarity as Rarity) ?? "Common");
+  const [traits, setTraits] = useState(Array.isArray(d.traits) ? (d.traits as string[]).join(", ") : String(d.traits ?? ""));
+  const [prerequisites, setPrerequisites] = useState(String(d.prerequisites ?? ""));
+  const [description, setDescription] = useState(String(d.description ?? ""));
+  const [special, setSpecial] = useState(String(d.special ?? ""));
+  const [sourceBook, setSourceBook] = useState(String(src?.book ?? "Homebrew"));
+  const [sourcePage, setSourcePage] = useState(String(src?.page ?? ""));
+  const [imageUrl, setImageUrl] = useState<string | null>((d.image_url as string | null) ?? null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    if (!name.trim()) { setFormError("Name is required."); return; }
+    if (!description.trim()) { setFormError("Benefit is required."); return; }
+    try {
+      await update.mutateAsync({
+        id: entry.id,
+        name: name.trim(),
+        data: {
+          id: entry.entry_key,
+          name: name.trim(),
+          lookup_name: name.trim().toLowerCase(),
+          heritage_type: heritageType,
+          ancestry: ancestry || null,
+          level: parseInt(level) || 1,
+          rarity,
+          traits: traits.split(",").map((t) => t.trim()).filter(Boolean),
+          prerequisites: prerequisites || null,
+          description: description.trim(),
+          special: special || null,
+          source: {
+            book: sourceBook || "Homebrew",
+            page: sourcePage || null,
+            source_text: [sourceBook, sourcePage ? `p. ${sourcePage}` : ""].filter(Boolean).join(" ") || "Homebrew",
+          },
+          image_url: imageUrl,
+        },
+      });
+      router.push("/homebrew?tab=heritage");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to save.");
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Identity</SectionHeading>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
+          <Field label="Heritage Name" required>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+          </Field>
+          <HomebrewImageUpload value={imageUrl} onChange={setImageUrl} label="Artwork" recommendedSize="256x256 px" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Heritage Type">
+            <select className="input" value={heritageType} onChange={(e) => setHeritageType(e.target.value)}>
+              {HERITAGE_TYPES.map((type) => <option key={type}>{type}</option>)}
+            </select>
+          </Field>
+          <Field label="Ancestry">
+            <input className="input" value={ancestry} onChange={(e) => setAncestry(e.target.value)} />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Level">
+            <select className="input" value={level} onChange={(e) => setLevel(e.target.value)}>
+              {Array.from({ length: 21 }, (_, i) => String(i)).map((value) => <option key={value}>{value}</option>)}
+            </select>
+          </Field>
+          <Field label="Rarity">
+            <select className="input" value={rarity} onChange={(e) => setRarity(e.target.value as Rarity)}>
+              {(["Common","Uncommon","Rare","Unique"] as const).map((r) => <option key={r}>{r}</option>)}
+            </select>
+          </Field>
+        </div>
+        <Field label="Traits" hint="Comma-separated">
+          <input className="input" value={traits} onChange={(e) => setTraits(e.target.value)} />
+        </Field>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Requirements</SectionHeading>
+        <Field label="Prerequisites"><input className="input" value={prerequisites} onChange={(e) => setPrerequisites(e.target.value)} /></Field>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Rules Text</SectionHeading>
+        <Field label="Benefit" required>
+          <textarea className="input min-h-[160px] resize-y" value={description} onChange={(e) => setDescription(e.target.value)} required />
+        </Field>
+        <Field label="Special">
+          <textarea className="input min-h-[80px] resize-y" value={special} onChange={(e) => setSpecial(e.target.value)} />
+        </Field>
+      </div>
+
+      <div className="card p-6 space-y-4">
+        <SectionHeading>Source</SectionHeading>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Source Book"><input className="input" value={sourceBook} onChange={(e) => setSourceBook(e.target.value)} /></Field>
+          <Field label="Page"><input className="input" value={sourcePage} onChange={(e) => setSourcePage(e.target.value)} /></Field>
+        </div>
+      </div>
+
+      {formError && <p className="text-sm text-destructive font-medium">{formError}</p>}
+      <div className="flex gap-3">
+        <button type="submit" disabled={update.isPending} className="btn-primary flex items-center gap-2">
+          {update.isPending ? <><div className="spinner w-4 h-4" />Saving...</> : <><Gem size={16} />Save Heritage</>}
+        </button>
+        <Link href="/homebrew?tab=heritage" className="btn-outline">Cancel</Link>
+      </div>
+    </form>
+  );
+}
 
 function MonsterEditForm({ entry }: { entry: HomebrewEntry }) {
   const router = useRouter();
@@ -1050,6 +1326,8 @@ const TYPE_META: Record<string, { label: string; icon: typeof Sparkles; tab: str
   spell:   { label: "Spell",   icon: Sparkles, tab: "spell"   },
   item:    { label: "Item",    icon: Package,  tab: "item"    },
   monster: { label: "Monster", icon: Swords,   tab: "monster" },
+  feat:    { label: "Feat",    icon: BadgeCheck, tab: "feat" },
+  heritage:{ label: "Heritage", icon: Gem, tab: "heritage" },
 };
 
 export default function EditHomebrewPage() {
@@ -1111,6 +1389,8 @@ export default function EditHomebrewPage() {
         {entry.type === "spell"   && <SpellEditForm   entry={entry} />}
         {entry.type === "item"    && <ItemEditForm    entry={entry} />}
         {entry.type === "monster" && <MonsterEditForm entry={entry} />}
+        {entry.type === "feat"    && <FeatEditForm    entry={entry} />}
+        {entry.type === "heritage" && <HeritageEditForm entry={entry} />}
       </div>
     </MainLayout>
   );

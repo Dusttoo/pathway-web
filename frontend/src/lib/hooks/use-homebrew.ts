@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Tables } from "@/lib/types/database.types";
 
 export type HomebrewEntry = Tables<"homebrew_entries">;
-export type HomebrewType = "monster" | "spell" | "item";
+export type HomebrewType = "monster" | "spell" | "item" | "feat" | "heritage";
 
 type HomebrewListResult = {
   data: HomebrewEntry[];

@@ -1,7 +1,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-const VALID_TYPES = new Set(["monster", "spell", "item"]);
+const VALID_TYPES = new Set(["monster", "spell", "item", "feat", "heritage"]);
 
 function toSlug(name: string): string {
   return name
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   }
   if (!VALID_TYPES.has(type)) {
     return NextResponse.json(
-      { error: "type must be monster, spell, or item" },
+      { error: "type must be monster, spell, item, feat, or heritage" },
       { status: 400 }
     );
   }

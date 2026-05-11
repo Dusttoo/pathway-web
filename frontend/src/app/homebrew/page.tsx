@@ -20,6 +20,8 @@ import {
   Swords,
   Sparkles,
   Package,
+  BadgeCheck,
+  Gem,
   Info,
   AlertTriangle,
   Users,
@@ -31,7 +33,13 @@ const TABS: { id: HomebrewType; label: string; icon: typeof Sparkles }[] = [
   { id: "spell", label: "Spells", icon: Sparkles },
   { id: "monster", label: "Monsters", icon: Swords },
   { id: "item", label: "Items", icon: Package },
+  { id: "feat", label: "Feats", icon: BadgeCheck },
+  { id: "heritage", label: "Heritages", icon: Gem },
 ];
+
+function homebrewNewPath(type: HomebrewType) {
+  return `/homebrew/${type === "heritage" ? "heritages" : `${type}s`}/new`;
+}
 
 function rarityColor(rarity?: string) {
   switch (rarity?.toLowerCase()) {
@@ -71,11 +79,29 @@ function itemMetaBadge(data: Record<string, unknown>) {
   return parts.join(" · ");
 }
 
+function featMetaBadge(data: Record<string, unknown>) {
+  const parts: string[] = [];
+  if (data.feat_type) parts.push(String(data.feat_type));
+  if (data.level !== undefined && data.level !== "") parts.push(`Level ${data.level}`);
+  if (data.action_cost) parts.push(String(data.action_cost));
+  return parts.join(" Â· ");
+}
+
+function heritageMetaBadge(data: Record<string, unknown>) {
+  const parts: string[] = [];
+  if (data.ancestry) parts.push(String(data.ancestry));
+  if (data.heritage_type) parts.push(String(data.heritage_type));
+  if (data.level !== undefined && data.level !== "") parts.push(`Level ${data.level}`);
+  return parts.join(" Â· ");
+}
+
 function metaBadge(entry: HomebrewEntry) {
   const d = entry.data as Record<string, unknown>;
   if (entry.type === "spell") return spellMetaBadge(d);
   if (entry.type === "monster") return monsterMetaBadge(d);
   if (entry.type === "item") return itemMetaBadge(d);
+  if (entry.type === "feat") return featMetaBadge(d);
+  if (entry.type === "heritage") return heritageMetaBadge(d);
   return "";
 }
 
@@ -221,7 +247,7 @@ function TabPanel({
           />
         </div>
         <Link
-          href={`/homebrew/${type}s/new`}
+          href={homebrewNewPath(type)}
           className="btn-primary flex items-center gap-2 shrink-0"
         >
           <Plus size={16} />
@@ -261,7 +287,7 @@ function TabPanel({
           </p>
           {!q && (
             <Link
-              href={`/homebrew/${type}s/new`}
+              href={homebrewNewPath(type)}
               className="btn-primary inline-flex items-center gap-2"
             >
               <Plus size={16} />
@@ -321,7 +347,7 @@ function HomebrewContent() {
             Homebrew
           </h1>
           <p className="text-muted-foreground">
-            Custom spells, monsters, and items recognised by the Pathway bot.
+            Custom spells, monsters, items, feats, and heritages recognised by the Pathway bot.
           </p>
         </div>
       </div>

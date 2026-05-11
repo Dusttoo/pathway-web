@@ -16,6 +16,8 @@ import {
   Sparkles,
   Swords,
   Package,
+  BadgeCheck,
+  Gem,
   AlertTriangle,
 } from "lucide-react";
 
@@ -346,12 +348,112 @@ function ItemDetail({ entry }: { entry: HomebrewEntry }) {
   );
 }
 
+function FeatDetail({ entry }: { entry: HomebrewEntry }) {
+  const d = entry.data as Record<string, unknown>;
+  const src = (d.source ?? {}) as Record<string, unknown>;
+  const traits = Array.isArray(d.traits) ? d.traits as string[] : [];
+  const featType = str(d.feat_type);
+  const level = str(d.level);
+  const rarity = str(d.rarity);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {featType && <Badge className="bg-primary/10 text-primary border border-primary/20">{featType}</Badge>}
+        {level && <Badge className="bg-muted/60 text-muted-foreground border border-border">Level {level}</Badge>}
+        {rarity && <Badge className={rarityColor(rarity)}>{rarity}</Badge>}
+        {traits.map((t) => (
+          <Badge key={t} className="bg-muted/40 text-muted-foreground border border-border/50">{t}</Badge>
+        ))}
+      </div>
+
+      <SectionCard title="Rules">
+        <div className="space-y-2">
+          <Row label="Action" value={str(d.action_cost)} />
+          <Row label="Prerequisites" value={str(d.prerequisites)} />
+          <Row label="Frequency" value={str(d.frequency)} />
+          <Row label="Trigger" value={str(d.trigger)} />
+          <Row label="Requirements" value={str(d.requirements)} />
+          {src.book ? (
+            <Row
+              label="Source"
+              value={[str(src.book), src.page ? `p. ${str(src.page)}` : ""].filter(Boolean).join(" ")}
+            />
+          ) : null}
+        </div>
+      </SectionCard>
+
+      {d.description ? (
+        <SectionCard title="Benefit">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.description)}</p>
+        </SectionCard>
+      ) : null}
+
+      {d.special ? (
+        <SectionCard title="Special">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.special)}</p>
+        </SectionCard>
+      ) : null}
+    </div>
+  );
+}
+
+function HeritageDetail({ entry }: { entry: HomebrewEntry }) {
+  const d = entry.data as Record<string, unknown>;
+  const src = (d.source ?? {}) as Record<string, unknown>;
+  const traits = Array.isArray(d.traits) ? d.traits as string[] : [];
+  const heritageType = str(d.heritage_type);
+  const ancestry = str(d.ancestry);
+  const level = str(d.level);
+  const rarity = str(d.rarity);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {heritageType && <Badge className="bg-primary/10 text-primary border border-primary/20">{heritageType}</Badge>}
+        {ancestry && <Badge className="bg-muted/60 text-muted-foreground border border-border">{ancestry}</Badge>}
+        {level && <Badge className="bg-muted/60 text-muted-foreground border border-border">Level {level}</Badge>}
+        {rarity && <Badge className={rarityColor(rarity)}>{rarity}</Badge>}
+        {traits.map((t) => (
+          <Badge key={t} className="bg-muted/40 text-muted-foreground border border-border/50">{t}</Badge>
+        ))}
+      </div>
+
+      <SectionCard title="Rules">
+        <div className="space-y-2">
+          <Row label="Prerequisites" value={str(d.prerequisites)} />
+          {src.book ? (
+            <Row
+              label="Source"
+              value={[str(src.book), src.page ? `p. ${str(src.page)}` : ""].filter(Boolean).join(" ")}
+            />
+          ) : null}
+        </div>
+      </SectionCard>
+
+      {d.description ? (
+        <SectionCard title="Benefit">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.description)}</p>
+        </SectionCard>
+      ) : null}
+
+      {d.special ? (
+        <SectionCard title="Special">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.special)}</p>
+        </SectionCard>
+      ) : null}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const TYPE_META = {
   spell:   { label: "Spell",   icon: Sparkles, tab: "spell"   },
   monster: { label: "Monster", icon: Swords,   tab: "monster" },
   item:    { label: "Item",    icon: Package,  tab: "item"    },
+  feat:    { label: "Feat",    icon: BadgeCheck, tab: "feat" },
+  heritage:{ label: "Heritage", icon: Gem, tab: "heritage" },
 } as const;
 
 export default function HomebrewDetailPage() {
@@ -477,6 +579,8 @@ export default function HomebrewDetailPage() {
         {entry.type === "spell"   && <SpellDetail   entry={entry} />}
         {entry.type === "monster" && <MonsterDetail entry={entry} />}
         {entry.type === "item"    && <ItemDetail    entry={entry} />}
+        {entry.type === "feat"    && <FeatDetail    entry={entry} />}
+        {entry.type === "heritage" && <HeritageDetail entry={entry} />}
       </div>
     </MainLayout>
   );
