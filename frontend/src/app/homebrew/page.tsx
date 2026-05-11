@@ -25,7 +25,7 @@ import {
   Info,
   AlertTriangle,
   Users,
-  Shield,
+  GraduationCap,
   BookOpen,
 } from "lucide-react";
 import { AncestryPanel } from "./_components/AncestryPanel";
@@ -37,6 +37,7 @@ import { BackgroundPanel } from "./_components/BackgroundPanel";
 type ContentTab = "ancestry" | "class" | "background";
 type AnyTab = HomebrewType | ContentTab;
 
+// Tabs that use homebrew_entries (bot content, detail pages, JSONB)
 const HOMEBREW_TABS: { id: HomebrewType; label: string; icon: typeof Sparkles }[] = [
   { id: "spell",    label: "Spells",    icon: Sparkles },
   { id: "monster",  label: "Monsters",  icon: Swords },
@@ -45,10 +46,11 @@ const HOMEBREW_TABS: { id: HomebrewType; label: string; icon: typeof Sparkles }[
   { id: "heritage", label: "Heritages", icon: Gem },
 ];
 
+// Tabs that use structured reference tables (character builder content)
 const CONTENT_TABS: { id: ContentTab; label: string; icon: typeof Sparkles }[] = [
-  { id: "ancestry",   label: "Ancestries",   icon: Users },
-  { id: "class",      label: "Classes",      icon: Shield },
-  { id: "background", label: "Backgrounds",  icon: BookOpen },
+  { id: "ancestry",   label: "Ancestries",  icon: Users },
+  { id: "class",      label: "Classes",     icon: GraduationCap },
+  { id: "background", label: "Backgrounds", icon: BookOpen },
 ];
 
 const ALL_TAB_IDS = new Set<string>([
@@ -56,7 +58,8 @@ const ALL_TAB_IDS = new Set<string>([
   ...CONTENT_TABS.map((t) => t.id),
 ]);
 
-const HOMEBREW_TYPE_IDS = new Set<string>(HOMEBREW_TABS.map((t) => t.id));
+// Only the first 5 go through HomebrewTabPanel (homebrew_entries table)
+const HOMEBREW_ENTRY_IDS = new Set<string>(HOMEBREW_TABS.map((t) => t.id));
 
 function homebrewNewPath(type: HomebrewType) {
   return `/homebrew/${type === "heritage" ? "heritages" : `${type}s`}/new`;
@@ -119,10 +122,10 @@ function heritageMetaBadge(data: Record<string, unknown>) {
 
 function metaBadge(entry: HomebrewEntry) {
   const d = entry.data as Record<string, unknown>;
-  if (entry.type === "spell")   return spellMetaBadge(d);
-  if (entry.type === "monster") return monsterMetaBadge(d);
-  if (entry.type === "item")    return itemMetaBadge(d);
-  if (entry.type === "feat")    return featMetaBadge(d);
+  if (entry.type === "spell")    return spellMetaBadge(d);
+  if (entry.type === "monster")  return monsterMetaBadge(d);
+  if (entry.type === "item")     return itemMetaBadge(d);
+  if (entry.type === "feat")     return featMetaBadge(d);
   if (entry.type === "heritage") return heritageMetaBadge(d);
   return "";
 }
@@ -215,7 +218,7 @@ function HomebrewCard({
   );
 }
 
-// ── homebrew_entries tab panel ────────────────────────────────────────────────
+// ── homebrew_entries tab panel (spell / monster / item / feat / heritage) ─────
 
 function HomebrewTabPanel({
   type,
@@ -365,7 +368,9 @@ function HomebrewContent() {
         <div className="card p-4 bg-primary/5 border-primary/30 flex items-start gap-3">
           <Info size={16} className="text-primary shrink-0 mt-0.5" />
           <p className="text-sm text-muted-foreground">
-            <span className="text-foreground font-medium">Spells, Monsters, Items, Feats &amp; Heritages</span>{" "}
+            <span className="text-foreground font-medium">
+              Spells, Monsters, Items, Feats &amp; Heritages
+            </span>{" "}
             are global — they apply to every Discord server using the Pathway bot and take
             effect on the next bot restart.
           </p>
@@ -373,7 +378,9 @@ function HomebrewContent() {
         <div className="card p-4 bg-primary/5 border-primary/30 flex items-start gap-3">
           <Info size={16} className="text-primary shrink-0 mt-0.5" />
           <p className="text-sm text-muted-foreground">
-            <span className="text-foreground font-medium">Ancestries, Classes &amp; Backgrounds</span>{" "}
+            <span className="text-foreground font-medium">
+              Ancestries, Classes &amp; Backgrounds
+            </span>{" "}
             appear in the character builder immediately after saving — no restart needed.
           </p>
         </div>
@@ -382,8 +389,7 @@ function HomebrewContent() {
       {/* Tabs */}
       <div className="border-b-2 border-border overflow-x-auto">
         <nav className="flex gap-0 -mb-0.5 min-w-max">
-          {/* Separator label */}
-          <span className="px-3 py-3 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide flex items-end pb-3.5 select-none">
+          <span className="px-3 flex items-end pb-3.5 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide select-none">
             Bot
           </span>
           {HOMEBREW_TABS.map(({ id, label, icon: Icon }) => (
@@ -401,7 +407,7 @@ function HomebrewContent() {
             </button>
           ))}
 
-          <span className="px-3 py-3 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide flex items-end pb-3.5 select-none border-l border-border ml-2 pl-4">
+          <span className="px-3 flex items-end pb-3.5 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide select-none border-l border-border ml-2 pl-4">
             Builder
           </span>
           {CONTENT_TABS.map(({ id, label, icon: Icon }) => (
@@ -422,7 +428,7 @@ function HomebrewContent() {
       </div>
 
       {/* Tab content */}
-      {HOMEBREW_TYPE_IDS.has(activeTab) ? (
+      {HOMEBREW_ENTRY_IDS.has(activeTab) ? (
         <HomebrewTabPanel type={activeTab as HomebrewType} currentUserId={user?.id} />
       ) : activeTab === "ancestry" ? (
         <AncestryPanel />

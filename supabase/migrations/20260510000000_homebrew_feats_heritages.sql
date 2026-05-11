@@ -5,4 +5,4 @@ ALTER TABLE public.homebrew_entries
 
 ALTER TABLE public.homebrew_entries
   ADD CONSTRAINT homebrew_entries_type_check
-  CHECK (type IN ('monster', 'spell', 'item', 'feat', 'heritage'));
+  CHECK (type IN ('monster', 'spell', 'item', 'feat', 'heritage', 'ancestry', 'class', 'background'));
