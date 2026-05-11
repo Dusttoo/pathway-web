@@ -24,6 +24,7 @@ export type BuilderState = {
   classInitialProfs: Record<string, number>;
   classTrainedCount: number;
   backgroundName: string;
+  backgroundTrainedSkill: string; // auto-extracted from background's skill_proficiencies
   keyability: string;
   lore: string;
   // Step 4 — Ability Scores & Skills
@@ -40,7 +41,7 @@ export const DEFAULT_STATE: BuilderState = {
   ancestryId: "", ancestryName: "", ancestryHp: 8, ancestrySpeed: 25,
   ancestrySize: "Medium", heritageName: "", defaultLanguages: [],
   classId: "", className: "", classHp: 8, classInitialProfs: {},
-  classTrainedCount: 3, backgroundName: "", keyability: "", lore: "",
+  classTrainedCount: 3, backgroundName: "", backgroundTrainedSkill: "", keyability: "", lore: "",
   abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
   trainedSkills: [],
   deity: "", languages: [], money: { cp: 0, sp: 0, gp: 15, pp: 0 },

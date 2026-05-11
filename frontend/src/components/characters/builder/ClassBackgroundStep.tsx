@@ -132,15 +132,38 @@ export function ClassBackgroundStep({ state, update, onNext, onBack }: StepProps
           <select
             className="input w-full appearance-none pr-8"
             value={state.backgroundName}
-            onChange={(e) => update({ backgroundName: e.target.value })}
+            onChange={(e) => {
+              const name = e.target.value;
+              const bg = backgrounds.find((b) => b.name === name);
+              if (!bg) { update({ backgroundName: "", backgroundTrainedSkill: "" }); return; }
+              const profs = Array.isArray(bg.skill_proficiencies)
+                ? (bg.skill_proficiencies as string[])
+                : [];
+              const trainedSkill = profs.find((s) => !s.toLowerCase().includes("lore"))?.toLowerCase() ?? "";
+              const loreEntry = profs.find((s) => s.toLowerCase().includes("lore"));
+              const autoLore = loreEntry ? loreEntry.replace(/ lore$/i, "") : "";
+              update({
+                backgroundName: name,
+                backgroundTrainedSkill: trainedSkill,
+                lore: autoLore, // auto-fill lore topic; user can override below
+              });
+            }}
             disabled={loadingBgs}
           >
             <option value="">
               {loadingBgs ? "Loading backgrounds…" : "Select a background…"}
             </option>
-            {backgrounds.map((b) => (
-              <option key={b.id} value={b.name}>{b.name}</option>
-            ))}
+            {backgrounds.map((b) => {
+                const profs = Array.isArray(b.skill_proficiencies)
+                  ? (b.skill_proficiencies as string[])
+                  : [];
+                const trainedSkill = profs.find((s) => !s.toLowerCase().includes("lore"));
+                return (
+                  <option key={b.id} value={b.name}>
+                    {b.name}{trainedSkill ? ` · ${trainedSkill}` : ""}
+                  </option>
+                );
+              })}
           </select>
           <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         </div>

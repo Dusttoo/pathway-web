@@ -99,7 +99,8 @@ function signedTotal(total: number): string {
 function deriveMaxHp(build: PBBuild, level: number): number | null {
   const attr = build.attributes;
   if (!attr) return null;
-  const perLevel = (attr.classhp ?? 0) + (attr.bonushpPerLevel ?? 0);
+  const conMod = Math.floor(((build.abilities?.con ?? 10) - 10) / 2);
+  const perLevel = (attr.classhp ?? 0) + conMod + (attr.bonushpPerLevel ?? 0);
   return (attr.ancestryhp ?? 0) + perLevel * level + (attr.bonushp ?? 0);
 }
 
@@ -895,15 +896,15 @@ function StatsTabPanel({ build, level }: { build: PBBuild; level: number }) {
 
   return (
     <div className="space-y-5">
-      {profs.perception !== undefined && abs && (
+      {abs && (
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Perception</h4>
           <div className="flex items-center gap-3 py-2 px-3 bg-muted/40 rounded-lg">
-            <ProfBadge rank={profs.perception} />
+            <ProfBadge rank={profs.perception ?? 2} />
             <span className="flex-1 text-sm font-medium">Perception</span>
             <span className="text-xs text-muted-foreground">WIS {abilityModStr(abs.wis)}</span>
             <span className="font-mono font-bold text-sm w-10 text-right">
-              {signedTotal(profBonus(profs.perception, level) + abilityModNum(abs.wis))}
+              {signedTotal(profBonus(profs.perception ?? 2, level) + abilityModNum(abs.wis))}
             </span>
           </div>
         </div>

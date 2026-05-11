@@ -19,7 +19,8 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
   const [langInput,   setLangInput]   = useState("");
 
   const { abilities, ancestryHp, classHp, level } = state;
-  const maxHp = ancestryHp + classHp * level;
+  const conMod = Math.floor((abilities.con - 10) / 2);
+  const maxHp  = ancestryHp + (classHp + conMod) * level;
 
   function addLanguage() {
     const lang = langInput.trim();
@@ -50,7 +51,8 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
       keyability:    state.keyability,
       lore:          state.lore,
       abilities:     state.abilities,
-      trained_skills: state.trainedSkills,
+      trained_skills:           state.trainedSkills,
+      background_trained_skill: state.backgroundTrainedSkill || undefined,
       deity:         state.deity,
       languages:     state.languages.length ? state.languages : ["None selected"],
       money:         state.money,

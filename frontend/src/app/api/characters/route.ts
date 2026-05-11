@@ -28,6 +28,13 @@ function synthesizeBuild(
   const classProfs = (charClass.initial_proficiencies ?? {}) as Record<string, number>;
   const baseSkills = Object.fromEntries(ALL_SKILLS.map((s) => [s, 0]));
 
+  // Background-granted skill (rank 2, does not consume a free pick slot)
+  const bgSkillProfs: Record<string, number> = {};
+  if (input.background_trained_skill) {
+    const sk = input.background_trained_skill.toLowerCase();
+    bgSkillProfs[sk] = Math.max(classProfs[sk] ?? 0, 2);
+  }
+
   const trainedSkillProfs = Object.fromEntries(
     (input.trained_skills ?? []).map((skill) => [
       skill,
@@ -35,7 +42,15 @@ function synthesizeBuild(
     ]),
   );
 
-  const mergedProfs = { ...baseSkills, ...classProfs, ...trainedSkillProfs };
+  const mergedProfs: Record<string, number> = {
+    ...baseSkills,
+    ...classProfs,
+    ...bgSkillProfs,
+    ...trainedSkillProfs,
+  };
+
+  // All characters are at least Trained (rank 2) in Perception
+  if ((mergedProfs.perception ?? 0) < 2) mergedProfs.perception = 2;
 
   const dexMod = Math.floor((input.abilities.dex - 10) / 2);
   const unarmoredRank = mergedProfs.unarmored ?? 2;

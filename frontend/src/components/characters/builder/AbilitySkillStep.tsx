@@ -38,19 +38,29 @@ function abilityMod(score: number) {
 }
 
 export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
-  const { classInitialProfs, classTrainedCount, trainedSkills, abilities } = state;
+  const { classInitialProfs, classTrainedCount, backgroundTrainedSkill, trainedSkills, abilities } = state;
 
-  // Skills already trained by the class (rank >= 2 from initial_proficiencies)
-  const classTrainedSkills = new Set(
+  // Skills auto-granted by the class (rank >= 2 in initial_proficiencies)
+  const classGrantedSkills = new Set(
     SKILL_LIST.filter((s) => (classInitialProfs[s.key] ?? 0) >= 2).map((s) => s.key),
   );
 
-  // Skills the user has explicitly selected (beyond class-granted)
-  const userSelected = new Set(trainedSkills.filter((s) => !classTrainedSkills.has(s)));
-  const remaining    = classTrainedCount - userSelected.size;
+  // Background-granted skill (rank 2, also locked)
+  const bgSkill = backgroundTrainedSkill.toLowerCase();
+
+  // All locked skills (cannot be toggled by user)
+  const lockedSkills = new Set([...classGrantedSkills, ...(bgSkill ? [bgSkill] : [])]);
+
+  // INT modifier adds to the free-pick budget
+  const intMod      = Math.floor((abilities.int - 10) / 2);
+  const freePicks   = Math.max(0, classTrainedCount + intMod);
+
+  // User-selected = checked but not locked
+  const userSelected = new Set(trainedSkills.filter((s) => !lockedSkills.has(s)));
+  const remaining    = freePicks - userSelected.size;
 
   function toggleSkill(key: string) {
-    if (classTrainedSkills.has(key)) return; // class-granted, immutable
+    if (lockedSkills.has(key)) return; // class/background-granted, immutable
     if (trainedSkills.includes(key)) {
       update({ trainedSkills: trainedSkills.filter((s) => s !== key) });
     } else if (remaining > 0) {
@@ -106,20 +116,27 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
           </span>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
-          Class-granted skills are pre-selected. Choose {classTrainedCount} additional skill{classTrainedCount !== 1 ? "s" : ""} to train.
+          Class- and background-granted skills are pre-selected.
+          Choose <strong>{freePicks}</strong> free skill{freePicks !== 1 ? "s" : ""} to train
+          {intMod !== 0 && (
+            <span className="text-muted-foreground"> (class base {classTrainedCount} {intMod > 0 ? "+" : "−"} INT {Math.abs(intMod)})</span>
+          )}.
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
           {SKILL_LIST.map(({ key, label }) => {
-            const fromClass = classTrainedSkills.has(key);
-            const checked   = fromClass || trainedSkills.includes(key);
+            const fromClass      = classGrantedSkills.has(key);
+            const fromBackground = bgSkill === key;
+            const isLocked       = fromClass || fromBackground;
+            const checked        = isLocked || trainedSkills.includes(key);
+            const badge          = fromClass ? "class" : fromBackground ? "bg" : null;
             return (
               <button
                 key={key}
                 type="button"
                 onClick={() => toggleSkill(key)}
-                disabled={fromClass || (!checked && remaining <= 0)}
+                disabled={isLocked || (!checked && remaining <= 0)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-left transition-colors ${
-                  fromClass
+                  isLocked
                     ? "bg-primary/10 text-primary cursor-default"
                     : checked
                       ? "bg-primary text-primary-foreground"
@@ -129,8 +146,8 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
                 }`}
               >
                 <span className="flex-1">{label}</span>
-                {fromClass && (
-                  <span className="text-[10px] opacity-70 shrink-0">class</span>
+                {badge && (
+                  <span className="text-[10px] opacity-70 shrink-0">{badge}</span>
                 )}
               </button>
             );
