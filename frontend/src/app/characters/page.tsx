@@ -510,6 +510,35 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
               </div>
             </section>
 
+            <section className="rounded-lg border border-primary/40 bg-primary/5 p-4">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-primary">
+                Saving Throws
+              </h3>
+              <div className="grid gap-4 md:grid-cols-3">
+                {SAVE_KEYS.map(([key, label]) => (
+                  <label key={key} className="space-y-1 text-sm">
+                    <span>{label}</span>
+                    <select
+                      value={String(saveRanks[key])}
+                      onChange={(e) =>
+                        setSaveRanks((draft) => ({
+                          ...draft,
+                          [key]: Number(e.target.value),
+                        }))
+                      }
+                      className="input w-full"
+                    >
+                      {PROFICIENCY_OPTIONS.map(([value, optionLabel]) => (
+                        <option key={value} value={value}>
+                          {optionLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+            </section>
+
             <section className="rounded-lg border border-border bg-background/30 p-4">
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Ability Scores & HP
@@ -554,34 +583,6 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                     />
                   </label>
                 ))}
-              </div>
-              <div className="mt-4 border-t border-border/70 pt-4">
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Saving Throws
-                </h4>
-                <div className="grid gap-4 md:grid-cols-3">
-                  {SAVE_KEYS.map(([key, label]) => (
-                    <label key={key} className="space-y-1 text-sm">
-                      <span>{label}</span>
-                      <select
-                        value={String(saveRanks[key])}
-                        onChange={(e) =>
-                          setSaveRanks((draft) => ({
-                            ...draft,
-                            [key]: Number(e.target.value),
-                          }))
-                        }
-                        className="input w-full"
-                      >
-                        {PROFICIENCY_OPTIONS.map(([value, optionLabel]) => (
-                          <option key={value} value={value}>
-                            {optionLabel}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
-                </div>
               </div>
             </section>
 
