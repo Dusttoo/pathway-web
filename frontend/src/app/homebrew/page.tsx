@@ -25,21 +25,44 @@ import {
   Info,
   AlertTriangle,
   Users,
+  Shield,
+  BookOpen,
 } from "lucide-react";
+import { AncestryPanel } from "./_components/AncestryPanel";
+import { ClassPanel } from "./_components/ClassPanel";
+import { BackgroundPanel } from "./_components/BackgroundPanel";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Tab definitions ───────────────────────────────────────────────────────────
 
-const TABS: { id: HomebrewType; label: string; icon: typeof Sparkles }[] = [
-  { id: "spell", label: "Spells", icon: Sparkles },
-  { id: "monster", label: "Monsters", icon: Swords },
-  { id: "item", label: "Items", icon: Package },
-  { id: "feat", label: "Feats", icon: BadgeCheck },
+type ContentTab = "ancestry" | "class" | "background";
+type AnyTab = HomebrewType | ContentTab;
+
+const HOMEBREW_TABS: { id: HomebrewType; label: string; icon: typeof Sparkles }[] = [
+  { id: "spell",    label: "Spells",    icon: Sparkles },
+  { id: "monster",  label: "Monsters",  icon: Swords },
+  { id: "item",     label: "Items",     icon: Package },
+  { id: "feat",     label: "Feats",     icon: BadgeCheck },
   { id: "heritage", label: "Heritages", icon: Gem },
 ];
+
+const CONTENT_TABS: { id: ContentTab; label: string; icon: typeof Sparkles }[] = [
+  { id: "ancestry",   label: "Ancestries",   icon: Users },
+  { id: "class",      label: "Classes",      icon: Shield },
+  { id: "background", label: "Backgrounds",  icon: BookOpen },
+];
+
+const ALL_TAB_IDS = new Set<string>([
+  ...HOMEBREW_TABS.map((t) => t.id),
+  ...CONTENT_TABS.map((t) => t.id),
+]);
+
+const HOMEBREW_TYPE_IDS = new Set<string>(HOMEBREW_TABS.map((t) => t.id));
 
 function homebrewNewPath(type: HomebrewType) {
   return `/homebrew/${type === "heritage" ? "heritages" : `${type}s`}/new`;
 }
+
+// ── Rarity / meta helpers ─────────────────────────────────────────────────────
 
 function rarityColor(rarity?: string) {
   switch (rarity?.toLowerCase()) {
@@ -57,8 +80,7 @@ function rarityColor(rarity?: string) {
 function spellMetaBadge(data: Record<string, unknown>) {
   const parts: string[] = [];
   if (data.type) parts.push(String(data.type));
-  if (data.level !== undefined && data.level !== "")
-    parts.push(`Rank ${data.level}`);
+  if (data.level !== undefined && data.level !== "") parts.push(`Rank ${data.level}`);
   if (data.traditions) parts.push(String(data.traditions));
   return parts.join(" · ");
 }
@@ -97,17 +119,20 @@ function heritageMetaBadge(data: Record<string, unknown>) {
 
 function metaBadge(entry: HomebrewEntry) {
   const d = entry.data as Record<string, unknown>;
-  if (entry.type === "spell") return spellMetaBadge(d);
+  if (entry.type === "spell")   return spellMetaBadge(d);
   if (entry.type === "monster") return monsterMetaBadge(d);
-  if (entry.type === "item") return itemMetaBadge(d);
-  if (entry.type === "feat") return featMetaBadge(d);
+  if (entry.type === "item")    return itemMetaBadge(d);
+  if (entry.type === "feat")    return featMetaBadge(d);
   if (entry.type === "heritage") return heritageMetaBadge(d);
   return "";
 }
 
 function getRarity(entry: HomebrewEntry): string | undefined {
   const d = entry.data as Record<string, unknown>;
-  return (d.rarity as string | undefined) ?? (d.core as Record<string, unknown> | undefined)?.rarity as string | undefined;
+  return (
+    (d.rarity as string | undefined) ??
+    ((d.core as Record<string, unknown> | undefined)?.rarity as string | undefined)
+  );
 }
 
 function formatDate(iso: string) {
@@ -118,7 +143,7 @@ function formatDate(iso: string) {
   });
 }
 
-// ── Entry card ────────────────────────────────────────────────────────────────
+// ── Homebrew entry card ───────────────────────────────────────────────────────
 
 function HomebrewCard({
   entry,
@@ -134,26 +159,18 @@ function HomebrewCard({
   const canWrite = entry.added_by === currentUserId;
   const rarity = getRarity(entry);
   const meta = metaBadge(entry);
-
   const imageUrl = (entry.data as Record<string, unknown>).image_url as string | undefined;
 
   return (
     <div className="card p-5 flex flex-col gap-3 hover:shadow-md transition-shadow relative group">
-      {/* Full-card link to detail page */}
       <Link
         href={`/homebrew/${entry.id}`}
         className="absolute inset-0 z-0 rounded-[inherit]"
         aria-label={`View ${entry.name}`}
       />
-
-      {/* Portrait thumbnail — shown when the entry has uploaded artwork */}
       {imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={imageUrl}
-          alt={entry.name}
-          className="w-full h-32 object-cover rounded-lg"
-        />
+        <img src={imageUrl} alt={entry.name} className="w-full h-32 object-cover rounded-lg" />
       )}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -184,7 +201,6 @@ function HomebrewCard({
           </div>
         )}
       </div>
-
       <div className="flex flex-wrap items-center gap-2">
         {rarity && (
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${rarityColor(rarity)}`}>
@@ -199,9 +215,9 @@ function HomebrewCard({
   );
 }
 
-// ── Tab panel ─────────────────────────────────────────────────────────────────
+// ── homebrew_entries tab panel ────────────────────────────────────────────────
 
-function TabPanel({
+function HomebrewTabPanel({
   type,
   currentUserId,
 }: {
@@ -211,7 +227,6 @@ function TabPanel({
   const [q, setQ] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const deleteEntry = useDeleteHomebrew();
-
   const { data, isLoading, error } = useHomebrew({ type, q: q || undefined });
 
   const handleDelete = useCallback(
@@ -227,11 +242,10 @@ function TabPanel({
     [deleteEntry]
   );
 
-  const label = TABS.find((t) => t.id === type)?.label ?? type;
+  const label = HOMEBREW_TABS.find((t) => t.id === type)?.label ?? type;
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <Search
@@ -255,14 +269,12 @@ function TabPanel({
         </Link>
       </div>
 
-      {/* Loading */}
       {isLoading && (
         <div className="flex items-center justify-center py-16">
           <div className="spinner" />
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="card p-5 bg-destructive/10 border-destructive flex items-start gap-3">
           <AlertTriangle size={18} className="text-destructive shrink-0 mt-0.5" />
@@ -273,7 +285,6 @@ function TabPanel({
         </div>
       )}
 
-      {/* Empty */}
       {!isLoading && !error && data?.data.length === 0 && (
         <div className="card p-12 text-center">
           <Wand2 size={40} className="mx-auto text-muted-foreground mb-4" />
@@ -297,12 +308,10 @@ function TabPanel({
         </div>
       )}
 
-      {/* Grid */}
       {!isLoading && !error && data && data.data.length > 0 && (
         <>
           <p className="text-xs text-muted-foreground">
             {data.total ?? data.data.length} {label.toLowerCase()}
-            {(data.total ?? data.data.length) !== 1 ? "" : ""}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.data.map((entry) => (
@@ -321,7 +330,7 @@ function TabPanel({
   );
 }
 
-// ── Inner content (reads searchParams — must be inside Suspense) ──────────────
+// ── Inner content ─────────────────────────────────────────────────────────────
 
 function HomebrewContent() {
   const searchParams = useSearchParams();
@@ -329,62 +338,77 @@ function HomebrewContent() {
   const { user } = useAuth();
 
   const rawTab = searchParams.get("tab");
-  const activeTab: HomebrewType = TABS.some((t) => t.id === rawTab)
-    ? (rawTab as HomebrewType)
+  const activeTab: AnyTab = ALL_TAB_IDS.has(rawTab ?? "")
+    ? (rawTab as AnyTab)
     : "spell";
 
-  function setTab(id: HomebrewType) {
+  function setTab(id: AnyTab) {
     router.replace(`/homebrew?tab=${id}`);
   }
 
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-4xl font-bold mb-2 flex items-center gap-3">
-            <Wand2 className="text-primary" size={36} />
-            Homebrew
-          </h1>
-          <p className="text-muted-foreground">
-            Custom spells, monsters, items, feats, and heritages recognised by the Pathway bot.
+      <div>
+        <h1 className="font-heading text-4xl font-bold mb-2 flex items-center gap-3">
+          <Wand2 className="text-primary" size={36} />
+          Homebrew
+        </h1>
+        <p className="text-muted-foreground">
+          Custom spells, monsters, items, feats, heritages, ancestries, classes, and
+          backgrounds — all in one place.
+        </p>
+      </div>
+
+      {/* Info banners */}
+      <div className="space-y-2">
+        <div className="card p-4 bg-primary/5 border-primary/30 flex items-start gap-3">
+          <Info size={16} className="text-primary shrink-0 mt-0.5" />
+          <p className="text-sm text-muted-foreground">
+            <span className="text-foreground font-medium">Spells, Monsters, Items, Feats &amp; Heritages</span>{" "}
+            are global — they apply to every Discord server using the Pathway bot and take
+            effect on the next bot restart.
+          </p>
+        </div>
+        <div className="card p-4 bg-primary/5 border-primary/30 flex items-start gap-3">
+          <Info size={16} className="text-primary shrink-0 mt-0.5" />
+          <p className="text-sm text-muted-foreground">
+            <span className="text-foreground font-medium">Ancestries, Classes &amp; Backgrounds</span>{" "}
+            appear in the character builder immediately after saving — no restart needed.
           </p>
         </div>
       </div>
 
-      {/* Info banner */}
-      <div className="card p-4 bg-primary/5 border-primary/30 flex items-start gap-3">
-        <Info size={16} className="text-primary shrink-0 mt-0.5" />
-        <p className="text-sm text-muted-foreground">
-          Homebrew entries are{" "}
-          <span className="text-foreground font-medium">global</span> — they apply
-          to every Discord server using the Pathway bot. The bot loads them on
-          startup via Supabase restore, so new entries take effect on the next
-          bot restart.
-        </p>
-      </div>
-
-      {/* Character Content link */}
-      <Link
-        href="/homebrew/character-content"
-        className="flex items-center gap-3 card p-4 hover:border-primary/50 transition-colors group"
-      >
-        <Users size={20} className="text-primary shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm group-hover:text-primary transition-colors">Character Content</p>
-          <p className="text-xs text-muted-foreground">Custom ancestries, classes &amp; backgrounds for the character builder</p>
-        </div>
-        <span className="text-xs text-muted-foreground">→</span>
-      </Link>
-
       {/* Tabs */}
-      <div className="border-b-2 border-border">
-        <nav className="flex gap-0 -mb-0.5">
-          {TABS.map(({ id, label, icon: Icon }) => (
+      <div className="border-b-2 border-border overflow-x-auto">
+        <nav className="flex gap-0 -mb-0.5 min-w-max">
+          {/* Separator label */}
+          <span className="px-3 py-3 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide flex items-end pb-3.5 select-none">
+            Bot
+          </span>
+          {HOMEBREW_TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-0.5 ${
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-0.5 whitespace-nowrap ${
+                activeTab === id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              }`}
+            >
+              <Icon size={15} />
+              {label}
+            </button>
+          ))}
+
+          <span className="px-3 py-3 text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide flex items-end pb-3.5 select-none border-l border-border ml-2 pl-4">
+            Builder
+          </span>
+          {CONTENT_TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-0.5 whitespace-nowrap ${
                 activeTab === id
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -398,7 +422,15 @@ function HomebrewContent() {
       </div>
 
       {/* Tab content */}
-      <TabPanel type={activeTab} currentUserId={user?.id} />
+      {HOMEBREW_TYPE_IDS.has(activeTab) ? (
+        <HomebrewTabPanel type={activeTab as HomebrewType} currentUserId={user?.id} />
+      ) : activeTab === "ancestry" ? (
+        <AncestryPanel />
+      ) : activeTab === "class" ? (
+        <ClassPanel />
+      ) : (
+        <BackgroundPanel />
+      )}
     </div>
   );
 }
@@ -408,7 +440,13 @@ function HomebrewContent() {
 export default function HomebrewPage() {
   return (
     <MainLayout>
-      <Suspense fallback={<div className="flex items-center justify-center py-16"><div className="spinner" /></div>}>
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center py-16">
+            <div className="spinner" />
+          </div>
+        }
+      >
         <HomebrewContent />
       </Suspense>
     </MainLayout>

@@ -36,9 +36,9 @@ export type HomebrewBackgroundInput = {
 // ── Keys ──────────────────────────────────────────────────────────────────────
 
 const hbKeys = {
-  ancestries: ["homebrew-ancestries"] as const,
-  classes:    ["homebrew-classes"]    as const,
-  backgrounds:["homebrew-backgrounds"] as const,
+  ancestries:  ["homebrew-ancestries"]  as const,
+  classes:     ["homebrew-classes"]     as const,
+  backgrounds: ["homebrew-backgrounds"] as const,
 };
 
 // ── Ancestries ────────────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ const hbKeys = {
 export function useHomebrewAncestries() {
   return useQuery({
     queryKey: hbKeys.ancestries,
-    queryFn:  async () => {
+    queryFn: async () => {
       const res = await fetch("/api/homebrew/ancestries");
       if (!res.ok) throw new Error(await res.text());
       return res.json() as Promise<Record<string, unknown>[]>;
@@ -60,6 +60,25 @@ export function useCreateHomebrewAncestry() {
     mutationFn: async (input) => {
       const res = await fetch("/api/homebrew/ancestries", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hbKeys.ancestries });
+      qc.invalidateQueries({ queryKey: ["ancestries"] });
+    },
+  });
+}
+
+export function useUpdateHomebrewAncestry() {
+  const qc = useQueryClient();
+  return useMutation<unknown, Error, HomebrewAncestryInput & { id: string }>({
+    mutationFn: async ({ id, ...input }) => {
+      const res = await fetch(`/api/homebrew/ancestries/${id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
@@ -97,7 +116,7 @@ export function useDeleteHomebrewAncestry() {
 export function useHomebrewClasses() {
   return useQuery({
     queryKey: hbKeys.classes,
-    queryFn:  async () => {
+    queryFn: async () => {
       const res = await fetch("/api/homebrew/classes");
       if (!res.ok) throw new Error(await res.text());
       return res.json() as Promise<Record<string, unknown>[]>;
@@ -111,6 +130,25 @@ export function useCreateHomebrewClass() {
     mutationFn: async (input) => {
       const res = await fetch("/api/homebrew/classes", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hbKeys.classes });
+      qc.invalidateQueries({ queryKey: ["character_classes"] });
+    },
+  });
+}
+
+export function useUpdateHomebrewClass() {
+  const qc = useQueryClient();
+  return useMutation<unknown, Error, HomebrewClassInput & { id: string }>({
+    mutationFn: async ({ id, ...input }) => {
+      const res = await fetch(`/api/homebrew/classes/${id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
@@ -148,7 +186,7 @@ export function useDeleteHomebrewClass() {
 export function useHomebrewBackgrounds() {
   return useQuery({
     queryKey: hbKeys.backgrounds,
-    queryFn:  async () => {
+    queryFn: async () => {
       const res = await fetch("/api/homebrew/backgrounds");
       if (!res.ok) throw new Error(await res.text());
       return res.json() as Promise<Record<string, unknown>[]>;
@@ -162,6 +200,25 @@ export function useCreateHomebrewBackground() {
     mutationFn: async (input) => {
       const res = await fetch("/api/homebrew/backgrounds", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hbKeys.backgrounds });
+      qc.invalidateQueries({ queryKey: ["backgrounds"] });
+    },
+  });
+}
+
+export function useUpdateHomebrewBackground() {
+  const qc = useQueryClient();
+  return useMutation<unknown, Error, HomebrewBackgroundInput & { id: string }>({
+    mutationFn: async ({ id, ...input }) => {
+      const res = await fetch(`/api/homebrew/backgrounds/${id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
