@@ -30,13 +30,31 @@ type BackgroundItem = {
 };
 
 function toItem(raw: Record<string, unknown>): BackgroundItem {
-  // Extract trained_skill from skill_proficiencies: first key with value 2
-  const skillProfs = (raw.skill_proficiencies ?? {}) as Record<string, unknown>;
-  const trained_skill = Object.keys(skillProfs).find((k) => skillProfs[k] === 2);
+  const sp = raw.skill_proficiencies;
+  let trained_skill: string | undefined;
+  let lore_skill: string | undefined;
 
-  // Extract lore_skill from lore_skills array
-  const loreSkills = Array.isArray(raw.lore_skills) ? raw.lore_skills as string[] : [];
-  const lore_skill = loreSkills[0];
+  if (Array.isArray(sp)) {
+    // Official seeded format: string[] e.g. ["Religion", "Scribing Lore"]
+    const profs = sp as string[];
+    const trainedEntry = profs.find((s) => !s.toLowerCase().includes("lore"));
+    trained_skill = trainedEntry?.toLowerCase();
+    const loreEntry = profs.find((s) => s.toLowerCase().includes("lore"));
+    lore_skill = loreEntry?.replace(/ lore$/i, "");
+  } else if (sp && typeof sp === "object") {
+    // Homebrew format: { [skillKey]: 2 }
+    const skillProfs = sp as Record<string, unknown>;
+    trained_skill = Object.keys(skillProfs).find((k) => skillProfs[k] === 2);
+    // Also check lore_skills column for homebrew entries
+    const loreSkills = Array.isArray(raw.lore_skills) ? raw.lore_skills as string[] : [];
+    lore_skill = loreSkills[0];
+  }
+
+  // lore_skills column fallback (official data may eventually use it)
+  if (!lore_skill) {
+    const loreSkills = Array.isArray(raw.lore_skills) ? raw.lore_skills as string[] : [];
+    lore_skill = loreSkills[0];
+  }
 
   return {
     id: String(raw.id ?? ""),
