@@ -1,6 +1,28 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+const VIRTUAL_TYPES = new Set(["feat", "heritage"]);
+
+type HomebrewRow = {
+  id: string;
+  type: string;
+  entry_key: string;
+  name: string;
+  data: Record<string, unknown>;
+  added_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function virtualType(row: HomebrewRow) {
+  const kind = row.data?._homebrew_type;
+  return typeof kind === "string" && VIRTUAL_TYPES.has(kind) ? kind : row.type;
+}
+
+function normalizeRow(row: HomebrewRow) {
+  return { ...row, type: virtualType(row) };
+}
+
 // ── Shared: resolve params + ownership ───────────────────────────────────────
 
 async function resolveOwnership(id: string) {
@@ -50,7 +72,7 @@ export async function GET(
   if (error || !data) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: normalizeRow(data as HomebrewRow) });
 }
 
 // ── PATCH /api/homebrew/[id] ──────────────────────────────────────────────────
@@ -91,9 +113,11 @@ export async function PATCH(
   const updates: Record<string, any> = { updated_at: new Date().toISOString() };
   if (name) updates.name = name;
   if (entryData) {
+    const existingType = virtualType(resolved.entry as HomebrewRow);
     updates.data = {
       ...entryData,
       _homebrew: true,
+      _homebrew_type: existingType,
       _addedBy: resolved.entry.added_by,
     };
   }
@@ -107,7 +131,7 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: normalizeRow(data as HomebrewRow) });
 }
 
 // ── DELETE /api/homebrew/[id] ─────────────────────────────────────────────────
