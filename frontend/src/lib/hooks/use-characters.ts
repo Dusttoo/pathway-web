@@ -133,7 +133,7 @@ export function useDeleteCharacterImage() {
     mutationFn: async (characterId) => {
       const res = await fetch(
         `/api/characters/images?character_id=${encodeURIComponent(characterId)}`,
-        { method: "DELETE" },
+        { method: "DELETE" }
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -160,12 +160,14 @@ export function useCharacterLive(id: string, options?: { enabled?: boolean }) {
         { event: "UPDATE", schema: "public", table: "characters", filter: `id=eq.${id}` },
         (payload) => {
           queryClient.setQueryData(characterKeys.detail(id), (old: Character | undefined) =>
-            old ? { ...old, ...payload.new } : payload.new as Character
+            old ? { ...old, ...payload.new } : (payload.new as Character)
           );
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id, queryClient]);
 
   return query;
@@ -180,7 +182,9 @@ export function useDiscordGuilds() {
       // provider_token is only reliably available client-side in the Supabase
       // session — the SSR cookie doesn't carry it after the initial exchange.
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const providerToken = session?.provider_token;
       if (!providerToken) throw new Error("No Discord token — please log out and log back in.");
 
@@ -199,13 +203,32 @@ export function useDiscordGuilds() {
 // ── Live stat mutations (HP, hero points, dying, wounded, overlay) ────────────
 
 export type PatchCharacterPayload = {
-  current_hp?:  number;
+  name?: string;
+  ancestry_name?: string | null;
+  heritage_name?: string | null;
+  class_name?: string | null;
+  background_name?: string | null;
+  level?: number;
+  status?: string;
+  current_hp?: number;
   hero_points?: number;
-  dying?:       number;
-  wounded?:     number;
+  dying?: number;
+  wounded?: number;
   overlay?: Partial<CharacterOverlay>;
   build_patch?: {
+    name?: string;
+    ancestry?: string | null;
+    heritage?: string | null;
+    class?: string | null;
+    background?: string | null;
+    level?: number;
+    deity?: string | null;
+    keyability?: string | null;
+    languages?: string[];
+    abilities?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+    attributes?: { ancestryhp: number; classhp: number; bonushp: number; bonushpPerLevel: number };
     feats?: Array<[string, string | null, string | null, string | null]>;
+    equipment?: Array<[string, number]>;
     proficiencies?: Record<string, number>;
     specials?: string[];
     custom_attacks?: { name: string; bonus: string; damage: string; traits: string }[];
@@ -232,14 +255,22 @@ export function useUpdateCharacter(id: string) {
       const prev = queryClient.getQueryData<Character>(characterKeys.detail(id));
       queryClient.setQueryData<Character>(characterKeys.detail(id), (old) => {
         if (!old) return old;
-        const existingOverlay = ((old as unknown as { overlay: CharacterOverlay }).overlay ?? {}) as CharacterOverlay;
-        const overlayPatch    = (vars.overlay ?? {}) as Partial<CharacterOverlay>;
+        const existingOverlay = ((old as unknown as { overlay: CharacterOverlay }).overlay ??
+          {}) as CharacterOverlay;
+        const overlayPatch = (vars.overlay ?? {}) as Partial<CharacterOverlay>;
         return {
           ...old,
-          ...(vars.current_hp  !== undefined && { current_hp:  vars.current_hp  }),
+          ...(vars.name !== undefined && { name: vars.name }),
+          ...(vars.ancestry_name !== undefined && { ancestry_name: vars.ancestry_name }),
+          ...(vars.heritage_name !== undefined && { heritage_name: vars.heritage_name }),
+          ...(vars.class_name !== undefined && { class_name: vars.class_name }),
+          ...(vars.background_name !== undefined && { background_name: vars.background_name }),
+          ...(vars.level !== undefined && { level: vars.level }),
+          ...(vars.status !== undefined && { status: vars.status }),
+          ...(vars.current_hp !== undefined && { current_hp: vars.current_hp }),
           ...(vars.hero_points !== undefined && { hero_points: vars.hero_points }),
-          ...(vars.dying       !== undefined && { dying:       vars.dying       }),
-          ...(vars.wounded     !== undefined && { wounded:     vars.wounded     }),
+          ...(vars.dying !== undefined && { dying: vars.dying }),
+          ...(vars.wounded !== undefined && { wounded: vars.wounded }),
           overlay: {
             ...existingOverlay,
             ...overlayPatch,

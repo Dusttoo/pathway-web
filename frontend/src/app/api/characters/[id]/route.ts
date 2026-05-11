@@ -3,28 +3,26 @@ import { NextResponse } from "next/server";
 import type { TablesUpdate } from "@/lib/types/database.types";
 import type { CharacterOverlay } from "@/lib/types/bot-integration";
 
-async function resolveUserId(authUser: { id: string; identities?: { provider: string; identity_data?: Record<string, string> }[] }): Promise<string | null> {
+async function resolveUserId(authUser: {
+  id: string;
+  identities?: { provider: string; identity_data?: Record<string, string> }[];
+}): Promise<string | null> {
   const discordId =
-    authUser.identities?.find((i) => i.provider === "discord")
-      ?.identity_data?.provider_id ?? authUser.id;
+    authUser.identities?.find((i) => i.provider === "discord")?.identity_data?.provider_id ??
+    authUser.id;
 
   const service = createServiceClient();
-  const { data } = await service
-    .from("users")
-    .select("id")
-    .eq("discord_id", discordId)
-    .single();
+  const { data } = await service.from("users").select("id").eq("discord_id", discordId).single();
 
   return data?.id ?? null;
 }
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
   if (!authUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -50,13 +48,12 @@ export async function GET(
   return NextResponse.json(data);
 }
 
-export async function PUT(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
   if (!authUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -80,16 +77,25 @@ export async function PUT(
   }
 
   if (!existing.pathbuilder_id) {
-    return NextResponse.json({ error: "Character has no Pathbuilder ID — re-import via JSON instead." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Character has no Pathbuilder ID — re-import via JSON instead." },
+      { status: 400 }
+    );
   }
 
   const pbRes = await fetch(`https://pathbuilder2e.com/json.php?id=${existing.pathbuilder_id}`);
   if (!pbRes.ok) {
-    return NextResponse.json({ error: "Pathbuilder is unavailable, try again in a moment." }, { status: 502 });
+    return NextResponse.json(
+      { error: "Pathbuilder is unavailable, try again in a moment." },
+      { status: 502 }
+    );
   }
   const pbJson = await pbRes.json();
   if (!pbJson.success) {
-    return NextResponse.json({ error: "Pathbuilder ID not found — get a fresh export link from the app." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Pathbuilder ID not found — get a fresh export link from the app." },
+      { status: 404 }
+    );
   }
 
   const build = pbJson.build;
@@ -121,26 +127,49 @@ export async function PUT(
 }
 
 // ── PATCH — update live stat fields (HP, hero points, dying, wounded, overlay) ──
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
   if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = await resolveUserId(authUser);
   if (!userId) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const body = await request.json() as {
-    current_hp?:  number;
+  const body = (await request.json()) as {
+    name?: string;
+    ancestry_name?: string | null;
+    heritage_name?: string | null;
+    class_name?: string | null;
+    background_name?: string | null;
+    level?: number;
+    status?: string;
+    current_hp?: number;
     hero_points?: number;
-    dying?:       number;
-    wounded?:     number;
+    dying?: number;
+    wounded?: number;
     overlay?: Partial<CharacterOverlay>;
     build_patch?: {
+      name?: string;
+      ancestry?: string | null;
+      heritage?: string | null;
+      class?: string | null;
+      background?: string | null;
+      level?: number;
+      deity?: string | null;
+      keyability?: string | null;
+      languages?: string[];
+      abilities?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+      attributes?: {
+        ancestryhp: number;
+        classhp: number;
+        bonushp: number;
+        bonushpPerLevel: number;
+      };
       feats?: Array<[string, string | null, string | null, string | null]>;
+      equipment?: Array<[string, number]>;
       proficiencies?: Record<string, number>;
       specials?: string[];
       custom_attacks?: { name: string; bonus: string; damage: string; traits: string }[];
@@ -162,18 +191,55 @@ export async function PATCH(
   // Build the update payload — only include fields explicitly sent
   const updates: TablesUpdate<"characters"> = {};
 
+  if (body.name !== undefined) {
+    const name = body.name.trim();
+    if (!name) return NextResponse.json({ error: "Character name is required" }, { status: 400 });
+    updates.name = name;
+  }
+  if (body.ancestry_name !== undefined) {
+    updates.ancestry_name = body.ancestry_name?.trim() || null;
+  }
+  if (body.heritage_name !== undefined) {
+    updates.heritage_name = body.heritage_name?.trim() || null;
+  }
+  if (body.class_name !== undefined) {
+    updates.class_name = body.class_name?.trim() || null;
+  }
+  if (body.background_name !== undefined) {
+    updates.background_name = body.background_name?.trim() || null;
+  }
+  if (body.level !== undefined) {
+    updates.level = Math.max(1, Math.min(20, Math.round(body.level)));
+  }
+  if (body.status !== undefined) {
+    updates.status = body.status.trim() || "active";
+  }
+
   if (body.current_hp !== undefined) {
     // Clamp to [0, maxHp] server-side
-    const pb   = existing.pathbuilder_data as { build?: Record<string, unknown> } | Record<string, unknown> | null;
+    const pb = existing.pathbuilder_data as
+      | { build?: Record<string, unknown> }
+      | Record<string, unknown>
+      | null;
     const build = pb ? ((pb as { build?: Record<string, unknown> }).build ?? pb) : null;
-    const attrs = (build as { attributes?: { ancestryhp?: number; classhp?: number; bonushp?: number; bonushpPerLevel?: number } } | null)?.attributes;
+    const attrs = (
+      build as {
+        attributes?: {
+          ancestryhp?: number;
+          classhp?: number;
+          bonushp?: number;
+          bonushpPerLevel?: number;
+        };
+      } | null
+    )?.attributes;
     const level = (build as { level?: number } | null)?.level ?? 1;
     const maxHp = attrs
-      ? (attrs.ancestryhp ?? 0) + ((attrs.classhp ?? 0) + (attrs.bonushpPerLevel ?? 0)) * level + (attrs.bonushp ?? 0)
+      ? (attrs.ancestryhp ?? 0) +
+        ((attrs.classhp ?? 0) + (attrs.bonushpPerLevel ?? 0)) * level +
+        (attrs.bonushp ?? 0)
       : null;
-    updates.current_hp = maxHp !== null
-      ? Math.max(0, Math.min(maxHp, body.current_hp))
-      : Math.max(0, body.current_hp);
+    updates.current_hp =
+      maxHp !== null ? Math.max(0, Math.min(maxHp, body.current_hp)) : Math.max(0, body.current_hp);
   }
 
   if (body.hero_points !== undefined) {
@@ -201,12 +267,58 @@ export async function PATCH(
   }
 
   if (body.build_patch) {
-    const pb = existing.pathbuilder_data as { build?: Record<string, unknown> } | Record<string, unknown> | null;
+    const pb = existing.pathbuilder_data as
+      | { build?: Record<string, unknown> }
+      | Record<string, unknown>
+      | null;
     const hasWrapper = !!pb && "build" in pb;
-    const build = pb ? ({ ...((pb as { build?: Record<string, unknown> }).build ?? pb) } as Record<string, unknown>) : {};
+    const build = pb
+      ? ({ ...((pb as { build?: Record<string, unknown> }).build ?? pb) } as Record<
+          string,
+          unknown
+        >)
+      : {};
 
+    if (body.build_patch.name !== undefined) {
+      build.name = body.build_patch.name.trim();
+    }
+    if (body.build_patch.ancestry !== undefined) {
+      build.ancestry = body.build_patch.ancestry?.trim() || null;
+    }
+    if (body.build_patch.heritage !== undefined) {
+      build.heritage = body.build_patch.heritage?.trim() || null;
+    }
+    if (body.build_patch.class !== undefined) {
+      build.class = body.build_patch.class?.trim() || null;
+    }
+    if (body.build_patch.background !== undefined) {
+      build.background = body.build_patch.background?.trim() || null;
+    }
+    if (body.build_patch.level !== undefined) {
+      build.level = Math.max(1, Math.min(20, Math.round(body.build_patch.level)));
+    }
+    if (body.build_patch.deity !== undefined) {
+      build.deity = body.build_patch.deity?.trim() || null;
+    }
+    if (body.build_patch.keyability !== undefined) {
+      build.keyability = body.build_patch.keyability?.trim() || null;
+    }
+    if (body.build_patch.languages) {
+      build.languages = body.build_patch.languages
+        .map((language) => language.trim())
+        .filter(Boolean);
+    }
+    if (body.build_patch.abilities) {
+      build.abilities = body.build_patch.abilities;
+    }
+    if (body.build_patch.attributes) {
+      build.attributes = body.build_patch.attributes;
+    }
     if (body.build_patch.feats) {
       build.feats = body.build_patch.feats;
+    }
+    if (body.build_patch.equipment) {
+      build.equipment = body.build_patch.equipment;
     }
     if (body.build_patch.specials) {
       build.specials = body.build_patch.specials;
@@ -221,9 +333,9 @@ export async function PATCH(
       };
     }
 
-    updates.pathbuilder_data = (hasWrapper
-      ? { ...(pb as Record<string, unknown>), build }
-      : build) as TablesUpdate<"characters">["pathbuilder_data"];
+    updates.pathbuilder_data = (
+      hasWrapper ? { ...(pb as Record<string, unknown>), build } : build
+    ) as TablesUpdate<"characters">["pathbuilder_data"];
   }
 
   if (Object.keys(updates).length === 0) {
@@ -242,13 +354,12 @@ export async function PATCH(
   return NextResponse.json(data);
 }
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
   if (!authUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -260,11 +371,7 @@ export async function DELETE(
   }
 
   const service = createServiceClient();
-  const { error } = await service
-    .from("characters")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
+  const { error } = await service.from("characters").delete().eq("id", id).eq("user_id", userId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
