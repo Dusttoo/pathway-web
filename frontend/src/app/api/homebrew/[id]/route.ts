@@ -1,27 +1,6 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-
-const VIRTUAL_TYPES = new Set(["feat", "heritage"]);
-
-type HomebrewRow = {
-  id: string;
-  type: string;
-  entry_key: string;
-  name: string;
-  data: Record<string, unknown>;
-  added_by: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-function virtualType(row: HomebrewRow) {
-  const kind = row.data?._homebrew_type;
-  return typeof kind === "string" && VIRTUAL_TYPES.has(kind) ? kind : row.type;
-}
-
-function normalizeRow(row: HomebrewRow) {
-  return { ...row, type: virtualType(row) };
-}
+import type { Json } from "@/lib/types/database.types";
 
 // ── Shared: resolve params + ownership ───────────────────────────────────────
 
@@ -72,7 +51,7 @@ export async function GET(
   if (error || !data) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.json({ data: normalizeRow(data as HomebrewRow) });
+  return NextResponse.json({ data });
 }
 
 // ── PATCH /api/homebrew/[id] ──────────────────────────────────────────────────
@@ -109,29 +88,27 @@ export async function PATCH(
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+  const updates: { updated_at: string; name?: string; data?: Json } = {
+    updated_at: new Date().toISOString(),
+  };
   if (name) updates.name = name;
   if (entryData) {
-    const existingType = virtualType(resolved.entry as HomebrewRow);
     updates.data = {
       ...entryData,
       _homebrew: true,
-      _homebrew_type: existingType,
       _addedBy: resolved.entry.added_by,
-    };
+    } as Json;
   }
 
   const { data, error } = await resolved.service
     .from("homebrew_entries")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update(updates as any)
+    .update(updates)
     .eq("id", id)
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data: normalizeRow(data as HomebrewRow) });
+  return NextResponse.json({ data });
 }
 
 // ── DELETE /api/homebrew/[id] ─────────────────────────────────────────────────

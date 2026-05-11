@@ -84,7 +84,7 @@ function featMetaBadge(data: Record<string, unknown>) {
   if (data.feat_type) parts.push(String(data.feat_type));
   if (data.level !== undefined && data.level !== "") parts.push(`Level ${data.level}`);
   if (data.action_cost) parts.push(String(data.action_cost));
-  return parts.join(" Â· ");
+  return parts.join(" · ");
 }
 
 function heritageMetaBadge(data: Record<string, unknown>) {
@@ -92,7 +92,7 @@ function heritageMetaBadge(data: Record<string, unknown>) {
   if (data.ancestry) parts.push(String(data.ancestry));
   if (data.heritage_type) parts.push(String(data.heritage_type));
   if (data.level !== undefined && data.level !== "") parts.push(`Level ${data.level}`);
-  return parts.join(" Â· ");
+  return parts.join(" · ");
 }
 
 function metaBadge(entry: HomebrewEntry) {

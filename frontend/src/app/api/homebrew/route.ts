@@ -2,31 +2,6 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 const VALID_TYPES = new Set(["monster", "spell", "item", "feat", "heritage"]);
-const VIRTUAL_TYPES = new Set(["feat", "heritage"]);
-
-type HomebrewRow = {
-  id: string;
-  type: string;
-  entry_key: string;
-  name: string;
-  data: Record<string, unknown>;
-  added_by: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-function virtualType(row: HomebrewRow) {
-  const kind = row.data?._homebrew_type;
-  return typeof kind === "string" && VIRTUAL_TYPES.has(kind) ? kind : row.type;
-}
-
-function normalizeRow(row: HomebrewRow) {
-  return { ...row, type: virtualType(row) };
-}
-
-function storageType(type: string) {
-  return VIRTUAL_TYPES.has(type) ? "item" : type;
-}
 
 function toSlug(name: string): string {
   return name
@@ -47,41 +22,19 @@ export async function GET(request: Request) {
 
   const service = createServiceClient();
 
-  const needsVirtualFilter =
-    type === "item" || type === "feat" || type === "heritage";
-
   let query = service
     .from("homebrew_entries")
     .select("*", { count: "exact" })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
-  if (type && VALID_TYPES.has(type)) {
-    if (needsVirtualFilter) {
-      query = query.in("type", VIRTUAL_TYPES.has(type) ? ["item", type] : ["item"]);
-    } else {
-      query = query.eq("type", type);
-    }
-  }
+  if (type && VALID_TYPES.has(type)) query = query.eq("type", type);
   if (q) query = query.ilike("name", `%${q}%`);
-  if (!needsVirtualFilter) query = query.range(offset, offset + limit - 1);
 
   const { data, count, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const rows = ((data ?? []) as HomebrewRow[]).map(normalizeRow);
-  const filtered = needsVirtualFilter && type
-    ? rows.filter((row) => virtualType(row as HomebrewRow) === type)
-    : rows;
-  const paged = needsVirtualFilter
-    ? filtered.slice(offset, offset + limit)
-    : filtered;
-
-  return NextResponse.json({
-    data: paged,
-    total: needsVirtualFilter ? filtered.length : count,
-    page,
-    limit,
-  });
+  return NextResponse.json({ data, total: count, page, limit });
 }
 
 // ── POST /api/homebrew ────────────────────────────────────────────────────────
@@ -113,20 +66,19 @@ export async function POST(request: Request) {
   }
   if (!VALID_TYPES.has(type)) {
     return NextResponse.json(
-      { error: "type must be monster, spell, item, feat, or heritage" },
+      { error: `type must be one of: ${[...VALID_TYPES].join(", ")}` },
       { status: 400 }
     );
   }
 
   const baseKey = toSlug(name);
-  const dbType = storageType(type);
   const service = createServiceClient();
 
   // Resolve key conflicts by appending suffix
   const { data: existing } = await service
     .from("homebrew_entries")
     .select("entry_key")
-    .eq("type", dbType)
+    .eq("type", type)
     .eq("entry_key", baseKey)
     .maybeSingle();
 
@@ -135,20 +87,15 @@ export async function POST(request: Request) {
   const { data, error } = await service
     .from("homebrew_entries")
     .insert({
-      type: dbType,
+      type,
       entry_key,
       name,
-      data: {
-        ...entryData,
-        _homebrew: true,
-        _homebrew_type: type,
-        _addedBy: authUser.id,
-      },
+      data: { ...entryData, _homebrew: true, _addedBy: authUser.id },
       added_by: authUser.id,
     })
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data: data ? normalizeRow(data as HomebrewRow) : data }, { status: 201 });
+  return NextResponse.json({ data }, { status: 201 });
 }
