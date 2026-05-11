@@ -59,6 +59,17 @@ function synthesizeBuild(
       feat.featType || "Other",
       feat.level ? `Level ${feat.level}` : null,
     ]);
+  const customSpecials = (input.custom_specials ?? [])
+    .map((special) => special.trim())
+    .filter(Boolean);
+  const customAttacks = (input.custom_attacks ?? [])
+    .filter((attack) => attack.name.trim())
+    .map((attack) => ({
+      name: attack.name.trim(),
+      bonus: attack.bonus.trim(),
+      damage: attack.damage.trim(),
+      traits: attack.traits.trim(),
+    }));
 
   const mergedProfs: Record<string, number> = {
     ...baseSkills,
@@ -115,7 +126,8 @@ function synthesizeBuild(
       proficiencies: mergedProfs,
       mods: {},
       feats:    customFeats,
-      specials: [],
+      specials: customSpecials,
+      custom_attacks: customAttacks,
       lores:    [
         ...(input.lore ? [[input.lore, 2]] : []),
         ...(input.additional_skills ?? [])

@@ -47,6 +47,8 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
     abilities,
     additionalSkills,
     customFeats,
+    customSpecials,
+    customAttacks,
     level,
   } = state;
 
@@ -95,6 +97,14 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
     update({
       customFeats: customFeats.map((feat, i) =>
         i === index ? { ...feat, ...patch } : feat
+      ),
+    });
+  }
+
+  function updateCustomAttack(index: number, patch: Partial<{ name: string; bonus: string; damage: string; traits: string }>) {
+    update({
+      customAttacks: customAttacks.map((attack, i) =>
+        i === index ? { ...attack, ...patch } : attack
       ),
     });
   }
@@ -288,6 +298,117 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
                 >
                   <Trash2 size={15} />
                 </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Special abilities */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Special Abilities</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Add unlimited custom features, ancestry powers, granted abilities, or other character specials.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => update({ customSpecials: [...customSpecials, ""] })}
+            className="btn-outline text-sm flex items-center gap-1.5"
+          >
+            <Plus size={14} />
+            Add Ability
+          </button>
+        </div>
+
+        {customSpecials.length > 0 && (
+          <div className="space-y-2">
+            {customSpecials.map((special, index) => (
+              <div key={index} className="grid grid-cols-[1fr_auto] gap-2 items-start">
+                <textarea
+                  className="input text-sm min-h-[70px] resize-y"
+                  value={special}
+                  onChange={(e) => update({
+                    customSpecials: customSpecials.map((item, i) => i === index ? e.target.value : item),
+                  })}
+                  placeholder="e.g. Storm Sigil: You can feel shifts in nearby weather and elemental pressure."
+                />
+                <button
+                  type="button"
+                  onClick={() => update({ customSpecials: customSpecials.filter((_, i) => i !== index) })}
+                  className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  title="Remove ability"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Custom attacks */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Custom Attacks</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Add unlimited strikes, spell attacks, special attacks, or campaign-specific attack options.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => update({ customAttacks: [...customAttacks, { name: "", bonus: "", damage: "", traits: "" }] })}
+            className="btn-outline text-sm flex items-center gap-1.5"
+          >
+            <Plus size={14} />
+            Add Attack
+          </button>
+        </div>
+
+        {customAttacks.length > 0 && (
+          <div className="space-y-3">
+            {customAttacks.map((attack, index) => (
+              <div key={index} className="border border-border rounded-lg p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Attack {index + 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => update({ customAttacks: customAttacks.filter((_, i) => i !== index) })}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Remove attack"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <input
+                    className="input text-sm"
+                    value={attack.name}
+                    onChange={(e) => updateCustomAttack(index, { name: e.target.value })}
+                    placeholder="Name, e.g. Storm Saber"
+                  />
+                  <input
+                    className="input text-sm"
+                    value={attack.bonus}
+                    onChange={(e) => updateCustomAttack(index, { bonus: e.target.value })}
+                    placeholder="Bonus, e.g. +9"
+                  />
+                  <input
+                    className="input text-sm"
+                    value={attack.damage}
+                    onChange={(e) => updateCustomAttack(index, { damage: e.target.value })}
+                    placeholder="Damage, e.g. 1d8+4 slashing"
+                  />
+                </div>
+                <input
+                  className="input text-sm"
+                  value={attack.traits}
+                  onChange={(e) => updateCustomAttack(index, { traits: e.target.value })}
+                  placeholder="Traits, e.g. magical, agile, finesse"
+                />
               </div>
             ))}
           </div>

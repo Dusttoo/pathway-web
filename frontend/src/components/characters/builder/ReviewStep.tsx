@@ -55,6 +55,8 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
       background_trained_skill: state.backgroundTrainedSkill || undefined,
       additional_skills: state.additionalSkills.filter((skill) => skill.name.trim()),
       custom_feats: state.customFeats.filter((feat) => feat.name.trim()),
+      custom_specials: state.customSpecials.filter((special) => special.trim()),
+      custom_attacks: state.customAttacks.filter((attack) => attack.name.trim()),
       deity:         state.deity,
       languages:     state.languages.length ? state.languages : ["None selected"],
       money:         state.money,
@@ -163,6 +165,10 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
           <dd>{state.additionalSkills.filter((skill) => skill.name.trim()).length}</dd>
           <dt className="text-muted-foreground">Custom Feats</dt>
           <dd>{state.customFeats.filter((feat) => feat.name.trim()).length}</dd>
+          <dt className="text-muted-foreground">Special Abilities</dt>
+          <dd>{state.customSpecials.filter((special) => special.trim()).length}</dd>
+          <dt className="text-muted-foreground">Custom Attacks</dt>
+          <dd>{state.customAttacks.filter((attack) => attack.name.trim()).length}</dd>
         </div>
 
         <div className="pt-2 border-t border-border">

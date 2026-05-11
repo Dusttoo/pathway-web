@@ -142,6 +142,8 @@ export async function PATCH(
     build_patch?: {
       feats?: Array<[string, string | null, string | null, string | null]>;
       proficiencies?: Record<string, number>;
+      specials?: string[];
+      custom_attacks?: { name: string; bonus: string; damage: string; traits: string }[];
     };
   };
 
@@ -205,6 +207,12 @@ export async function PATCH(
 
     if (body.build_patch.feats) {
       build.feats = body.build_patch.feats;
+    }
+    if (body.build_patch.specials) {
+      build.specials = body.build_patch.specials;
+    }
+    if (body.build_patch.custom_attacks) {
+      build.custom_attacks = body.build_patch.custom_attacks;
     }
     if (body.build_patch.proficiencies) {
       build.proficiencies = {

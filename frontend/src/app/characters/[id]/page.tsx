@@ -38,6 +38,7 @@ interface PBBuild {
   proficiencies?: Record<string, number>;
   feats?: Array<[string, string | null, string | null, string | null] | string[]>;
   specials?: string[];
+  custom_attacks?: { name: string; bonus: string; damage: string; traits: string }[];
   equipment?: Array<[string, number]> | Array<{ name: string; qty: number }>;
   attributes?: { ancestryhp: number; classhp: number; bonushp: number; bonushpPerLevel: number };
   spellCasters?: Array<{ name: string; perDay: number[] }>;
@@ -910,18 +911,25 @@ function StatsTabPanel({
   build,
   level,
   onSaveProficiencies,
+  onSaveCustomAttacks,
   isSaving,
 }: {
   build: PBBuild;
   level: number;
   onSaveProficiencies: (proficiencies: Record<string, number>) => void;
+  onSaveCustomAttacks: (attacks: { name: string; bonus: string; damage: string; traits: string }[]) => void;
   isSaving: boolean;
 }) {
   const abs   = build.abilities;
   const profs = build.proficiencies ?? {};
   const extraProfs = Object.entries(profs).filter(([key, rank]) => !NON_SKILL_PROF_KEYS.has(key) && rank > 0);
+  const customAttacks = build.custom_attacks ?? [];
   const [extraSkillName, setExtraSkillName] = useState("");
   const [extraSkillRank, setExtraSkillRank] = useState(2);
+  const [attackName, setAttackName] = useState("");
+  const [attackBonus, setAttackBonus] = useState("");
+  const [attackDamage, setAttackDamage] = useState("");
+  const [attackTraits, setAttackTraits] = useState("");
 
   function addExtraSkill() {
     const key = customKey(extraSkillName);
@@ -933,6 +941,28 @@ function StatsTabPanel({
 
   function removeExtraSkill(key: string) {
     onSaveProficiencies({ [key]: 0 });
+  }
+
+  function addCustomAttack() {
+    const name = attackName.trim();
+    if (!name) return;
+    onSaveCustomAttacks([
+      ...customAttacks,
+      {
+        name,
+        bonus: attackBonus.trim(),
+        damage: attackDamage.trim(),
+        traits: attackTraits.trim(),
+      },
+    ]);
+    setAttackName("");
+    setAttackBonus("");
+    setAttackDamage("");
+    setAttackTraits("");
+  }
+
+  function removeCustomAttack(index: number) {
+    onSaveCustomAttacks(customAttacks.filter((_, i) => i !== index));
   }
 
   return (
@@ -1045,6 +1075,76 @@ function StatsTabPanel({
           </div>
         );
       })()}
+
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Custom Attacks</h4>
+            <p className="text-xs text-muted-foreground mt-1">Add or remove strikes, spell attacks, and special attack options.</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {customAttacks.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {customAttacks.map((attack, index) => (
+                <div key={`${attack.name}-${index}`} className="bg-muted/40 rounded-md p-3 flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{attack.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {[attack.bonus, attack.damage].filter(Boolean).join(" · ") || "No attack details set"}
+                    </p>
+                    {attack.traits && <p className="text-xs text-muted-foreground/70 mt-1">{attack.traits}</p>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeCustomAttack(index)}
+                    disabled={isSaving}
+                    className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                    title="Remove attack"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_90px_1fr_auto] gap-2">
+            <input
+              className="input text-sm"
+              value={attackName}
+              onChange={(e) => setAttackName(e.target.value)}
+              placeholder="Name, e.g. Storm Saber"
+            />
+            <input
+              className="input text-sm"
+              value={attackBonus}
+              onChange={(e) => setAttackBonus(e.target.value)}
+              placeholder="+9"
+            />
+            <input
+              className="input text-sm"
+              value={attackDamage}
+              onChange={(e) => setAttackDamage(e.target.value)}
+              placeholder="1d8+4 slashing"
+            />
+            <button
+              type="button"
+              onClick={addCustomAttack}
+              disabled={isSaving || !attackName.trim()}
+              className="btn-outline text-sm flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Plus size={14} />
+              Add
+            </button>
+          </div>
+          <input
+            className="input text-sm"
+            value={attackTraits}
+            onChange={(e) => setAttackTraits(e.target.value)}
+            placeholder="Traits, e.g. magical, agile, finesse"
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1054,11 +1154,13 @@ function FeatsTabPanel({
   build,
   onSelect,
   onSaveFeats,
+  onSaveSpecials,
   isSaving,
 }: {
   build: PBBuild;
   onSelect: (name: string) => void;
   onSaveFeats: (feats: Array<[string, string | null, string | null, string | null]>) => void;
+  onSaveSpecials: (specials: string[]) => void;
   isSaving: boolean;
 }) {
   const feats    = build.feats ?? [];
@@ -1066,6 +1168,7 @@ function FeatsTabPanel({
   const [featName, setFeatName] = useState("");
   const [featType, setFeatType] = useState("Ancestry");
   const [featLevel, setFeatLevel] = useState(String(build.level ?? 1));
+  const [specialText, setSpecialText] = useState("");
 
   const normalizedFeats = feats.map((feat): [string, string | null, string | null, string | null] => {
     const name = Array.isArray(feat) ? (feat[0] as string) : String(feat);
@@ -1095,6 +1198,17 @@ function FeatsTabPanel({
 
   function removeFeat(index: number) {
     onSaveFeats(normalizedFeats.filter((_, i) => i !== index));
+  }
+
+  function addSpecial() {
+    const special = specialText.trim();
+    if (!special) return;
+    onSaveSpecials([...specials, special]);
+    setSpecialText("");
+  }
+
+  function removeSpecial(index: number) {
+    onSaveSpecials(specials.filter((_, i) => i !== index));
   }
 
   return (
@@ -1167,16 +1281,52 @@ function FeatsTabPanel({
         );
       })}
 
-      {specials.length > 0 && (
-        <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Special Abilities</h4>
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Special Abilities</h4>
+            <p className="text-xs text-muted-foreground mt-1">Add or remove custom abilities, features, and granted powers.</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
+            <textarea
+              className="input text-sm min-h-[74px] resize-y"
+              value={specialText}
+              onChange={(e) => setSpecialText(e.target.value)}
+              placeholder="e.g. Storm Sigil: You can feel shifts in nearby weather and elemental pressure."
+            />
+            <button
+              type="button"
+              onClick={addSpecial}
+              disabled={isSaving || !specialText.trim()}
+              className="btn-outline text-sm flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Plus size={14} />
+              Add
+            </button>
+          </div>
+        </div>
+
+        {specials.length > 0 && (
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
             {specials.map((s, i) => (
-              <li key={i} className="text-sm py-1.5 px-3 bg-muted/40 rounded-md">{s}</li>
+              <li key={i} className="text-sm py-1.5 px-3 bg-muted/40 rounded-md flex items-start gap-3">
+                <span className="flex-1">{s}</span>
+                <button
+                  type="button"
+                  onClick={() => removeSpecial(i)}
+                  disabled={isSaving}
+                  className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 mt-0.5"
+                  title="Remove ability"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -1790,6 +1940,7 @@ export default function CharacterDetailPage() {
                     level={level}
                     isSaving={updateCharacter.isPending}
                     onSaveProficiencies={(proficiencies) => updateCharacter.mutate({ build_patch: { proficiencies } })}
+                    onSaveCustomAttacks={(custom_attacks) => updateCharacter.mutate({ build_patch: { custom_attacks } })}
                   />
                 )
                 : <p className="text-sm text-muted-foreground italic">No Pathbuilder data available.</p>
@@ -1801,6 +1952,7 @@ export default function CharacterDetailPage() {
                     build={build}
                     isSaving={updateCharacter.isPending}
                     onSaveFeats={(feats) => updateCharacter.mutate({ build_patch: { feats } })}
+                    onSaveSpecials={(specials) => updateCharacter.mutate({ build_patch: { specials } })}
                     onSelect={(name) => setModal({ type: "feat", name })}
                   />
                 )

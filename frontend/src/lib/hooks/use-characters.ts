@@ -207,6 +207,8 @@ export type PatchCharacterPayload = {
   build_patch?: {
     feats?: Array<[string, string | null, string | null, string | null]>;
     proficiencies?: Record<string, number>;
+    specials?: string[];
+    custom_attacks?: { name: string; bonus: string; damage: string; traits: string }[];
   };
 };
 
