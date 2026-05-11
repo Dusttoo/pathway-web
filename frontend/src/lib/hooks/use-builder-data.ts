@@ -99,7 +99,7 @@ export function useBackgroundsList(q = "") {
   return useQuery<PagedResult<BackgroundRow>, Error>({
     queryKey:  backgroundKeys.list(q),
     queryFn:   async () => {
-      const qs = new URLSearchParams({ limit: "100" });
+      const qs = new URLSearchParams({ limit: "500" }); // 219 official + room for homebrew
       if (q) qs.set("q", q);
       qs.set("include_homebrew", "true");
       const res = await fetch(`/api/content/backgrounds?${qs}`);

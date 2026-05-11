@@ -5,7 +5,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") ?? "";
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "25")));
+  const limit = Math.min(500, Math.max(1, parseInt(searchParams.get("limit") ?? "25")));
   const offset = (page - 1) * limit;
 
   const includeHomebrew = searchParams.get("include_homebrew") === "true";
