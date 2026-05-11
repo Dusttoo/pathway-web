@@ -1,6 +1,48 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+export async function GET(request: Request) {
+  const botKey = request.headers.get("x-bot-key");
+  if (!botKey || botKey !== process.env.BOT_API_KEY) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const pathwayId = searchParams.get("pathway_id");
+  if (!pathwayId) {
+    return NextResponse.json({ error: "pathway_id is required" }, { status: 400 });
+  }
+
+  const service = createServiceClient();
+  const { data, error } = await service
+    .from("characters")
+    .select("*")
+    .eq("id", pathwayId)
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (!data) {
+    return NextResponse.json({ error: "Character not found" }, { status: 404 });
+  }
+
+  const pathbuilderData = data.pathbuilder_data as { build?: unknown } | unknown | null;
+  const build =
+    pathbuilderData && typeof pathbuilderData === "object" && "build" in pathbuilderData
+      ? (pathbuilderData as { build?: unknown }).build
+      : pathbuilderData;
+
+  return NextResponse.json({
+    pathway_id: data.id,
+    char_key: data.char_key,
+    discord_guild_id: data.discord_guild_id,
+    updated_at: data.updated_at,
+    build,
+    character: data,
+  });
+}
+
 export async function POST(request: Request) {
   const botKey = request.headers.get("x-bot-key");
   if (!botKey || botKey !== process.env.BOT_API_KEY) {
@@ -15,13 +57,19 @@ export async function POST(request: Request) {
   };
 
   if (!discord_id || !discord_guild_id || !pathbuilder_id) {
-    return NextResponse.json({ error: "discord_id, discord_guild_id, and pathbuilder_id are required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "discord_id, discord_guild_id, and pathbuilder_id are required" },
+      { status: 400 }
+    );
   }
 
   // Fetch from Pathbuilder
   const pbRes = await fetch(`https://pathbuilder2e.com/json.php?id=${pathbuilder_id}`);
   if (!pbRes.ok) {
-    return NextResponse.json({ error: `Pathbuilder returned HTTP ${pbRes.status}` }, { status: 502 });
+    return NextResponse.json(
+      { error: `Pathbuilder returned HTTP ${pbRes.status}` },
+      { status: 502 }
+    );
   }
   const pbJson = await pbRes.json();
   if (!pbJson.success) {
@@ -29,7 +77,10 @@ export async function POST(request: Request) {
   }
   const build = pbJson.build;
   if (!build?.name) {
-    return NextResponse.json({ error: "No character data in Pathbuilder response" }, { status: 502 });
+    return NextResponse.json(
+      { error: "No character data in Pathbuilder response" },
+      { status: 502 }
+    );
   }
 
   const service = createServiceClient();

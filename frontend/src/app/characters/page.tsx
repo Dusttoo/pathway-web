@@ -25,6 +25,10 @@ type CustomAttack = {
   bonus: string;
   damage: string;
   traits: string;
+  action?: string;
+  category?: string;
+  range?: string;
+  notes?: string;
 };
 
 type CharacterBuild = {
@@ -429,7 +433,11 @@ function isCustomAttack(value: unknown): value is CustomAttack {
     typeof value.name === "string" &&
     typeof value.bonus === "string" &&
     typeof value.damage === "string" &&
-    typeof value.traits === "string"
+    typeof value.traits === "string" &&
+    (value.action === undefined || typeof value.action === "string") &&
+    (value.category === undefined || typeof value.category === "string") &&
+    (value.range === undefined || typeof value.range === "string") &&
+    (value.notes === undefined || typeof value.notes === "string")
   );
 }
 
@@ -538,6 +546,10 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
               bonus: attack.bonus.trim(),
               damage: attack.damage.trim(),
               traits: attack.traits.trim(),
+              action: attack.action?.trim() ?? "",
+              category: attack.category?.trim() ?? "",
+              range: attack.range?.trim() ?? "",
+              notes: attack.notes?.trim() ?? "",
             }))
             .filter((attack) => attack.name),
         },
@@ -1018,7 +1030,16 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                   onClick={() =>
                     setAttacks((current) => [
                       ...current,
-                      { name: "", bonus: "", damage: "", traits: "" },
+                      {
+                        name: "",
+                        bonus: "",
+                        damage: "",
+                        traits: "",
+                        action: "",
+                        category: "",
+                        range: "",
+                        notes: "",
+                      },
                     ])
                   }
                   className="btn-outline text-sm"
@@ -1028,26 +1049,75 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
               </div>
               <div className="space-y-3">
                 {attacks.map((attack, index) => (
-                  <div
-                    key={index}
-                    className="grid gap-2 rounded-md border border-border/70 p-3 md:grid-cols-4"
-                  >
-                    {(["name", "bonus", "damage", "traits"] as const).map((key) => (
-                      <label key={key} className="space-y-1 text-sm capitalize">
-                        <span>{key}</span>
-                        <input
-                          value={attack[key]}
-                          onChange={(e) =>
-                            setAttacks((current) =>
-                              current.map((item, currentIndex) =>
-                                currentIndex === index ? { ...item, [key]: e.target.value } : item
+                  <div key={index} className="rounded-md border border-border/70 p-3">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {(["name", "category", "action", "bonus"] as const).map((key) => (
+                        <label key={key} className="space-y-1 text-sm capitalize">
+                          <span>{key === "bonus" ? "Attack Bonus" : key}</span>
+                          <input
+                            value={attack[key] ?? ""}
+                            onChange={(e) =>
+                              setAttacks((current) =>
+                                current.map((item, currentIndex) =>
+                                  currentIndex === index ? { ...item, [key]: e.target.value } : item
+                                )
                               )
+                            }
+                            className="input w-full"
+                            placeholder={
+                              key === "name"
+                                ? "Longsword"
+                                : key === "category"
+                                  ? "Melee Strike, Ranged Strike, Spell Attack..."
+                                  : key === "action"
+                                    ? "1 action, 2 actions, reaction..."
+                                    : "+7 to hit"
+                            }
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-3 grid gap-3 md:grid-cols-3">
+                      {(["damage", "traits", "range"] as const).map((key) => (
+                        <label key={key} className="space-y-1 text-sm capitalize">
+                          <span>{key}</span>
+                          <input
+                            value={attack[key] ?? ""}
+                            onChange={(e) =>
+                              setAttacks((current) =>
+                                current.map((item, currentIndex) =>
+                                  currentIndex === index ? { ...item, [key]: e.target.value } : item
+                                )
+                              )
+                            }
+                            className="input w-full"
+                            placeholder={
+                              key === "damage"
+                                ? "1d8 slashing"
+                                : key === "traits"
+                                  ? "agile, finesse, magical"
+                                  : "reach 10 ft., 60 feet..."
+                            }
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <label className="mt-3 block space-y-1 text-sm">
+                      <span>Attack Rules / Notes</span>
+                      <textarea
+                        value={attack.notes ?? ""}
+                        onChange={(e) =>
+                          setAttacks((current) =>
+                            current.map((item, currentIndex) =>
+                              currentIndex === index ? { ...item, notes: e.target.value } : item
                             )
-                          }
-                          className="input w-full"
-                        />
-                      </label>
-                    ))}
+                          )
+                        }
+                        rows={4}
+                        className="input w-full resize-y"
+                        placeholder="Add critical effects, reload, special damage riders, MAP notes, or when this attack applies."
+                      />
+                    </label>
                     <button
                       type="button"
                       onClick={() =>
@@ -1055,7 +1125,7 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                           current.filter((_, currentIndex) => currentIndex !== index)
                         )
                       }
-                      className="btn-outline text-destructive hover:bg-destructive hover:text-white md:col-span-4"
+                      className="mt-3 btn-outline w-full text-destructive hover:bg-destructive hover:text-white"
                     >
                       Remove Attack
                     </button>
@@ -1170,6 +1240,9 @@ function MiniCharacterSheet({
           <div className="space-y-4 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
+                <p className="mb-1 font-mono text-[11px] text-muted-foreground">
+                  Pathway JSON ID: {character.id}
+                </p>
                 <p className="text-sm text-muted-foreground">
                   {[character.ancestry_name, character.heritage_name, character.background_name]
                     .filter(Boolean)
@@ -1268,10 +1341,27 @@ function MiniCharacterSheet({
                             <span className="font-mono text-xs">{attack.bonus}</span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {[attack.category, attack.action, attack.range]
+                            .filter(Boolean)
+                            .map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded-full border border-border bg-background/40 px-2 py-0.5 text-[10px] text-muted-foreground"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {[attack.damage, attack.traits].filter(Boolean).join(" - ") ||
                             "No attack details"}
                         </p>
+                        {attack.notes && (
+                          <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                            {attack.notes}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>

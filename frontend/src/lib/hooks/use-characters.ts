@@ -231,7 +231,16 @@ export type PatchCharacterPayload = {
     equipment?: Array<[string, number]>;
     proficiencies?: Record<string, number>;
     specials?: string[];
-    custom_attacks?: { name: string; bonus: string; damage: string; traits: string }[];
+    custom_attacks?: {
+      name: string;
+      bonus: string;
+      damage: string;
+      traits: string;
+      action?: string;
+      category?: string;
+      range?: string;
+      notes?: string;
+    }[];
   };
 };
 

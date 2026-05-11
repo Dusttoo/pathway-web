@@ -172,7 +172,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       equipment?: Array<[string, number]>;
       proficiencies?: Record<string, number>;
       specials?: string[];
-      custom_attacks?: { name: string; bonus: string; damage: string; traits: string }[];
+      custom_attacks?: {
+        name: string;
+        bonus: string;
+        damage: string;
+        traits: string;
+        action?: string;
+        category?: string;
+        range?: string;
+        notes?: string;
+      }[];
     };
   };
 
