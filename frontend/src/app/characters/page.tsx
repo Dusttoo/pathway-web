@@ -65,6 +65,12 @@ type HpAttributes = {
 
 type FeatTuple = [string, string | null, string | null, string | null];
 type EquipmentTuple = [string, number];
+type SpecialAbilityEntry = {
+  name: string;
+  type: string;
+  source: string;
+  details: string;
+};
 
 const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha"] as const;
 const SAVE_KEYS = [
@@ -375,6 +381,48 @@ function getSpecialAbilities(character: Character) {
     : [];
 }
 
+function parseSpecialAbility(special: string): SpecialAbilityEntry {
+  const [header, ...bodyLines] = special.split("\n");
+  const parts = header.split("|").map((part) => part.trim());
+  if (parts.length > 1) {
+    return {
+      name: parts[0] || "Special Ability",
+      type: parts[1] ?? "",
+      source: parts[2] ?? "",
+      details: bodyLines.join("\n").trim(),
+    };
+  }
+
+  const colonIndex = special.indexOf(":");
+  if (colonIndex > 0) {
+    return {
+      name: special.slice(0, colonIndex).trim(),
+      type: "",
+      source: "",
+      details: special.slice(colonIndex + 1).trim(),
+    };
+  }
+
+  return {
+    name: header.trim() || "Special Ability",
+    type: "",
+    source: "",
+    details: bodyLines.join("\n").trim() || special.trim(),
+  };
+}
+
+function serializeSpecialAbility(entry: SpecialAbilityEntry) {
+  const header = [entry.name.trim(), entry.type.trim(), entry.source.trim()]
+    .filter(Boolean)
+    .join(" | ");
+  const details = entry.details.trim();
+  return [header, details].filter(Boolean).join("\n");
+}
+
+function getSpecialAbilityEntries(character: Character) {
+  return getSpecialAbilities(character).map(parseSpecialAbility);
+}
+
 function isCustomAttack(value: unknown): value is CustomAttack {
   return (
     isRecord(value) &&
@@ -423,7 +471,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
   const [equipmentText, setEquipmentText] = useState(() =>
     equipmentToText(getEquipment(character))
   );
-  const [specialsText, setSpecialsText] = useState(() => getSpecialAbilities(character).join("\n"));
+  const [specialEntries, setSpecialEntries] = useState<SpecialAbilityEntry[]>(() =>
+    getSpecialAbilityEntries(character)
+  );
   const [attacks, setAttacks] = useState<CustomAttack[]>(() => getCustomAttacks(character));
 
   async function saveSheet(event: React.FormEvent) {
@@ -473,10 +523,15 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
             )
             .filter((feat) => feat[0]),
           equipment: textToEquipment(equipmentText),
-          specials: specialsText
-            .split("\n")
-            .map((special) => special.trim())
-            .filter(Boolean),
+          specials: specialEntries
+            .map((special) => ({
+              name: special.name.trim(),
+              type: special.type.trim(),
+              source: special.source.trim(),
+              details: special.details.trim(),
+            }))
+            .filter((special) => special.name)
+            .map(serializeSpecialAbility),
           custom_attacks: attacks
             .map((attack) => ({
               name: attack.name.trim(),
@@ -836,16 +891,120 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                     placeholder="Longsword x1&#10;Rations x7"
                   />
                 </label>
-                <label className="mt-4 block space-y-1 text-sm">
-                  <span>Special Abilities</span>
-                  <textarea
-                    value={specialsText}
-                    onChange={(e) => setSpecialsText(e.target.value)}
-                    rows={6}
-                    className="input w-full resize-y"
-                    placeholder="One special ability per line"
-                  />
-                </label>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm">Special Abilities</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSpecialEntries((current) => [
+                          ...current,
+                          { name: "", type: "", source: "", details: "" },
+                        ])
+                      }
+                      className="btn-outline text-sm"
+                    >
+                      Add Ability
+                    </button>
+                  </div>
+                  {specialEntries.length > 0 ? (
+                    <div className="space-y-3">
+                      {specialEntries.map((special, index) => (
+                        <div
+                          key={index}
+                          className="rounded-md border border-border/70 bg-background/30 p-3"
+                        >
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <label className="space-y-1 text-sm">
+                              <span>Ability Name</span>
+                              <input
+                                value={special.name}
+                                onChange={(e) =>
+                                  setSpecialEntries((current) =>
+                                    current.map((item, currentIndex) =>
+                                      currentIndex === index
+                                        ? { ...item, name: e.target.value }
+                                        : item
+                                    )
+                                  )
+                                }
+                                className="input w-full"
+                                placeholder="e.g. Fanatical Frenzy"
+                              />
+                            </label>
+                            <label className="space-y-1 text-sm">
+                              <span>Type / Category</span>
+                              <input
+                                value={special.type}
+                                onChange={(e) =>
+                                  setSpecialEntries((current) =>
+                                    current.map((item, currentIndex) =>
+                                      currentIndex === index
+                                        ? { ...item, type: e.target.value }
+                                        : item
+                                    )
+                                  )
+                                }
+                                className="input w-full"
+                                placeholder="Class Feature, Ancestry Ability, Reaction..."
+                              />
+                            </label>
+                          </div>
+                          <label className="mt-3 block space-y-1 text-sm">
+                            <span>Source / Trigger / Frequency</span>
+                            <input
+                              value={special.source}
+                              onChange={(e) =>
+                                setSpecialEntries((current) =>
+                                  current.map((item, currentIndex) =>
+                                    currentIndex === index
+                                      ? { ...item, source: e.target.value }
+                                      : item
+                                  )
+                                )
+                              }
+                              className="input w-full"
+                              placeholder="Pathway Homebrew, once per hour, Trigger: ..."
+                            />
+                          </label>
+                          <label className="mt-3 block space-y-1 text-sm">
+                            <span>Rules Text / What It Does</span>
+                            <textarea
+                              value={special.details}
+                              onChange={(e) =>
+                                setSpecialEntries((current) =>
+                                  current.map((item, currentIndex) =>
+                                    currentIndex === index
+                                      ? { ...item, details: e.target.value }
+                                      : item
+                                  )
+                                )
+                              }
+                              rows={5}
+                              className="input w-full resize-y"
+                              placeholder="Describe the ability's effect, action cost, trigger, duration, and any restrictions."
+                            />
+                          </label>
+                          <div className="mt-3 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSpecialEntries((current) =>
+                                  current.filter((_, currentIndex) => currentIndex !== index)
+                                )
+                              }
+                              className="btn-outline text-sm text-destructive hover:bg-destructive hover:text-white"
+                            >
+                              Remove Ability
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No special abilities added yet.</p>
+                  )}
+                </div>
               </div>
             </section>
 
@@ -954,7 +1113,7 @@ function MiniCharacterSheet({
   const proficiencies = getProficiencies(character);
   const feats = getFeats(character);
   const equipment = getEquipment(character);
-  const specials = getSpecialAbilities(character);
+  const specials = getSpecialAbilityEntries(character);
   const attacks = getCustomAttacks(character);
   const languages = getLanguages(character);
   const level = character.level ?? getBuildNumber(build, "level", 1);
@@ -1163,13 +1322,29 @@ function MiniCharacterSheet({
                 {specials.length > 0 ? (
                   <div className="grid gap-2 text-sm">
                     {specials.slice(0, 8).map((special, index) => (
-                      <details key={`${special}-${index}`} className="rounded bg-muted/40 p-2">
+                      <details key={`${special.name}-${index}`} className="rounded bg-muted/40 p-2">
                         <summary className="cursor-pointer font-semibold">
-                          {special.split(":")[0] || `Ability ${index + 1}`}
+                          {special.name || `Ability ${index + 1}`}
                         </summary>
-                        <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
-                          {special}
-                        </p>
+                        <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+                          {(special.type || special.source) && (
+                            <div className="flex flex-wrap gap-2">
+                              {special.type && (
+                                <span className="rounded-full border border-border bg-background/40 px-2 py-0.5">
+                                  {special.type}
+                                </span>
+                              )}
+                              {special.source && (
+                                <span className="rounded-full border border-border bg-background/40 px-2 py-0.5">
+                                  {special.source}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <p className="whitespace-pre-wrap leading-relaxed">
+                            {special.details || "No ability rules text saved yet."}
+                          </p>
+                        </div>
                       </details>
                     ))}
                   </div>
