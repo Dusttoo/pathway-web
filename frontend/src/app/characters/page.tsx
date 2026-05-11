@@ -79,6 +79,30 @@ const PROFICIENCY_OPTIONS = [
   ["3", "Master"],
   ["4", "Legendary"],
 ] as const;
+const SKILL_ABILITY_MAP: Record<string, keyof AbilityScores> = {
+  acrobatics: "dex",
+  arcana: "int",
+  athletics: "str",
+  crafting: "int",
+  deception: "cha",
+  diplomacy: "cha",
+  intimidation: "cha",
+  medicine: "wis",
+  nature: "wis",
+  occultism: "int",
+  performance: "cha",
+  religion: "wis",
+  society: "int",
+  stealth: "dex",
+  survival: "wis",
+  thievery: "dex",
+};
+const SKILL_ORDER = Object.keys(SKILL_ABILITY_MAP);
+const SAVE_ABILITY: Record<(typeof SAVE_KEYS)[number][0], keyof AbilityScores> = {
+  fortitude: "con",
+  reflex: "dex",
+  will: "wis",
+};
 
 function isRecord(value: Json | unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -95,6 +119,22 @@ function getNestedString(value: Json | null, paths: string[][]) {
       cursor = cursor[key];
     }
     if (typeof cursor === "string" && cursor.trim()) return cursor.trim();
+  }
+
+  return null;
+}
+
+function getNestedNumber(value: Json | CharacterBuild | null, paths: string[][]) {
+  for (const path of paths) {
+    let cursor: unknown = value;
+    for (const key of path) {
+      if (!isRecord(cursor)) {
+        cursor = null;
+        break;
+      }
+      cursor = cursor[key];
+    }
+    if (typeof cursor === "number" && Number.isFinite(cursor)) return cursor;
   }
 
   return null;
@@ -278,6 +318,60 @@ function textToProficiencies(value: string) {
       })
       .filter((entry): entry is [string, number] => !!entry)
   );
+}
+
+function abilityMod(score: number) {
+  return Math.floor((score - 10) / 2);
+}
+
+function signed(value: number) {
+  return value >= 0 ? `+${value}` : `${value}`;
+}
+
+function proficiencyBonus(rank: number, level: number) {
+  return rank === 0 ? 0 : rank * 2 + level;
+}
+
+function proficiencyLabel(rank: number) {
+  return PROFICIENCY_OPTIONS.find(([value]) => Number(value) === rank)?.[1] ?? "Untrained";
+}
+
+function formatFeat(feat: FeatTuple) {
+  const [, slot, source, detail] = feat;
+  return [slot, source, detail].filter(Boolean).join(" - ");
+}
+
+function deriveMaxHp(character: Character) {
+  const build = getCharacterBuild(character);
+  const level = character.level ?? getBuildNumber(build, "level", 1);
+  const abilities = getAbilityScores(character);
+  const attrs = getHpAttributes(character);
+  return (
+    attrs.ancestryhp +
+    (attrs.classhp + abilityMod(abilities.con) + attrs.bonushpPerLevel) * level +
+    attrs.bonushp
+  );
+}
+
+function deriveAc(character: Character) {
+  const build = getCharacterBuild(character);
+  const directAc = getNestedNumber(build, [
+    ["ac"],
+    ["armorClass"],
+    ["armor_class"],
+    ["stats", "ac"],
+  ]);
+  if (directAc !== null) return directAc;
+  const abilities = getAbilityScores(character);
+  const proficiencies = getProficiencies(character);
+  const level = character.level ?? getBuildNumber(build, "level", 1);
+  const armorRank =
+    proficiencies.unarmored ??
+    proficiencies.light_armor ??
+    proficiencies.medium_armor ??
+    proficiencies.heavy_armor ??
+    0;
+  return 10 + abilityMod(abilities.dex) + proficiencyBonus(armorRank, level);
 }
 
 function getSpecialAbilities(character: Character) {
@@ -717,6 +811,273 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
         </form>
       </div>
     </div>
+  );
+}
+
+function MiniStat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div className="rounded-md border border-border/70 bg-background/35 p-2 text-center">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p className="font-heading text-lg font-bold leading-tight">{value}</p>
+      {sub && <p className="truncate text-[10px] text-muted-foreground">{sub}</p>}
+    </div>
+  );
+}
+
+function MiniSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-md border border-border/70 bg-background/20 p-3">
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-primary">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function MiniCharacterSheet({
+  character,
+  storedImage,
+}: {
+  character: Character;
+  storedImage?: string | null;
+}) {
+  const [isFullEditorOpen, setIsFullEditorOpen] = useState(false);
+  const build = getCharacterBuild(character);
+  const image = getCharacterImage(character, storedImage);
+  const abilities = getAbilityScores(character);
+  const attributes = getHpAttributes(character);
+  const proficiencies = getProficiencies(character);
+  const feats = getFeats(character);
+  const equipment = getEquipment(character);
+  const specials = getSpecialAbilities(character);
+  const attacks = getCustomAttacks(character);
+  const languages = getLanguages(character);
+  const level = character.level ?? getBuildNumber(build, "level", 1);
+  const maxHp = deriveMaxHp(character);
+  const ac = deriveAc(character);
+  const perceptionRank = proficiencies.perception ?? 0;
+  const perception = proficiencyBonus(perceptionRank, level) + abilityMod(abilities.wis);
+  const visibleSkills = SKILL_ORDER.map((skill) => ({
+    skill,
+    rank: proficiencies[skill] ?? 0,
+    total:
+      proficiencyBonus(proficiencies[skill] ?? 0, level) +
+      abilityMod(abilities[SKILL_ABILITY_MAP[skill]]),
+  })).filter(({ rank }) => rank > 0);
+  const extraSkills = Object.entries(proficiencies)
+    .filter(
+      ([key, rank]) =>
+        !SKILL_ORDER.includes(key) &&
+        !SAVE_KEYS.some(([save]) => save === key) &&
+        key !== "perception" &&
+        rank > 0
+    )
+    .map(([skill, rank]) => ({ skill, rank, total: proficiencyBonus(rank, level) }));
+
+  return (
+    <>
+      <article className="card overflow-hidden">
+        <div className="grid gap-0 lg:grid-cols-[220px_1fr]">
+          <div className="relative min-h-56 bg-muted">
+            {image ? (
+              <img
+                src={image}
+                alt={`Image for ${character.name}`}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_50%_35%,rgba(211,171,53,0.2),transparent_42%),linear-gradient(145deg,rgba(15,23,42,0.96),rgba(5,8,18,0.98))]">
+                <img
+                  src={PATHWAY_AVATAR}
+                  alt=""
+                  className="h-20 w-20 rounded-full border border-primary/30 object-cover opacity-80"
+                />
+              </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background via-background/80 to-transparent p-4">
+              <h2 className="font-heading text-2xl font-bold leading-tight">{character.name}</h2>
+              <p className="text-sm text-muted-foreground">
+                Level {level}{" "}
+                {(character.class_name ?? getBuildString(build, "class")) || "Adventurer"}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {[character.ancestry_name, character.heritage_name, character.background_name]
+                    .filter(Boolean)
+                    .join(" - ") || "Pathfinder 2e character"}
+                </p>
+                {languages.length > 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Languages: {languages.join(", ")}
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFullEditorOpen(true)}
+                  className="btn-outline text-sm"
+                >
+                  Edit Sheet
+                </button>
+                <Link
+                  href={`/characters/${character.id}`}
+                  className="btn-primary text-sm text-slate-950"
+                >
+                  Open
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+              <MiniStat label="AC" value={ac} />
+              <MiniStat label="HP" value={maxHp} sub={`${attributes.classhp} class hp`} />
+              <MiniStat
+                label="Perception"
+                value={signed(perception)}
+                sub={proficiencyLabel(perceptionRank)}
+              />
+              {SAVE_KEYS.map(([key, label]) => {
+                const rank = proficiencies[key] ?? 0;
+                const total =
+                  proficiencyBonus(rank, level) + abilityMod(abilities[SAVE_ABILITY[key]]);
+                return (
+                  <MiniStat
+                    key={key}
+                    label={label}
+                    value={signed(total)}
+                    sub={proficiencyLabel(rank)}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+              {ABILITY_KEYS.map((key) => (
+                <MiniStat
+                  key={key}
+                  label={key.toUpperCase()}
+                  value={signed(abilityMod(abilities[key]))}
+                  sub={String(abilities[key])}
+                />
+              ))}
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <MiniSection title="Skills">
+                {visibleSkills.length > 0 || extraSkills.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+                    {[...visibleSkills, ...extraSkills]
+                      .slice(0, 18)
+                      .map(({ skill, rank, total }) => (
+                        <div key={skill} className="flex items-center justify-between gap-2">
+                          <span className="truncate capitalize text-muted-foreground">
+                            {skill.replace(/_/g, " ")}
+                          </span>
+                          <span className="font-mono font-semibold">
+                            {signed(total)}
+                            <span className="ml-1 text-[10px] text-muted-foreground">
+                              {proficiencyLabel(rank)[0]}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No trained skills saved yet.</p>
+                )}
+              </MiniSection>
+
+              <MiniSection title="Attacks">
+                {attacks.length > 0 ? (
+                  <div className="space-y-2 text-sm">
+                    {attacks.slice(0, 5).map((attack, index) => (
+                      <div key={`${attack.name}-${index}`} className="rounded bg-muted/40 p-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold">{attack.name}</p>
+                          {attack.bonus && (
+                            <span className="font-mono text-xs">{attack.bonus}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {[attack.damage, attack.traits].filter(Boolean).join(" - ") ||
+                            "No attack details"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No custom attacks saved yet.</p>
+                )}
+              </MiniSection>
+
+              <MiniSection title="Feats">
+                {feats.length > 0 ? (
+                  <div className="grid gap-2 text-sm">
+                    {feats.slice(0, 10).map((feat, index) => (
+                      <details key={`${feat[0]}-${index}`} className="rounded bg-muted/40 p-2">
+                        <summary className="cursor-pointer font-semibold">{feat[0]}</summary>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatFeat(feat) || "No additional feat text saved yet."}
+                        </p>
+                      </details>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No feats saved yet.</p>
+                )}
+              </MiniSection>
+
+              <MiniSection title="Special Abilities">
+                {specials.length > 0 ? (
+                  <div className="grid gap-2 text-sm">
+                    {specials.slice(0, 8).map((special, index) => (
+                      <details key={`${special}-${index}`} className="rounded bg-muted/40 p-2">
+                        <summary className="cursor-pointer font-semibold">
+                          {special.split(":")[0] || `Ability ${index + 1}`}
+                        </summary>
+                        <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
+                          {special}
+                        </p>
+                      </details>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No special abilities saved yet.</p>
+                )}
+              </MiniSection>
+
+              <MiniSection title="Equipment">
+                {equipment.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+                    {equipment.slice(0, 16).map(([name, qty]) => (
+                      <div key={name} className="flex items-center justify-between gap-2">
+                        <span className="truncate text-muted-foreground">{name}</span>
+                        <span className="font-mono text-xs">x{qty}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No equipment saved yet.</p>
+                )}
+              </MiniSection>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      {isFullEditorOpen && (
+        <FullSheetEditor character={character} onClose={() => setIsFullEditorOpen(false)} />
+      )}
+    </>
   );
 }
 
@@ -1267,6 +1628,7 @@ function CharacterCard({
 export default function CharactersPage() {
   const { user } = useAuth();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"cards" | "sheets">("cards");
 
   const { data: characters, isLoading, error } = useCharacters({}, { enabled: !!user });
   const { data: characterImages = {} } = useCharacterImages({ enabled: !!user });
@@ -1286,15 +1648,33 @@ export default function CharactersPage() {
 
   return (
     <MainLayout>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="font-heading mb-2 text-4xl font-bold">My Characters</h1>
           <p className="text-muted-foreground">Your Pathfinder 2e characters</p>
         </div>
-        <Link href="/characters/new" className="btn-primary flex items-center gap-2">
-          <Plus size={20} />
-          Import Character
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="rounded-lg border border-border bg-card p-1">
+            {(["cards", "sheets"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={`rounded-md px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                  viewMode === mode
+                    ? "bg-primary text-slate-950"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {mode === "cards" ? "Cards" : "Mini Sheets"}
+              </button>
+            ))}
+          </div>
+          <Link href="/characters/new" className="btn-primary flex items-center gap-2">
+            <Plus size={20} />
+            Import Character
+          </Link>
+        </div>
       </div>
 
       {isLoading && (
@@ -1324,7 +1704,7 @@ export default function CharactersPage() {
         </div>
       )}
 
-      {!isLoading && !error && characters && characters.length > 0 && (
+      {!isLoading && !error && characters && characters.length > 0 && viewMode === "cards" && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {characters.map((character) => (
             <CharacterCard
@@ -1333,6 +1713,18 @@ export default function CharactersPage() {
               storedImage={characterImages[character.id]}
               onDelete={handleDelete}
               isDeleting={deletingId === character.id}
+            />
+          ))}
+        </div>
+      )}
+
+      {!isLoading && !error && characters && characters.length > 0 && viewMode === "sheets" && (
+        <div className="space-y-6">
+          {characters.map((character) => (
+            <MiniCharacterSheet
+              key={character.id}
+              character={character}
+              storedImage={characterImages[character.id]}
             />
           ))}
         </div>
