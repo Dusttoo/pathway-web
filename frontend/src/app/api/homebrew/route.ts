@@ -146,6 +146,13 @@ export async function POST(request: Request) {
 
   const entry_key = existing ? `${baseKey}-homebrew` : baseKey;
 
+  // Store the Discord snowflake so the ownership check in [id]/route.ts
+  // (which compares added_by to discord_id) works correctly.
+  const discordId =
+    authUser.identities
+      ?.find((i) => i.provider === "discord")
+      ?.identity_data?.provider_id ?? authUser.id;
+
   const { data, error } = await service
     .from("homebrew_entries")
     .insert({
@@ -156,9 +163,9 @@ export async function POST(request: Request) {
         ...entryData,
         _homebrew: true,
         _homebrew_type: type,
-        _addedBy: authUser.id,
+        _addedBy: discordId,
       },
-      added_by: authUser.id,
+      added_by: discordId,
     })
     .select()
     .single();

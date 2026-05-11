@@ -49,7 +49,12 @@ async function resolveOwnership(id: string) {
     .eq("id", authUser.id)
     .maybeSingle();
 
-  const canWrite = entry.added_by === dbUser?.discord_id || !!dbUser?.is_admin;
+  // Primary check: discord_id (how new entries are stored).
+  // Fallback: authUser.id (Supabase UUID) to cover entries created before this fix.
+  const canWrite =
+    entry.added_by === dbUser?.discord_id ||
+    entry.added_by === authUser.id ||
+    !!dbUser?.is_admin;
 
   return { entry, canWrite, service } as const;
 }

@@ -151,15 +151,20 @@ function formatDate(iso: string) {
 function HomebrewCard({
   entry,
   currentUserId,
+  fallbackUserId,
   onDelete,
   deleting,
 }: {
   entry: HomebrewEntry;
   currentUserId?: string;
+  fallbackUserId?: string;
   onDelete: (id: string) => void;
   deleting: boolean;
 }) {
-  const canWrite = entry.added_by === currentUserId;
+  // added_by is discord_id for new entries, Supabase UUID for legacy entries.
+  const canWrite =
+    entry.added_by === currentUserId ||
+    (!!fallbackUserId && entry.added_by === fallbackUserId);
   const rarity = getRarity(entry);
   const meta = metaBadge(entry);
   const imageUrl = (entry.data as Record<string, unknown>).image_url as string | undefined;
@@ -223,9 +228,11 @@ function HomebrewCard({
 function HomebrewTabPanel({
   type,
   currentUserId,
+  fallbackUserId,
 }: {
   type: HomebrewType;
   currentUserId?: string;
+  fallbackUserId?: string;
 }) {
   const [q, setQ] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -322,6 +329,7 @@ function HomebrewTabPanel({
                 key={entry.id}
                 entry={entry}
                 currentUserId={currentUserId}
+                fallbackUserId={fallbackUserId}
                 onDelete={handleDelete}
                 deleting={deletingId === entry.id}
               />
@@ -344,6 +352,10 @@ function HomebrewContent() {
   const activeTab: AnyTab = ALL_TAB_IDS.has(rawTab ?? "")
     ? (rawTab as AnyTab)
     : "spell";
+
+  // added_by stores the Discord snowflake (new entries) or Supabase UUID (legacy).
+  // The users table row has discord_id directly — no identity extraction needed.
+  const discordId = user?.discord_id ?? undefined;
 
   function setTab(id: AnyTab) {
     router.replace(`/homebrew?tab=${id}`);
@@ -429,7 +441,11 @@ function HomebrewContent() {
 
       {/* Tab content */}
       {HOMEBREW_ENTRY_IDS.has(activeTab) ? (
-        <HomebrewTabPanel type={activeTab as HomebrewType} currentUserId={user?.id} />
+        <HomebrewTabPanel
+          type={activeTab as HomebrewType}
+          currentUserId={discordId ?? user?.id}
+          fallbackUserId={discordId ? user?.id : undefined}
+        />
       ) : activeTab === "ancestry" ? (
         <AncestryPanel />
       ) : activeTab === "class" ? (
