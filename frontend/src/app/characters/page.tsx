@@ -273,14 +273,6 @@ function splitList(value: string) {
     .filter(Boolean);
 }
 
-function featsToText(feats: FeatTuple[]) {
-  return feats.map(([name]) => name).join("\n");
-}
-
-function textToFeats(value: string): FeatTuple[] {
-  return splitList(value).map((name) => [name, null, null, null]);
-}
-
 function equipmentToText(equipment: EquipmentTuple[]) {
   return equipment.map(([name, qty]) => `${name} x${qty}`).join("\n");
 }
@@ -337,8 +329,8 @@ function proficiencyLabel(rank: number) {
 }
 
 function formatFeat(feat: FeatTuple) {
-  const [, slot, source, detail] = feat;
-  return [slot, source, detail].filter(Boolean).join(" - ");
+  const [, featType, source, detail] = feat;
+  return { featType, source, detail };
 }
 
 function deriveMaxHp(character: Character) {
@@ -427,7 +419,7 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
   const [proficienciesText, setProficienciesText] = useState(() =>
     proficienciesToText(getProficiencies(character))
   );
-  const [featsText, setFeatsText] = useState(() => featsToText(getFeats(character)));
+  const [featEntries, setFeatEntries] = useState<FeatTuple[]>(() => getFeats(character));
   const [equipmentText, setEquipmentText] = useState(() =>
     equipmentToText(getEquipment(character))
   );
@@ -470,7 +462,16 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
             ...saveRanks,
           },
           languages: splitList(languagesText),
-          feats: textToFeats(featsText),
+          feats: featEntries
+            .map(
+              (feat): FeatTuple => [
+                feat[0].trim(),
+                feat[1]?.trim() || null,
+                feat[2]?.trim() || null,
+                feat[3]?.trim() || null,
+              ]
+            )
+            .filter((feat) => feat[0]),
           equipment: textToEquipment(equipmentText),
           specials: specialsText
             .split("\n")
@@ -695,16 +696,117 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                     placeholder="Common&#10;Elven&#10;Draconic"
                   />
                 </label>
-                <label className="mt-4 block space-y-1 text-sm">
-                  <span>Feats</span>
-                  <textarea
-                    value={featsText}
-                    onChange={(e) => setFeatsText(e.target.value)}
-                    rows={8}
-                    className="input w-full resize-y"
-                    placeholder="One feat per line"
-                  />
-                </label>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm">Feats</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFeatEntries((current) => [...current, ["", null, null, null]])
+                      }
+                      className="btn-outline text-sm"
+                    >
+                      Add Feat
+                    </button>
+                  </div>
+                  {featEntries.length > 0 ? (
+                    <div className="space-y-3">
+                      {featEntries.map((feat, index) => (
+                        <div
+                          key={index}
+                          className="rounded-md border border-border/70 bg-background/30 p-3"
+                        >
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <label className="space-y-1 text-sm">
+                              <span>Feat Name</span>
+                              <input
+                                value={feat[0]}
+                                onChange={(e) =>
+                                  setFeatEntries((current) =>
+                                    current.map((item, currentIndex) =>
+                                      currentIndex === index
+                                        ? [e.target.value, item[1], item[2], item[3]]
+                                        : item
+                                    )
+                                  )
+                                }
+                                className="input w-full"
+                                placeholder="e.g. Elemental Wrath"
+                              />
+                            </label>
+                            <label className="space-y-1 text-sm">
+                              <span>Type / Category</span>
+                              <input
+                                value={feat[1] ?? ""}
+                                onChange={(e) =>
+                                  setFeatEntries((current) =>
+                                    current.map((item, currentIndex) =>
+                                      currentIndex === index
+                                        ? [item[0], e.target.value, item[2], item[3]]
+                                        : item
+                                    )
+                                  )
+                                }
+                                className="input w-full"
+                                placeholder="Ancestry Feat, Class Feat, Skill Feat..."
+                              />
+                            </label>
+                          </div>
+                          <label className="mt-3 block space-y-1 text-sm">
+                            <span>Source / Prerequisites</span>
+                            <input
+                              value={feat[2] ?? ""}
+                              onChange={(e) =>
+                                setFeatEntries((current) =>
+                                  current.map((item, currentIndex) =>
+                                    currentIndex === index
+                                      ? [item[0], item[1], e.target.value, item[3]]
+                                      : item
+                                  )
+                                )
+                              }
+                              className="input w-full"
+                              placeholder="Level 1, Pathway Homebrew, prerequisite text..."
+                            />
+                          </label>
+                          <label className="mt-3 block space-y-1 text-sm">
+                            <span>Rules Text / What It Does</span>
+                            <textarea
+                              value={feat[3] ?? ""}
+                              onChange={(e) =>
+                                setFeatEntries((current) =>
+                                  current.map((item, currentIndex) =>
+                                    currentIndex === index
+                                      ? [item[0], item[1], item[2], e.target.value]
+                                      : item
+                                  )
+                                )
+                              }
+                              rows={5}
+                              className="input w-full resize-y"
+                              placeholder="Describe the feat's benefit, action cost, frequency, trigger, and any special rules."
+                            />
+                          </label>
+                          <div className="mt-3 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFeatEntries((current) =>
+                                  current.filter((_, currentIndex) => currentIndex !== index)
+                                )
+                              }
+                              className="btn-outline text-sm text-destructive hover:bg-destructive hover:text-white"
+                            >
+                              Remove Feat
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No feats added yet.</p>
+                  )}
+                </div>
                 <label className="mt-4 block space-y-1 text-sm">
                   <span>Proficiencies</span>
                   <textarea
@@ -1025,9 +1127,30 @@ function MiniCharacterSheet({
                     {feats.slice(0, 10).map((feat, index) => (
                       <details key={`${feat[0]}-${index}`} className="rounded bg-muted/40 p-2">
                         <summary className="cursor-pointer font-semibold">{feat[0]}</summary>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {formatFeat(feat) || "No additional feat text saved yet."}
-                        </p>
+                        {(() => {
+                          const { featType, source, detail } = formatFeat(feat);
+                          return (
+                            <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+                              {(featType || source) && (
+                                <div className="flex flex-wrap gap-2">
+                                  {featType && (
+                                    <span className="rounded-full border border-border bg-background/40 px-2 py-0.5">
+                                      {featType}
+                                    </span>
+                                  )}
+                                  {source && (
+                                    <span className="rounded-full border border-border bg-background/40 px-2 py-0.5">
+                                      {source}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              <p className="whitespace-pre-wrap leading-relaxed">
+                                {detail || "No feat rules text saved yet."}
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </details>
                     ))}
                   </div>
