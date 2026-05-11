@@ -67,6 +67,18 @@ type FeatTuple = [string, string | null, string | null, string | null];
 type EquipmentTuple = [string, number];
 
 const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha"] as const;
+const SAVE_KEYS = [
+  ["fortitude", "Fortitude"],
+  ["reflex", "Reflex"],
+  ["will", "Will"],
+] as const;
+const PROFICIENCY_OPTIONS = [
+  ["0", "Untrained"],
+  ["1", "Trained"],
+  ["2", "Expert"],
+  ["3", "Master"],
+  ["4", "Legendary"],
+] as const;
 
 function isRecord(value: Json | unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -309,6 +321,14 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
   });
   const [abilities, setAbilities] = useState<AbilityScores>(() => getAbilityScores(character));
   const [attributes, setAttributes] = useState<HpAttributes>(() => getHpAttributes(character));
+  const [saveRanks, setSaveRanks] = useState(() => {
+    const proficiencies = getProficiencies(character);
+    return {
+      fortitude: proficiencies.fortitude ?? 0,
+      reflex: proficiencies.reflex ?? 0,
+      will: proficiencies.will ?? 0,
+    };
+  });
   const [languagesText, setLanguagesText] = useState(() => getLanguages(character).join("\n"));
   const [proficienciesText, setProficienciesText] = useState(() =>
     proficienciesToText(getProficiencies(character))
@@ -351,7 +371,10 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
           keyability: identity.keyability.trim() || null,
           abilities,
           attributes,
-          proficiencies: textToProficiencies(proficienciesText),
+          proficiencies: {
+            ...textToProficiencies(proficienciesText),
+            ...saveRanks,
+          },
           languages: splitList(languagesText),
           feats: textToFeats(featsText),
           equipment: textToEquipment(equipmentText),
@@ -531,6 +554,34 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                     />
                   </label>
                 ))}
+              </div>
+              <div className="mt-4 border-t border-border/70 pt-4">
+                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Saving Throws
+                </h4>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {SAVE_KEYS.map(([key, label]) => (
+                    <label key={key} className="space-y-1 text-sm">
+                      <span>{label}</span>
+                      <select
+                        value={String(saveRanks[key])}
+                        onChange={(e) =>
+                          setSaveRanks((draft) => ({
+                            ...draft,
+                            [key]: Number(e.target.value),
+                          }))
+                        }
+                        className="input w-full"
+                      >
+                        {PROFICIENCY_OPTIONS.map(([value, optionLabel]) => (
+                          <option key={value} value={value}>
+                            {optionLabel}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
               </div>
             </section>
 
