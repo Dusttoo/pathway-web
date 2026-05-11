@@ -18,6 +18,9 @@ import {
   Package,
   BadgeCheck,
   Gem,
+  Users,
+  GraduationCap,
+  BookOpen,
   AlertTriangle,
 } from "lucide-react";
 
@@ -446,6 +449,149 @@ function HeritageDetail({ entry }: { entry: HomebrewEntry }) {
   );
 }
 
+function SourceRow({ source }: { source: unknown }) {
+  const src = (source ?? {}) as Record<string, unknown>;
+  if (!src.book) return null;
+  return (
+    <Row
+      label="Source"
+      value={[str(src.book), src.page ? `p. ${str(src.page)}` : ""].filter(Boolean).join(" ")}
+    />
+  );
+}
+
+function AncestryDetail({ entry }: { entry: HomebrewEntry }) {
+  const d = entry.data as Record<string, unknown>;
+  const traits = Array.isArray(d.traits) ? d.traits as string[] : [];
+  const languages = Array.isArray(d.languages) ? d.languages as string[] : [];
+  const boosts = Array.isArray(d.ability_boosts) ? d.ability_boosts as string[] : [];
+  const rarity = str(d.rarity);
+  const ancestrySize = str(d.size);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {rarity && <Badge className={rarityColor(rarity)}>{rarity}</Badge>}
+        {ancestrySize && <Badge className="bg-muted/60 text-muted-foreground border border-border">{ancestrySize}</Badge>}
+        {traits.map((t) => (
+          <Badge key={t} className="bg-muted/40 text-muted-foreground border border-border/50">{t}</Badge>
+        ))}
+      </div>
+
+      <SectionCard title="Core Statistics">
+        <div className="grid grid-cols-3 gap-4 py-2 border-b border-border">
+          <StatBlock label="HP" value={num(d.hp)} />
+          <StatBlock label="Speed" value={num(d.speed)} />
+          <StatBlock label="Size" value={ancestrySize} />
+        </div>
+        <div className="space-y-2 pt-2">
+          <Row label="Ability Boosts" value={boosts.length ? boosts.join(", ") : str(d.ability_boost_mode)} />
+          <Row label="Ability Flaw" value={str(d.ability_flaw)} />
+          <Row label="Languages" value={languages.join(", ")} />
+          <Row label="Additional" value={str(d.additional_languages)} />
+          <Row label="Senses" value={str(d.senses)} />
+          <SourceRow source={d.source} />
+        </div>
+      </SectionCard>
+
+      {d.features ? (
+        <SectionCard title="Features">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.features)}</p>
+        </SectionCard>
+      ) : null}
+
+      {d.description ? (
+        <SectionCard title="Description">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.description)}</p>
+        </SectionCard>
+      ) : null}
+    </div>
+  );
+}
+
+function ClassDetail({ entry }: { entry: HomebrewEntry }) {
+  const d = entry.data as Record<string, unknown>;
+  const keyAbility = Array.isArray(d.key_ability) ? (d.key_ability as string[]).join(", ") : str(d.key_ability);
+  const rarity = str(d.rarity);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {rarity && <Badge className={rarityColor(rarity)}>{rarity}</Badge>}
+        {keyAbility && <Badge className="bg-primary/10 text-primary border border-primary/20">{keyAbility}</Badge>}
+        {d.hp_per_level != null && <Badge className="bg-muted/60 text-muted-foreground border border-border">{str(d.hp_per_level)} HP</Badge>}
+      </div>
+
+      <SectionCard title="Initial Proficiencies">
+        <div className="space-y-2">
+          <Row label="Key Ability" value={keyAbility} />
+          <Row label="HP / Level" value={str(d.hp_per_level)} />
+          <Row label="Perception" value={str(d.perception)} />
+          <Row label="Saving Throws" value={str(d.saving_throws)} />
+          <Row label="Skills" value={str(d.skills)} />
+          <Row label="Attacks" value={str(d.attacks)} />
+          <Row label="Defenses" value={str(d.defenses)} />
+          <Row label="Class DC" value={str(d.class_dc)} />
+          <Row label="Spellcasting" value={str(d.spellcasting_tradition)} />
+          <SourceRow source={d.source} />
+        </div>
+      </SectionCard>
+
+      {d.features ? (
+        <SectionCard title="Class Features">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.features)}</p>
+        </SectionCard>
+      ) : null}
+
+      {d.description ? (
+        <SectionCard title="Description">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.description)}</p>
+        </SectionCard>
+      ) : null}
+    </div>
+  );
+}
+
+function BackgroundDetail({ entry }: { entry: HomebrewEntry }) {
+  const d = entry.data as Record<string, unknown>;
+  const traits = Array.isArray(d.traits) ? d.traits as string[] : [];
+  const boosts = Array.isArray(d.ability_boosts) ? d.ability_boosts as string[] : [];
+  const rarity = str(d.rarity);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {rarity && <Badge className={rarityColor(rarity)}>{rarity}</Badge>}
+        {traits.map((t) => (
+          <Badge key={t} className="bg-muted/40 text-muted-foreground border border-border/50">{t}</Badge>
+        ))}
+      </div>
+
+      <SectionCard title="Character Options">
+        <div className="space-y-2">
+          <Row label="Boosts" value={boosts.join(", ")} />
+          <Row label="Trained Skill" value={str(d.trained_skill)} />
+          <Row label="Lore Skill" value={str(d.lore_skill)} />
+          <Row label="Skill Feat" value={str(d.skill_feat)} />
+          <SourceRow source={d.source} />
+        </div>
+      </SectionCard>
+
+      {d.description ? (
+        <SectionCard title="Description">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.description)}</p>
+        </SectionCard>
+      ) : null}
+
+      {d.special ? (
+        <SectionCard title="Special">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.special)}</p>
+        </SectionCard>
+      ) : null}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const TYPE_META = {
@@ -454,6 +600,9 @@ const TYPE_META = {
   item:    { label: "Item",    icon: Package,  tab: "item"    },
   feat:    { label: "Feat",    icon: BadgeCheck, tab: "feat" },
   heritage:{ label: "Heritage", icon: Gem, tab: "heritage" },
+  ancestry:{ label: "Ancestry", icon: Users, tab: "ancestry" },
+  class:   { label: "Class", icon: GraduationCap, tab: "class" },
+  background:{ label: "Background", icon: BookOpen, tab: "background" },
 } as const;
 
 export default function HomebrewDetailPage() {
@@ -581,6 +730,9 @@ export default function HomebrewDetailPage() {
         {entry.type === "item"    && <ItemDetail    entry={entry} />}
         {entry.type === "feat"    && <FeatDetail    entry={entry} />}
         {entry.type === "heritage" && <HeritageDetail entry={entry} />}
+        {entry.type === "ancestry" && <AncestryDetail entry={entry} />}
+        {entry.type === "class" && <ClassDetail entry={entry} />}
+        {entry.type === "background" && <BackgroundDetail entry={entry} />}
       </div>
     </MainLayout>
   );

@@ -25,6 +25,8 @@ import {
   Info,
   AlertTriangle,
   Users,
+  GraduationCap,
+  BookOpen,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -35,10 +37,23 @@ const TABS: { id: HomebrewType; label: string; icon: typeof Sparkles }[] = [
   { id: "item", label: "Items", icon: Package },
   { id: "feat", label: "Feats", icon: BadgeCheck },
   { id: "heritage", label: "Heritages", icon: Gem },
+  { id: "ancestry", label: "Ancestries", icon: Users },
+  { id: "class", label: "Classes", icon: GraduationCap },
+  { id: "background", label: "Backgrounds", icon: BookOpen },
 ];
 
 function homebrewNewPath(type: HomebrewType) {
-  return `/homebrew/${type === "heritage" ? "heritages" : `${type}s`}/new`;
+  const paths: Record<HomebrewType, string> = {
+    spell: "spells",
+    monster: "monsters",
+    item: "items",
+    feat: "feats",
+    heritage: "heritages",
+    ancestry: "ancestries",
+    class: "classes",
+    background: "backgrounds",
+  };
+  return `/homebrew/${paths[type]}/new`;
 }
 
 function rarityColor(rarity?: string) {
@@ -95,6 +110,33 @@ function heritageMetaBadge(data: Record<string, unknown>) {
   return parts.join(" · ");
 }
 
+function ancestryMetaBadge(data: Record<string, unknown>) {
+  const parts: string[] = [];
+  if (data.rarity) parts.push(String(data.rarity));
+  if (data.hp !== undefined && data.hp !== "") parts.push(`${data.hp} HP`);
+  if (data.size) parts.push(String(data.size));
+  if (data.speed !== undefined && data.speed !== "") parts.push(`${data.speed} ft.`);
+  return parts.join(" Â· ");
+}
+
+function classMetaBadge(data: Record<string, unknown>) {
+  const parts: string[] = [];
+  if (data.key_ability) {
+    parts.push(Array.isArray(data.key_ability) ? (data.key_ability as string[]).join("/") : String(data.key_ability));
+  }
+  if (data.hp_per_level !== undefined && data.hp_per_level !== "") parts.push(`${data.hp_per_level} HP`);
+  if (data.perception) parts.push(`${data.perception} Perception`);
+  return parts.join(" Â· ");
+}
+
+function backgroundMetaBadge(data: Record<string, unknown>) {
+  const parts: string[] = [];
+  if (data.rarity) parts.push(String(data.rarity));
+  if (data.trained_skill) parts.push(String(data.trained_skill));
+  if (data.skill_feat) parts.push(String(data.skill_feat));
+  return parts.join(" Â· ");
+}
+
 function metaBadge(entry: HomebrewEntry) {
   const d = entry.data as Record<string, unknown>;
   if (entry.type === "spell") return spellMetaBadge(d);
@@ -102,6 +144,9 @@ function metaBadge(entry: HomebrewEntry) {
   if (entry.type === "item") return itemMetaBadge(d);
   if (entry.type === "feat") return featMetaBadge(d);
   if (entry.type === "heritage") return heritageMetaBadge(d);
+  if (entry.type === "ancestry") return ancestryMetaBadge(d);
+  if (entry.type === "class") return classMetaBadge(d);
+  if (entry.type === "background") return backgroundMetaBadge(d);
   return "";
 }
 
@@ -347,7 +392,7 @@ function HomebrewContent() {
             Homebrew
           </h1>
           <p className="text-muted-foreground">
-            Custom spells, monsters, items, feats, and heritages recognised by the Pathway bot.
+            Custom spells, monsters, items, feats, heritages, ancestries, classes, and backgrounds recognised by the Pathway bot.
           </p>
         </div>
       </div>

@@ -2,8 +2,29 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import type { Json } from "@/lib/types/database.types";
 
-// ── Shared: resolve params + ownership ───────────────────────────────────────
+const VIRTUAL_TYPES = new Set(["feat", "heritage", "ancestry", "class", "background"]);
 
+type HomebrewRow = {
+  id: string;
+  type: string;
+  entry_key: string;
+  name: string;
+  data: Record<string, unknown>;
+  added_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function virtualType(row: HomebrewRow) {
+  const kind = row.data?._homebrew_type;
+  return typeof kind === "string" && VIRTUAL_TYPES.has(kind) ? kind : row.type;
+}
+
+function normalizeRow(row: HomebrewRow) {
+  return { ...row, type: virtualType(row) };
+}
+
+// Shared: resolve params + ownership
 async function resolveOwnership(id: string) {
   const supabase = await createClient();
   const {
@@ -33,8 +54,7 @@ async function resolveOwnership(id: string) {
   return { entry, canWrite, service } as const;
 }
 
-// ── GET /api/homebrew/[id] ────────────────────────────────────────────────────
-
+// GET /api/homebrew/[id]
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -51,14 +71,13 @@ export async function GET(
   if (error || !data) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: normalizeRow(data as HomebrewRow) });
 }
 
-// ── PATCH /api/homebrew/[id] ──────────────────────────────────────────────────
+// PATCH /api/homebrew/[id]
 // Body: { name?, data? }
-// entry_key (slug) is intentionally immutable — it is the join key between
-// Supabase rows and the bot's in-memory maps.
-
+// entry_key (slug) is intentionally immutable because it is the join key
+// between Supabase rows and the bot's in-memory maps.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -93,9 +112,11 @@ export async function PATCH(
   };
   if (name) updates.name = name;
   if (entryData) {
+    const existingType = virtualType(resolved.entry as HomebrewRow);
     updates.data = {
       ...entryData,
       _homebrew: true,
+      _homebrew_type: existingType,
       _addedBy: resolved.entry.added_by,
     } as Json;
   }
@@ -108,11 +129,10 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: normalizeRow(data as HomebrewRow) });
 }
 
-// ── DELETE /api/homebrew/[id] ─────────────────────────────────────────────────
-
+// DELETE /api/homebrew/[id]
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
