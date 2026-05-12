@@ -5,6 +5,7 @@ const STEPS = [
   "Ancestry",
   "Class & Background",
   "Feats",
+  "Spells",
   "Ability Scores & Skills",
   "Review & Create",
 ];

@@ -87,6 +87,24 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
         }
       }
 
+      // Same pattern for known spells. spell_source is set by the builder
+      // based on the class (spellbook for prepared, repertoire for spontaneous).
+      for (const sel of state.selectedSpells) {
+        const res = await fetch(`/api/characters/${character.id}/known-spells`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            spell_id: sel.spell_id,
+            tradition: sel.tradition,
+            rank: sel.rank,
+            spell_source: sel.spell_source,
+          }),
+        });
+        if (!res.ok) {
+          console.warn(`Failed to attach spell ${sel.spell_name}: ${await res.text()}`);
+        }
+      }
+
       router.push(`/characters/${character.id}`);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Character creation failed.");
@@ -206,6 +224,8 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
           <dd>{state.additionalSkills.filter((skill) => skill.name.trim()).length}</dd>
           <dt className="text-muted-foreground">Feats (Nethys)</dt>
           <dd>{state.selectedFeats.length}</dd>
+          <dt className="text-muted-foreground">Spells (Nethys)</dt>
+          <dd>{state.selectedSpells.length}</dd>
           <dt className="text-muted-foreground">Custom Feats</dt>
           <dd>{state.customFeats.filter((feat) => feat.name.trim()).length}</dd>
           <dt className="text-muted-foreground">Special Abilities</dt>

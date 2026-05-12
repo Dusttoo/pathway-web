@@ -2,6 +2,7 @@ export * from "./use-characters";
 export * from "./use-backgrounds";
 export * from "./use-spells";
 export * from "./use-feats";
+export * from "./use-character-spells";
 export * from "./use-monsters";
 export * from "./use-items";
 export * from "./use-companions";

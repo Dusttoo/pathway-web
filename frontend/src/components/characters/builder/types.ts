@@ -45,6 +45,13 @@ export type BuilderState = {
       | "bonus";
     level_acquired: number;
   }[];
+  selectedSpells: {
+    spell_id: string;
+    spell_name: string;
+    tradition: "arcane" | "divine" | "occult" | "primal";
+    rank: number;
+    spell_source: "spellbook" | "repertoire" | "innate" | "focus";
+  }[];
   customSpecials: string[];
   customAttacks: { name: string; bonus: string; damage: string; traits: string }[];
   // Step 5 — Details & Review
@@ -81,6 +88,7 @@ export const DEFAULT_STATE: BuilderState = {
   additionalSkills: [],
   customFeats: [],
   selectedFeats: [],
+  selectedSpells: [],
   customSpecials: [],
   customAttacks: [],
   deity: "",

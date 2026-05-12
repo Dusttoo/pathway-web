@@ -6,6 +6,7 @@ import { IdentityStep } from "./IdentityStep";
 import { AncestryStep } from "./AncestryStep";
 import { ClassBackgroundStep } from "./ClassBackgroundStep";
 import { FeatsStep } from "./FeatsStep";
+import { SpellsStep } from "./SpellsStep";
 import { AbilitySkillStep } from "./AbilitySkillStep";
 import { ReviewStep } from "./ReviewStep";
 import { DEFAULT_STATE, type BuilderState } from "./types";
@@ -32,8 +33,9 @@ export function BuilderForm() {
       {step === 2 && <AncestryStep {...stepProps} />}
       {step === 3 && <ClassBackgroundStep {...stepProps} />}
       {step === 4 && <FeatsStep {...stepProps} />}
-      {step === 5 && <AbilitySkillStep {...stepProps} />}
-      {step === 6 && <ReviewStep {...stepProps} />}
+      {step === 5 && <SpellsStep {...stepProps} />}
+      {step === 6 && <AbilitySkillStep {...stepProps} />}
+      {step === 7 && <ReviewStep {...stepProps} />}
     </div>
   );
 }
