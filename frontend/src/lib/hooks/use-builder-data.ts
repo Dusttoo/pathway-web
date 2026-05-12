@@ -8,7 +8,7 @@ type ClassRow = Tables<"character_classes">;
 
 type AncestryWithHeritages = AncestryRow & {
   heritages: Tables<"heritages">[];
-  allHeritages: Tables<"heritages">[];
+  versatileHeritages: Tables<"heritages">[];
 };
 
 type PagedResult<T> = { data: T[]; total: number; page: number; limit: number };
@@ -27,7 +27,7 @@ export function useAncestries(q = "") {
   return useQuery<PagedResult<AncestryRow>, Error>({
     queryKey: ancestryKeys.list(q),
     queryFn: async () => {
-      const qs = new URLSearchParams({ limit: "100" });
+      const qs = new URLSearchParams({ limit: "500" });
       if (q) qs.set("q", q);
       qs.set("include_homebrew", "true");
       const res = await fetch(`/api/content/ancestries?${qs}`);

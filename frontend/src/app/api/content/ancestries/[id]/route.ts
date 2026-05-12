@@ -27,18 +27,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const [ancestryResult, heritagesResult, allHeritagesResult] = await Promise.all([
+  const [ancestryResult, heritagesResult, versatileHeritagesResult] = await Promise.all([
     supabase.from("ancestries").select("*").eq("id", id).single(),
     supabase.from("heritages").select("*").eq("ancestry_id", id).order("name"),
-    supabase.from("heritages").select("*").order("name"),
+    supabase.from("heritages").select("*").eq("is_versatile", true).order("name"),
   ]);
 
   if (ancestryResult.error || !ancestryResult.data) {
     return NextResponse.json({ error: "Ancestry not found" }, { status: 404 });
   }
 
-  const allHeritages = allHeritagesResult.data ?? [];
-  const existingNames = new Set(allHeritages.map((h) => String(h.name).toLowerCase()));
+  const versatileHeritages = versatileHeritagesResult.data ?? [];
+  const existingNames = new Set(versatileHeritages.map((h) => String(h.name).toLowerCase()));
   const fallbackVersatileHeritages = OFFICIAL_VERSATILE_HERITAGES.filter(
     (heritage) => !existingNames.has(heritage.name.toLowerCase())
   ).map((heritage) => ({
@@ -61,7 +61,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return NextResponse.json({
     ...ancestryResult.data,
     heritages: heritagesResult.data ?? [],
-    allHeritages: [...allHeritages, ...fallbackVersatileHeritages].sort((a, b) =>
+    versatileHeritages: [...versatileHeritages, ...fallbackVersatileHeritages].sort((a, b) =>
       a.name.localeCompare(b.name)
     ),
   });
