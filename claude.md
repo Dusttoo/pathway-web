@@ -204,22 +204,51 @@ RLS policies: every new user-data table should have:
 
 ## Seeding Reference Data
 
-Both scripts run from `frontend/`:
+Three scripts, all run from `frontend/`. They serve different sources of truth and can coexist — sticky tables (homebrew, anything `is_official=false`) are never touched by any of them.
 
 ```bash
 cd frontend
 export $(grep -v '^#' .env.local | xargs)
 
-# Typed PF2e tables (monsters, spells, items, feats, ancestries, archetypes, etc.)
-# Skips tables that already have data — safe to re-run.
-npx tsx scripts/seed_pf2e_supabase.ts
+# 1. Archives of Nethys (official PF2e content)
+#    Source: elasticsearch.aonprd.com — same backend AoN's search uses.
+#    Upserts on aon_id. Caches raw JSON in frontend/.cache/nethys/.
+npx tsx scripts/seed_nethys.ts                # everything
+npx tsx scripts/seed_nethys.ts --only=feats   # one category
+npx tsx scripts/seed_nethys.ts --refresh      # bypass on-disk cache
+npx tsx scripts/seed_nethys.ts --limit=50     # smoke test
+npx tsx scripts/seed_nethys.ts --dry-run      # transform but don't write
 
-# Generic gamedata table (actions, conditions, traits, hazards, domains, etc.)
-# Always upserts — safe to re-run, picks up Viv's latest gamedata updates.
+# 2. Bot's gamedata JSON (Viv-curated bot-side data)
+#    Source: ../Pathway/gamedata/*.json.
+#    Use this for content the bot owns but Nethys lacks (custom traits, etc.).
 npx tsx scripts/seed_gamedata_supabase.ts
+
+# 3. PF2e tables from bot gamedata (legacy seeder)
+#    Skips tables that already have data — safe to re-run alongside Nethys.
+npx tsx scripts/seed_pf2e_supabase.ts
 ```
 
-When Viv updates `Pathway/gamedata/*.json`, re-run `seed_gamedata_supabase.ts` to push the changes to Supabase. The bot picks them up on next startup.
+### Nethys pipeline
+
+After applying migration `20260513000000_nethys_integration.sql`, every reference table has `aon_id` and `aon_url` columns. `seed_nethys.ts` upserts on `aon_id` so re-running is idempotent.
+
+Categories pulled: `ancestry`, `background`, `archetype`, `feat`, `spell`, `ritual`, `focus`, `equipment`, `weapon`, `armor`, `shield`, `action`, `condition`. New types (e.g. `class`, `class-feature`) can be added in `scripts/seed_nethys.ts::SEEDERS` plus a transformer in `scripts/nethys/transform.ts`.
+
+The cache at `frontend/.cache/nethys/` lets subsequent runs skip the ES fetch — delete a file (or pass `--refresh`) to repull a single category.
+
+### Character ↔ reference joins
+
+`character_feats`, `character_known_spells`, `character_prepared_spells`, `character_class_features` connect a character to the reference tables. The builder writes to `character_feats` from `ReviewStep.tsx` after the character is created. The bot still owns `pathbuilder_data` jsonb; the join tables are the source of truth for selections made inside the web app.
+
+After applying the migration, regenerate types:
+
+```bash
+npx supabase gen types typescript --project-id cmmwirlrvqmjqbydlqks \
+  > src/lib/types/database.types.ts
+```
+
+Until that's done, the new route handlers in `src/app/api/characters/[id]/feats/` use a narrow `SupabaseClient` cast — remove the cast after the regen.
 
 ## Coding Conventions
 

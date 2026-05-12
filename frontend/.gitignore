@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# nethys fetcher cache (scripts/seed_nethys.ts)
+/.cache/
+
 # production
 /build
 

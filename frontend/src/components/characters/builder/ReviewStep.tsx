@@ -13,14 +13,14 @@ function abilityMod(score: number) {
 }
 
 export function ReviewStep({ state, update, onBack }: StepProps) {
-  const router        = useRouter();
+  const router = useRouter();
   const createMutation = useCreateCharacter();
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [langInput,   setLangInput]   = useState("");
+  const [langInput, setLangInput] = useState("");
 
   const { abilities, ancestryHp, classHp, level } = state;
   const conMod = Math.floor((abilities.con - 10) / 2);
-  const maxHp  = ancestryHp + (classHp + conMod) * level;
+  const maxHp = ancestryHp + (classHp + conMod) * level;
 
   function addLanguage() {
     const lang = langInput.trim();
@@ -37,29 +37,29 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
     setSubmitError(null);
 
     const native_build: NativeBuildInput = {
-      name:          state.name,
-      level:         state.level,
-      alignment:     state.alignment,
-      gender:        state.gender,
-      age:           state.age,
-      ancestry:      state.ancestryName,
-      ancestry_id:   state.ancestryId,
-      heritage:      state.heritageName,
-      class:         state.className,
-      class_id:      state.classId,
-      background:    state.backgroundName,
-      keyability:    state.keyability,
-      lore:          state.lore,
-      abilities:     state.abilities,
-      trained_skills:           state.trainedSkills,
+      name: state.name,
+      level: state.level,
+      alignment: state.alignment,
+      gender: state.gender,
+      age: state.age,
+      ancestry: state.ancestryName,
+      ancestry_id: state.ancestryId,
+      heritage: state.heritageName,
+      class: state.className,
+      class_id: state.classId,
+      background: state.backgroundName,
+      keyability: state.keyability,
+      lore: state.lore,
+      abilities: state.abilities,
+      trained_skills: state.trainedSkills,
       background_trained_skill: state.backgroundTrainedSkill || undefined,
       additional_skills: state.additionalSkills.filter((skill) => skill.name.trim()),
       custom_feats: state.customFeats.filter((feat) => feat.name.trim()),
       custom_specials: state.customSpecials.filter((special) => special.trim()),
       custom_attacks: state.customAttacks.filter((attack) => attack.name.trim()),
-      deity:         state.deity,
-      languages:     state.languages.length ? state.languages : ["None selected"],
-      money:         state.money,
+      deity: state.deity,
+      languages: state.languages.length ? state.languages : ["None selected"],
+      money: state.money,
     };
 
     try {
@@ -68,6 +68,25 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
         discord_guild_id: state.guildId || undefined,
         native_build,
       });
+
+      // Persist Nethys-sourced feat selections to character_feats. We hit the
+      // endpoint sequentially so a 409 on one feat (e.g. duplicate slot at
+      // same level) doesn't drop the rest.
+      for (const sel of state.selectedFeats) {
+        const res = await fetch(`/api/characters/${character.id}/feats`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            feat_id: sel.feat_id,
+            feat_slot: sel.feat_slot,
+            level_acquired: sel.level_acquired,
+          }),
+        });
+        if (!res.ok) {
+          console.warn(`Failed to attach feat ${sel.feat_name}: ${await res.text()}`);
+        }
+      }
+
       router.push(`/characters/${character.id}`);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Character creation failed.");
@@ -100,9 +119,16 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
         <label className="block text-sm font-medium mb-2">Languages</label>
         <div className="flex flex-wrap gap-2 mb-2">
           {state.languages.map((lang) => (
-            <span key={lang} className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded-full text-sm">
+            <span
+              key={lang}
+              className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded-full text-sm"
+            >
               {lang}
-              <button type="button" onClick={() => removeLanguage(lang)} className="text-muted-foreground hover:text-destructive">
+              <button
+                type="button"
+                onClick={() => removeLanguage(lang)}
+                className="text-muted-foreground hover:text-destructive"
+              >
                 <X size={12} />
               </button>
             </span>
@@ -118,7 +144,12 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
             placeholder="Add a language…"
             value={langInput}
             onChange={(e) => setLangInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLanguage(); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addLanguage();
+              }
+            }}
           />
           <button type="button" onClick={addLanguage} className="btn-outline px-3">
             <Plus size={16} />
@@ -138,7 +169,11 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
                 type="number"
                 min={0}
                 value={state.money[coin]}
-                onChange={(e) => update({ money: { ...state.money, [coin]: Math.max(0, parseInt(e.target.value) || 0) } })}
+                onChange={(e) =>
+                  update({
+                    money: { ...state.money, [coin]: Math.max(0, parseInt(e.target.value) || 0) },
+                  })
+                }
               />
             </div>
           ))}
@@ -147,14 +182,20 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
 
       {/* Summary panel */}
       <div className="card p-4 space-y-3 bg-muted/30">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Summary</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          Summary
+        </h3>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
           <dt className="text-muted-foreground">Name</dt>
           <dd className="font-medium">{state.name || "—"}</dd>
           <dt className="text-muted-foreground">Level</dt>
-          <dd>{state.level} · {state.alignment}</dd>
+          <dd>
+            {state.level} · {state.alignment}
+          </dd>
           <dt className="text-muted-foreground">Ancestry</dt>
-          <dd>{state.ancestryName || "—"} {state.heritageName ? `· ${state.heritageName}` : ""}</dd>
+          <dd>
+            {state.ancestryName || "—"} {state.heritageName ? `· ${state.heritageName}` : ""}
+          </dd>
           <dt className="text-muted-foreground">Class</dt>
           <dd>{state.className || "—"}</dd>
           <dt className="text-muted-foreground">Background</dt>
@@ -163,6 +204,8 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
           <dd className="font-bold text-green-400">{maxHp}</dd>
           <dt className="text-muted-foreground">Extra Skills</dt>
           <dd>{state.additionalSkills.filter((skill) => skill.name.trim()).length}</dd>
+          <dt className="text-muted-foreground">Feats (Nethys)</dt>
+          <dd>{state.selectedFeats.length}</dd>
           <dt className="text-muted-foreground">Custom Feats</dt>
           <dd>{state.customFeats.filter((feat) => feat.name.trim()).length}</dd>
           <dt className="text-muted-foreground">Special Abilities</dt>
@@ -174,7 +217,7 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
         <div className="pt-2 border-t border-border">
           <p className="text-xs text-muted-foreground mb-2">Ability Modifiers</p>
           <div className="flex gap-4 flex-wrap">
-            {(["str","dex","con","int","wis","cha"] as const).map((ab) => (
+            {(["str", "dex", "con", "int", "wis", "cha"] as const).map((ab) => (
               <div key={ab} className="text-center">
                 <p className="text-[10px] text-muted-foreground uppercase">{ab}</p>
                 <p className="text-sm font-bold font-mono">{abilityMod(abilities[ab])}</p>
@@ -190,12 +233,12 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
         )}
       </div>
 
-      {submitError && (
-        <p className="text-sm text-destructive">{submitError}</p>
-      )}
+      {submitError && <p className="text-sm text-destructive">{submitError}</p>}
 
       <div className="flex justify-between pt-2">
-        <button type="button" onClick={onBack} className="btn-outline px-6">← Back</button>
+        <button type="button" onClick={onBack} className="btn-outline px-6">
+          ← Back
+        </button>
         <button
           type="button"
           onClick={handleSubmit}
@@ -203,7 +246,9 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
           className="btn-primary px-6 flex items-center gap-2"
         >
           {createMutation.isPending ? (
-            <><Loader2 size={16} className="animate-spin" /> Creating…</>
+            <>
+              <Loader2 size={16} className="animate-spin" /> Creating…
+            </>
           ) : (
             "Create Character"
           )}
