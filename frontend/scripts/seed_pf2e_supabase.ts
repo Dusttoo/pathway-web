@@ -41,15 +41,26 @@ function load<T = unknown>(filename: string): T {
 
 function csv(s: unknown): string[] {
   if (!s || typeof s !== "string") return [];
-  return s.split(",").map((x) => x.trim()).filter(Boolean);
+  return s
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
 }
 
 function ordinalToInt(raw: unknown): number {
   if (typeof raw === "number") return raw;
   if (typeof raw !== "string") return 0;
   const map: Record<string, number> = {
-    "1st": 1, "2nd": 2, "3rd": 3, "4th": 4, "5th": 5,
-    "6th": 6, "7th": 7, "8th": 8, "9th": 9, "10th": 10,
+    "1st": 1,
+    "2nd": 2,
+    "3rd": 3,
+    "4th": 4,
+    "5th": 5,
+    "6th": 6,
+    "7th": 7,
+    "8th": 8,
+    "9th": 9,
+    "10th": 10,
   };
   return map[raw.trim()] ?? 0;
 }
@@ -77,11 +88,7 @@ async function alreadySeeded(table: string): Promise<boolean> {
   return (count ?? 0) > 0;
 }
 
-async function insertBatches(
-  table: string,
-  rows: Record<string, unknown>[],
-  onConflict?: string
-) {
+async function insertBatches(table: string, rows: Record<string, unknown>[], onConflict?: string) {
   let total = 0;
   for (let i = 0; i < rows.length; i += BATCH) {
     const chunk = rows.slice(i, i + BATCH);
@@ -117,7 +124,8 @@ async function seedSkills() {
 }
 
 async function seedAncestries() {
-  if (await alreadySeeded("ancestries")) return console.log("  — ancestries: already seeded, skipping");
+  if (await alreadySeeded("ancestries"))
+    return console.log("  — ancestries: already seeded, skipping");
   const data = load<Record<string, Record<string, unknown>>>("ancestries.json");
 
   const ancestryRows = Object.entries(data)
@@ -132,7 +140,9 @@ async function seedAncestries() {
       attribute_flaws: Array.isArray(a.attribute_flaws) ? a.attribute_flaws : [],
       languages: Array.isArray((a.languages as Record<string, unknown>)?.base)
         ? (a.languages as Record<string, unknown[]>).base
-        : (Array.isArray(a.languages) ? a.languages : []),
+        : Array.isArray(a.languages)
+          ? a.languages
+          : [],
       bonus_languages: 0,
       traits: Array.isArray(a.traits) ? a.traits : [],
       senses: Array.isArray(a.senses) ? { list: a.senses } : (a.senses ?? {}),
@@ -146,7 +156,11 @@ async function seedAncestries() {
 
   // Fetch inserted IDs, then build heritages from separate heritages.json
   const { data: inserted } = await db.from("ancestries").select("id, name");
-  const idByName = Object.fromEntries((inserted ?? []).map((r: Record<string, string>) => [r.name, r.id]));
+  const idByName = Object.fromEntries(
+    (inserted ?? []).map((r: Record<string, string>) => [r.name, r.id])
+  );
+  const fallbackAncestryId =
+    idByName.Human ?? (inserted?.[0] as Record<string, string> | undefined)?.id;
 
   const heritageData = load<Record<string, Record<string, unknown>>>("heritages.json");
   const heritageRows: Record<string, unknown>[] = [];
@@ -154,9 +168,8 @@ async function seedAncestries() {
   for (const [key, h] of Object.entries(heritageData)) {
     if (key === "_meta") continue;
     const ancestryName = String(h.ancestry ?? "");
-    // Versatile heritages don't belong to one ancestry — skip them for now
-    if (!ancestryName || h.isVersatile) continue;
-    const ancestryId = idByName[ancestryName];
+    const isVersatile = Boolean(h.isVersatile);
+    const ancestryId = isVersatile ? fallbackAncestryId : idByName[ancestryName];
     if (!ancestryId) continue;
     heritageRows.push({
       ancestry_id: ancestryId,
@@ -164,7 +177,7 @@ async function seedAncestries() {
       description: String(h.description ?? ""),
       traits: Array.isArray(h.traits) ? h.traits : [],
       benefits: {},
-      is_versatile: false,
+      is_versatile: isVersatile,
       is_official: true,
       source: String(h.source ?? ""),
     });
@@ -173,7 +186,8 @@ async function seedAncestries() {
 }
 
 async function seedBackgrounds() {
-  if (await alreadySeeded("backgrounds")) return console.log("  — backgrounds: already seeded, skipping");
+  if (await alreadySeeded("backgrounds"))
+    return console.log("  — backgrounds: already seeded, skipping");
   const data = load<Record<string, unknown>>("background.json");
   const bgs = data.backgrounds as Record<string, Record<string, unknown>>;
   const rowMap = new Map<string, Record<string, unknown>>();
@@ -198,7 +212,8 @@ async function seedBackgrounds() {
 }
 
 async function seedClasses() {
-  if (await alreadySeeded("character_classes")) return console.log("  — character_classes: already seeded, skipping");
+  if (await alreadySeeded("character_classes"))
+    return console.log("  — character_classes: already seeded, skipping");
   const data = load<Record<string, unknown>>("classes.json");
   const classes = data.classes as Record<string, Record<string, unknown>>;
   // Deduplicate by name — source data has duplicate entries for some core classes
@@ -211,7 +226,11 @@ async function seedClasses() {
       name,
       description: String(c.description ?? ""),
       class_hp: typeof c.hitPoints === "number" ? c.hitPoints : 8,
-      key_attribute: Array.isArray(c.keyAttribute) ? c.keyAttribute : (c.keyAttribute ? [c.keyAttribute] : []),
+      key_attribute: Array.isArray(c.keyAttribute)
+        ? c.keyAttribute
+        : c.keyAttribute
+          ? [c.keyAttribute]
+          : [],
       initial_proficiencies: (c.proficiencies as object) ?? {},
       class_features: Array.isArray(c.classFeatures) ? c.classFeatures : [],
       is_spellcaster: Boolean(
@@ -230,19 +249,22 @@ async function seedClasses() {
 }
 
 async function seedArchetypes() {
-  if (await alreadySeeded("archetypes")) return console.log("  — archetypes: already seeded, skipping");
+  if (await alreadySeeded("archetypes"))
+    return console.log("  — archetypes: already seeded, skipping");
   const data = load<Record<string, Record<string, unknown>>>("archetypes.json");
   const rows = Object.entries(data)
     .filter(([key]) => key !== "_meta")
     .map(([, a]) => ({
-    name: String(a.name ?? ""),
-    description: String(a.description ?? ""),
-    archetype_type: String(a.type ?? "multiclass").toLowerCase().replace(/ /g, "_"),
-    traits: [],
-    rarity: String(a.rarity ?? "Common"),
-    source: String(a.source ?? ""),
-    is_official: true,
-  }));
+      name: String(a.name ?? ""),
+      description: String(a.description ?? ""),
+      archetype_type: String(a.type ?? "multiclass")
+        .toLowerCase()
+        .replace(/ /g, "_"),
+      traits: [],
+      rarity: String(a.rarity ?? "Common"),
+      source: String(a.source ?? ""),
+      is_official: true,
+    }));
   await insertBatches("archetypes", rows);
 }
 
@@ -305,7 +327,9 @@ async function seedItems() {
   const items = data.items as Record<string, Record<string, unknown>>;
   const rows = Object.values(items).map((item) => ({
     name: String(item.name ?? ""),
-    item_type: String(item.category ?? "adventuring_gear").toLowerCase().replace(/ /g, "_"),
+    item_type: String(item.category ?? "adventuring_gear")
+      .toLowerCase()
+      .replace(/ /g, "_"),
     item_subtype: item.subcategory ? String(item.subcategory) : null,
     level: typeof item.level === "number" ? item.level : 0,
     price_cp: 0,
@@ -335,9 +359,11 @@ async function seedBestiary() {
     const saves = (m.saves ?? m.defenses) as Record<string, number> | null;
     const speedRaw = m.speed;
     const speedObj =
-      typeof speedRaw === "number" ? { walk: speedRaw } :
-      typeof speedRaw === "string" ? { walk: toSpeed(speedRaw) } :
-      (speedRaw as object) ?? {};
+      typeof speedRaw === "number"
+        ? { walk: speedRaw }
+        : typeof speedRaw === "string"
+          ? { walk: toSpeed(speedRaw) }
+          : ((speedRaw as object) ?? {});
 
     return {
       name: String(m.name ?? ""),
@@ -345,7 +371,8 @@ async function seedBestiary() {
       size: String(m.size ?? "Medium"),
       creature_type: String(
         (m.creature_traits as string[] | undefined)?.[0] ??
-        (m.traits as string[] | undefined)?.[0] ?? "Humanoid"
+          (m.traits as string[] | undefined)?.[0] ??
+          "Humanoid"
       ),
       alignment: String(m.alignment ?? "Unaligned"),
       traits: Array.isArray(m.creature_traits ?? m.traits) ? (m.creature_traits ?? m.traits) : [],
@@ -354,7 +381,11 @@ async function seedBestiary() {
       ac: typeof m.ac === "number" ? m.ac : 10,
       perception: typeof m.perception === "number" ? m.perception : 0,
       saving_throws: saves
-        ? { fort: saves.fort ?? saves.fortitude ?? 0, ref: saves.ref ?? saves.reflex ?? 0, will: saves.will ?? 0 }
+        ? {
+            fort: saves.fort ?? saves.fortitude ?? 0,
+            ref: saves.ref ?? saves.reflex ?? 0,
+            will: saves.will ?? 0,
+          }
         : {},
       speed: speedObj,
       ability_modifiers: (m.ability_modifiers as object) ?? {},
