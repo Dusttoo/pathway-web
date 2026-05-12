@@ -10,29 +10,38 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
 
   const { data: ancestryPage, isLoading: loadingList } = useAncestries(searchQ);
   const { data: ancestryDetail, isLoading: loadingDetail } = useAncestryDetail(
-    state.ancestryId || null,
+    state.ancestryId || null
   );
 
   const ancestries = ancestryPage?.data ?? [];
-  const heritages  = ancestryDetail?.heritages ?? [];
+  const ancestryHeritages = (ancestryDetail?.heritages ?? []).filter((h) => !h.is_versatile);
+  const versatileHeritages = ancestryDetail?.versatileHeritages ?? [];
 
   function handleAncestryChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const id = e.target.value;
     const row = ancestries.find((a) => a.id === id);
     if (!row) {
-      update({ ancestryId: "", ancestryName: "", ancestryHp: 8, ancestrySpeed: 25, ancestrySize: "Medium", heritageName: "", defaultLanguages: [] });
+      update({
+        ancestryId: "",
+        ancestryName: "",
+        ancestryHp: 8,
+        ancestrySpeed: 25,
+        ancestrySize: "Medium",
+        heritageName: "",
+        defaultLanguages: [],
+      });
       return;
     }
     const langs = Array.isArray(row.languages) ? (row.languages as string[]) : [];
     update({
-      ancestryId:       row.id,
-      ancestryName:     row.name,
-      ancestryHp:       row.ancestry_hp ?? 8,
-      ancestrySpeed:    row.speed ?? 25,
-      ancestrySize:     row.size ?? "Medium",
-      heritageName:     "",          // reset when ancestry changes
+      ancestryId: row.id,
+      ancestryName: row.name,
+      ancestryHp: row.ancestry_hp ?? 8,
+      ancestrySpeed: row.speed ?? 25,
+      ancestrySize: row.size ?? "Medium",
+      heritageName: "", // reset when ancestry changes
       defaultLanguages: langs,
-      languages:        langs,       // pre-populate languages for step 5
+      languages: langs, // pre-populate languages for step 5
     });
   }
 
@@ -42,7 +51,9 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
     <div className="space-y-5">
       <div>
         <h2 className="text-lg font-semibold mb-1">Ancestry & Heritage</h2>
-        <p className="text-sm text-muted-foreground">Choose your character&apos;s ancestry and heritage.</p>
+        <p className="text-sm text-muted-foreground">
+          Choose your character&apos;s ancestry and heritage.
+        </p>
       </div>
 
       {/* Ancestry search + select */}
@@ -64,16 +75,17 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
             onChange={handleAncestryChange}
             disabled={loadingList}
           >
-            <option value="">
-              {loadingList ? "Loading ancestries…" : "Select an ancestry…"}
-            </option>
+            <option value="">{loadingList ? "Loading ancestries…" : "Select an ancestry…"}</option>
             {ancestries.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name} · {a.ancestry_hp} HP · {a.speed} ft. · {a.size}
               </option>
             ))}
           </select>
-          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <ChevronDown
+            size={14}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          />
         </div>
       </div>
 
@@ -93,11 +105,29 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
               <option value="">
                 {loadingDetail ? "Loading heritages…" : "Select a heritage…"}
               </option>
-              {heritages.map((h) => (
-                <option key={h.id} value={h.name}>{h.name}</option>
-              ))}
+              {ancestryHeritages.length > 0 && (
+                <optgroup label={`${state.ancestryName} Heritages`}>
+                  {ancestryHeritages.map((h) => (
+                    <option key={h.id} value={h.name}>
+                      {h.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {versatileHeritages.length > 0 && (
+                <optgroup label="Versatile Heritages">
+                  {versatileHeritages.map((h) => (
+                    <option key={h.id} value={h.name}>
+                      {h.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <ChevronDown
+              size={14}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
           </div>
         </div>
       )}
@@ -106,7 +136,8 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
       {state.ancestryId && (
         <div className="flex flex-wrap gap-2">
           <span className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
-            {state.ancestryName} · {state.ancestryHp} HP · {state.ancestrySpeed} ft. · {state.ancestrySize}
+            {state.ancestryName} · {state.ancestryHp} HP · {state.ancestrySpeed} ft. ·{" "}
+            {state.ancestrySize}
           </span>
           {state.heritageName && (
             <span className="text-xs bg-muted text-muted-foreground px-3 py-1 rounded-full">
@@ -117,7 +148,9 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
       )}
 
       <div className="flex justify-between pt-2">
-        <button type="button" onClick={onBack} className="btn-outline px-6">← Back</button>
+        <button type="button" onClick={onBack} className="btn-outline px-6">
+          ← Back
+        </button>
         <button
           type="button"
           onClick={onNext}
