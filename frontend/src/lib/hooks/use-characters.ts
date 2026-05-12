@@ -227,6 +227,7 @@ export type PatchCharacterPayload = {
     languages?: string[];
     abilities?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
     attributes?: { ancestryhp: number; classhp: number; bonushp: number; bonushpPerLevel: number };
+    extras?: Record<string, unknown>;
     feats?: Array<[string, string | null, string | null, string | null]>;
     equipment?: Array<[string, number]>;
     proficiencies?: Record<string, number>;

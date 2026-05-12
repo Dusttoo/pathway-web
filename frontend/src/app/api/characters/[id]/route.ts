@@ -168,6 +168,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         bonushp: number;
         bonushpPerLevel: number;
       };
+      extras?: Record<string, unknown>;
       feats?: Array<[string, string | null, string | null, string | null]>;
       equipment?: Array<[string, number]>;
       proficiencies?: Record<string, number>;
@@ -322,6 +323,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     if (body.build_patch.attributes) {
       build.attributes = body.build_patch.attributes;
+    }
+    if (body.build_patch.extras) {
+      for (const [key, value] of Object.entries(body.build_patch.extras)) {
+        if (value === null || value === undefined || value === "") {
+          delete build[key];
+        } else {
+          build[key] = value;
+        }
+      }
     }
     if (body.build_patch.feats) {
       build.feats = body.build_patch.feats;

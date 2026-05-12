@@ -44,6 +44,13 @@ type CharacterBuild = {
   languages?: unknown;
   abilities?: unknown;
   attributes?: unknown;
+  ac?: unknown;
+  armor?: unknown;
+  shield?: unknown;
+  speed?: unknown;
+  senses?: unknown;
+  class_dc?: unknown;
+  spell_dc?: unknown;
   feats?: unknown;
   equipment?: unknown;
   proficiencies?: unknown;
@@ -66,6 +73,16 @@ type HpAttributes = {
   classhp: number;
   bonushp: number;
   bonushpPerLevel: number;
+};
+
+type DefenseDetails = {
+  ac: string;
+  armor: string;
+  shield: string;
+  speed: string;
+  senses: string;
+  classDc: string;
+  spellDc: string;
 };
 
 type FeatTuple = [string, string | null, string | null, string | null];
@@ -119,7 +136,7 @@ function isRecord(value: Json | unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function getNestedString(value: Json | null, paths: string[][]) {
+function getNestedString(value: Json | CharacterBuild | null, paths: string[][]) {
   for (const path of paths) {
     let cursor: unknown = value;
     for (const key of path) {
@@ -221,6 +238,35 @@ function getHpAttributes(character: Character): HpAttributes {
     bonushp: typeof attributes.bonushp === "number" ? attributes.bonushp : 0,
     bonushpPerLevel:
       typeof attributes.bonushpPerLevel === "number" ? attributes.bonushpPerLevel : 0,
+  };
+}
+
+function getDefenseDetails(character: Character): DefenseDetails {
+  const build = getCharacterBuild(character);
+  const ac =
+    getNestedNumber(build, [["ac"], ["armorClass"], ["armor_class"], ["stats", "ac"]]) ??
+    deriveAc(character);
+  const speed =
+    getNestedNumber(build, [["speed"], ["speed_ft"], ["stats", "speed"]]) ??
+    getNestedNumber(character.pathbuilder_data, [["speed"], ["build", "speed"]]);
+  const classDc =
+    getNestedNumber(build, [["class_dc"], ["classDC"], ["stats", "class_dc"]]) ??
+    getNestedNumber(character.pathbuilder_data, [["class_dc"], ["build", "class_dc"]]);
+  const spellDc =
+    getNestedNumber(build, [["spell_dc"], ["spellDC"], ["stats", "spell_dc"]]) ??
+    getNestedNumber(character.pathbuilder_data, [["spell_dc"], ["build", "spell_dc"]]);
+
+  return {
+    ac: ac ? String(ac) : "",
+    armor: getNestedString(build, [["armor"], ["equipped_armor"], ["stats", "armor"]]) ?? "",
+    shield: getNestedString(build, [["shield"], ["equipped_shield"], ["stats", "shield"]]) ?? "",
+    speed: speed ? String(speed) : "",
+    senses:
+      getNestedString(build, [["senses"], ["stats", "senses"]]) ??
+      getNestedString(character.pathbuilder_data, [["senses"], ["build", "senses"]]) ??
+      "",
+    classDc: classDc ? String(classDc) : "",
+    spellDc: spellDc ? String(spellDc) : "",
   };
 }
 
@@ -482,6 +528,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
   });
   const [abilities, setAbilities] = useState<AbilityScores>(() => getAbilityScores(character));
   const [attributes, setAttributes] = useState<HpAttributes>(() => getHpAttributes(character));
+  const [defenses, setDefenses] = useState<DefenseDetails>(() => getDefenseDetails(character));
+  const [armorSearch, setArmorSearch] = useState("");
+  const [shieldSearch, setShieldSearch] = useState("");
   const [saveRanks, setSaveRanks] = useState(() => {
     const proficiencies = getProficiencies(character);
     return {
@@ -536,6 +585,15 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
           keyability: identity.keyability.trim() || null,
           abilities,
           attributes,
+          extras: {
+            ac: defenses.ac ? Math.round(Number(defenses.ac) || 0) : null,
+            armor: defenses.armor.trim() || null,
+            shield: defenses.shield.trim() || null,
+            speed: defenses.speed ? Math.round(Number(defenses.speed) || 0) : null,
+            senses: defenses.senses.trim() || null,
+            class_dc: defenses.classDc ? Math.round(Number(defenses.classDc) || 0) : null,
+            spell_dc: defenses.spellDc ? Math.round(Number(defenses.spellDc) || 0) : null,
+          },
           proficiencies: {
             ...textToProficiencies(proficienciesText),
             ...saveRanks,
@@ -586,6 +644,22 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
     setEquipmentText((currentText) => addEquipmentToText(currentText, itemName, quantity));
     setEquipmentSearch("");
     setEquipmentQuantity("1");
+  }
+
+  function equipArmor(itemName: string) {
+    const name = itemName.trim();
+    if (!name) return;
+    setDefenses((current) => ({ ...current, armor: name }));
+    setEquipmentText((currentText) => addEquipmentToText(currentText, name, 1));
+    setArmorSearch("");
+  }
+
+  function equipShield(itemName: string) {
+    const name = itemName.trim();
+    if (!name) return;
+    setDefenses((current) => ({ ...current, shield: name }));
+    setEquipmentText((currentText) => addEquipmentToText(currentText, name, 1));
+    setShieldSearch("");
   }
 
   return (
@@ -726,6 +800,131 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                     </select>
                   </label>
                 ))}
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-border bg-background/30 p-4">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Defenses & Equipped Gear
+              </h3>
+              <div className="grid gap-4 md:grid-cols-3">
+                <label className="space-y-1 text-sm">
+                  <span>Armor Class</span>
+                  <input
+                    type="number"
+                    value={defenses.ac}
+                    onChange={(e) => setDefenses((current) => ({ ...current, ac: e.target.value }))}
+                    className="input w-full"
+                    placeholder="18"
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span>Speed (ft)</span>
+                  <input
+                    type="number"
+                    value={defenses.speed}
+                    onChange={(e) =>
+                      setDefenses((current) => ({ ...current, speed: e.target.value }))
+                    }
+                    className="input w-full"
+                    placeholder="25"
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span>Senses</span>
+                  <input
+                    value={defenses.senses}
+                    onChange={(e) =>
+                      setDefenses((current) => ({ ...current, senses: e.target.value }))
+                    }
+                    className="input w-full"
+                    placeholder="low-light vision, darkvision..."
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span>Class DC</span>
+                  <input
+                    type="number"
+                    value={defenses.classDc}
+                    onChange={(e) =>
+                      setDefenses((current) => ({ ...current, classDc: e.target.value }))
+                    }
+                    className="input w-full"
+                    placeholder="17"
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span>Spell DC</span>
+                  <input
+                    type="number"
+                    value={defenses.spellDc}
+                    onChange={(e) =>
+                      setDefenses((current) => ({ ...current, spellDc: e.target.value }))
+                    }
+                    className="input w-full"
+                    placeholder="17"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <div className="rounded-md border border-border/70 bg-background/30 p-3">
+                  <label className="space-y-1 text-sm">
+                    <span>Equipped Armor</span>
+                    <input
+                      value={defenses.armor}
+                      onChange={(e) =>
+                        setDefenses((current) => ({ ...current, armor: e.target.value }))
+                      }
+                      className="input mb-3 w-full"
+                      placeholder="None"
+                    />
+                  </label>
+                  <ItemSearchCombobox
+                    value={armorSearch}
+                    onChange={setArmorSearch}
+                    onSelect={equipArmor}
+                    placeholder="Search armor from the item database..."
+                    className="w-full"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => equipArmor(armorSearch)}
+                    disabled={!armorSearch.trim()}
+                    className="btn-outline mt-3 w-full text-sm disabled:opacity-50"
+                  >
+                    Equip Armor
+                  </button>
+                </div>
+
+                <div className="rounded-md border border-border/70 bg-background/30 p-3">
+                  <label className="space-y-1 text-sm">
+                    <span>Equipped Shield</span>
+                    <input
+                      value={defenses.shield}
+                      onChange={(e) =>
+                        setDefenses((current) => ({ ...current, shield: e.target.value }))
+                      }
+                      className="input mb-3 w-full"
+                      placeholder="None"
+                    />
+                  </label>
+                  <ItemSearchCombobox
+                    value={shieldSearch}
+                    onChange={setShieldSearch}
+                    onSelect={equipShield}
+                    placeholder="Search shields from the item database..."
+                    className="w-full"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => equipShield(shieldSearch)}
+                    disabled={!shieldSearch.trim()}
+                    className="btn-outline mt-3 w-full text-sm disabled:opacity-50"
+                  >
+                    Equip Shield
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -1246,9 +1445,10 @@ function MiniCharacterSheet({
   const specials = getSpecialAbilityEntries(character);
   const attacks = getCustomAttacks(character);
   const languages = getLanguages(character);
+  const defenses = getDefenseDetails(character);
   const level = character.level ?? getBuildNumber(build, "level", 1);
   const maxHp = deriveMaxHp(character);
-  const ac = deriveAc(character);
+  const ac = Number(defenses.ac) || deriveAc(character);
   const perceptionRank = proficiencies.perception ?? 0;
   const perception = proficiencyBonus(perceptionRank, level) + abilityMod(abilities.wis);
   const visibleSkills = SKILL_ORDER.map((skill) => ({
@@ -1335,6 +1535,11 @@ function MiniCharacterSheet({
               <MiniStat label="AC" value={ac} />
               <MiniStat label="HP" value={maxHp} sub={`${attributes.classhp} class hp`} />
               <MiniStat
+                label="Speed"
+                value={defenses.speed || "—"}
+                sub={defenses.speed ? "feet" : undefined}
+              />
+              <MiniStat
                 label="Perception"
                 value={signed(perception)}
                 sub={proficiencyLabel(perceptionRank)}
@@ -1353,6 +1558,20 @@ function MiniCharacterSheet({
                 );
               })}
             </div>
+
+            {(defenses.armor ||
+              defenses.shield ||
+              defenses.senses ||
+              defenses.classDc ||
+              defenses.spellDc) && (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {defenses.armor && <MiniStat label="Armor" value={defenses.armor} />}
+                {defenses.shield && <MiniStat label="Shield" value={defenses.shield} />}
+                {defenses.senses && <MiniStat label="Senses" value={defenses.senses} />}
+                {defenses.classDc && <MiniStat label="Class DC" value={defenses.classDc} />}
+                {defenses.spellDc && <MiniStat label="Spell DC" value={defenses.spellDc} />}
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
               {ABILITY_KEYS.map((key) => (
