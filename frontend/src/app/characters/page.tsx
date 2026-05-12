@@ -1,6 +1,7 @@
 "use client";
 
 import { MainLayout } from "@/components/layout";
+import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import {
   useCharacterImages,
   useCharacters,
@@ -287,6 +288,24 @@ function equipmentToText(equipment: EquipmentTuple[]) {
   return equipment.map(([name, qty]) => `${name} x${qty}`).join("\n");
 }
 
+function addEquipmentToText(currentText: string, itemName: string, quantity: number) {
+  const name = itemName.trim();
+  if (!name) return currentText;
+  const qty = Math.max(1, Math.round(quantity || 1));
+  const equipment = textToEquipment(currentText);
+  const existingIndex = equipment.findIndex(
+    ([existingName]) => existingName.toLowerCase() === name.toLowerCase()
+  );
+
+  if (existingIndex >= 0) {
+    equipment[existingIndex] = [equipment[existingIndex][0], equipment[existingIndex][1] + qty];
+  } else {
+    equipment.push([name, qty]);
+  }
+
+  return equipmentToText(equipment);
+}
+
 function textToEquipment(value: string): EquipmentTuple[] {
   return value
     .split("\n")
@@ -479,6 +498,8 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
   const [equipmentText, setEquipmentText] = useState(() =>
     equipmentToText(getEquipment(character))
   );
+  const [equipmentSearch, setEquipmentSearch] = useState("");
+  const [equipmentQuantity, setEquipmentQuantity] = useState("1");
   const [specialEntries, setSpecialEntries] = useState<SpecialAbilityEntry[]>(() =>
     getSpecialAbilityEntries(character)
   );
@@ -558,6 +579,13 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Could not save character sheet");
     }
+  }
+
+  function addEquipmentItem(itemName: string) {
+    const quantity = Math.max(1, Math.round(Number(equipmentQuantity) || 1));
+    setEquipmentText((currentText) => addEquipmentToText(currentText, itemName, quantity));
+    setEquipmentSearch("");
+    setEquipmentQuantity("1");
   }
 
   return (
@@ -895,6 +923,38 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 </h3>
                 <label className="space-y-1 text-sm">
                   <span>Equipment</span>
+                  <div className="mb-3 rounded-md border border-border/70 bg-background/30 p-3">
+                    <div className="grid gap-3 md:grid-cols-[1fr_110px]">
+                      <ItemSearchCombobox
+                        value={equipmentSearch}
+                        onChange={setEquipmentSearch}
+                        onSelect={addEquipmentItem}
+                        placeholder="Search the item database..."
+                        className="w-full"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        value={equipmentQuantity}
+                        onChange={(e) => setEquipmentQuantity(e.target.value)}
+                        className="input w-full"
+                        aria-label="Equipment quantity"
+                      />
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        Search includes the imported Pathfinder 2e item database.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => addEquipmentItem(equipmentSearch)}
+                        disabled={!equipmentSearch.trim()}
+                        className="btn-outline text-sm disabled:opacity-50"
+                      >
+                        Add Item
+                      </button>
+                    </div>
+                  </div>
                   <textarea
                     value={equipmentText}
                     onChange={(e) => setEquipmentText(e.target.value)}
