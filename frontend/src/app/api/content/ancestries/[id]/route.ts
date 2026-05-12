@@ -5,10 +5,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const [ancestryResult, heritagesResult, versatileHeritagesResult] = await Promise.all([
+  const [ancestryResult, heritagesResult, allHeritagesResult] = await Promise.all([
     supabase.from("ancestries").select("*").eq("id", id).single(),
     supabase.from("heritages").select("*").eq("ancestry_id", id).order("name"),
-    supabase.from("heritages").select("*").eq("is_versatile", true).order("name"),
+    supabase.from("heritages").select("*").order("name"),
   ]);
 
   if (ancestryResult.error || !ancestryResult.data) {
@@ -18,6 +18,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return NextResponse.json({
     ...ancestryResult.data,
     heritages: heritagesResult.data ?? [],
-    versatileHeritages: versatileHeritagesResult.data ?? [],
+    allHeritages: allHeritagesResult.data ?? [],
   });
 }

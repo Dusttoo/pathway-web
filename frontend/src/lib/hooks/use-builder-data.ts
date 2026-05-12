@@ -8,7 +8,7 @@ type ClassRow = Tables<"character_classes">;
 
 type AncestryWithHeritages = AncestryRow & {
   heritages: Tables<"heritages">[];
-  versatileHeritages: Tables<"heritages">[];
+  allHeritages: Tables<"heritages">[];
 };
 
 type PagedResult<T> = { data: T[]; total: number; page: number; limit: number };

@@ -57,23 +57,28 @@ function GuildPicker({ value, onChange }: { value: string; onChange: (id: string
       >
         <option value="">Select a server…</option>
         {guilds.map((g) => (
-          <option key={g.id} value={g.id}>{g.name}</option>
+          <option key={g.id} value={g.id}>
+            {g.name}
+          </option>
         ))}
       </select>
-      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+      <ChevronDown
+        size={14}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+      />
     </div>
   );
 }
 
 function PathbuilderImportForm() {
-  const router         = useRouter();
+  const router = useRouter();
   const createMutation = useCreateCharacter();
 
-  const [mode,          setMode]          = useState<"id" | "json">("id");
-  const [guildId,       setGuildId]       = useState("");
+  const [mode, setMode] = useState<"id" | "json">("id");
+  const [guildId, setGuildId] = useState("");
   const [pathbuilderId, setPathbuilderId] = useState("");
-  const [jsonText,      setJsonText]      = useState("");
-  const [formError,     setFormError]     = useState<string | null>(null);
+  const [jsonText, setJsonText] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,14 +108,16 @@ function PathbuilderImportForm() {
       }
       const pbJson = await pbRes.json();
       if (!pbJson.success) {
-        setFormError(`ID ${id} not found or expired. Get a fresh one: Pathbuilder → Menu → Export JSON.`);
+        setFormError(
+          `ID ${id} not found or expired. Get a fresh one: Pathbuilder → Menu → Export JSON.`
+        );
         return;
       }
       try {
         const character = await createMutation.mutateAsync({
           discord_guild_id: guildId,
           pathbuilder_data: pbJson,
-          pathbuilder_id:   id,
+          pathbuilder_id: id,
         });
         router.push(`/characters/${character.id}`);
       } catch (err) {
@@ -210,9 +217,13 @@ function PathbuilderImportForm() {
           className="btn-primary w-full flex items-center justify-center gap-2"
         >
           {createMutation.isPending ? (
-            <><div className="spinner w-4 h-4" /> Importing…</>
+            <>
+              <div className="spinner w-4 h-4" /> Importing…
+            </>
           ) : (
-            <><Upload size={16} /> Import Character</>
+            <>
+              <Upload size={16} /> Add Character
+            </>
           )}
         </button>
       </form>

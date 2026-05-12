@@ -15,7 +15,10 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
 
   const ancestries = ancestryPage?.data ?? [];
   const ancestryHeritages = (ancestryDetail?.heritages ?? []).filter((h) => !h.is_versatile);
-  const versatileHeritages = ancestryDetail?.versatileHeritages ?? [];
+  const selectedHeritageIds = new Set(ancestryHeritages.map((h) => h.id));
+  const otherHeritages = (ancestryDetail?.allHeritages ?? []).filter(
+    (h) => !selectedHeritageIds.has(h.id)
+  );
 
   function handleAncestryChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const id = e.target.value;
@@ -114,11 +117,12 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
                   ))}
                 </optgroup>
               )}
-              {versatileHeritages.length > 0 && (
-                <optgroup label="Versatile Heritages">
-                  {versatileHeritages.map((h) => (
+              {otherHeritages.length > 0 && (
+                <optgroup label="All Other Heritages">
+                  {otherHeritages.map((h) => (
                     <option key={h.id} value={h.name}>
                       {h.name}
+                      {h.is_versatile ? " (Versatile)" : ""}
                     </option>
                   ))}
                 </optgroup>

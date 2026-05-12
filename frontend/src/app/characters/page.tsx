@@ -2007,7 +2007,7 @@ export default function CharactersPage() {
           </div>
           <Link href="/characters/new" className="btn-primary flex items-center gap-2">
             <Plus size={20} />
-            Import Character
+            Add Character
           </Link>
         </div>
       </div>

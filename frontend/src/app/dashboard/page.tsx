@@ -99,7 +99,9 @@ function getPathbuilderCharacterImage(character: Character) {
 }
 
 function getCharacterImage(character: Character, storedImage?: string | null) {
-  return storedImage ?? getCustomCharacterImage(character) ?? getPathbuilderCharacterImage(character);
+  return (
+    storedImage ?? getCustomCharacterImage(character) ?? getPathbuilderCharacterImage(character)
+  );
 }
 
 function CharacterImageFallback({ name }: { name: string }) {
@@ -131,9 +133,7 @@ function CharacterCard({
   const deleteCharacterImage = useDeleteCharacterImage();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const subtitle = [character.ancestry_name, character.class_name]
-    .filter(Boolean)
-    .join(" · ");
+  const subtitle = [character.ancestry_name, character.class_name].filter(Boolean).join(" · ");
   const updated = new Date(character.updated_at).toLocaleDateString(undefined, {
     month: "numeric",
     day: "numeric",
@@ -168,8 +168,7 @@ function CharacterCard({
     }
   }
 
-  const isBusy =
-    isUploading || uploadCharacterImage.isPending || deleteCharacterImage.isPending;
+  const isBusy = isUploading || uploadCharacterImage.isPending || deleteCharacterImage.isPending;
 
   return (
     <div className="group overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg">
@@ -186,9 +185,7 @@ function CharacterCard({
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/95 via-background/55 to-transparent p-4">
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-lg font-semibold text-foreground">
-                {character.name}
-              </p>
+              <p className="truncate text-lg font-semibold text-foreground">{character.name}</p>
               <p className="truncate text-sm text-muted-foreground">
                 {subtitle || "Pathfinder 2e character"}
               </p>
@@ -229,11 +226,7 @@ function CharacterCard({
             title={image ? "Replace character image" : "Upload character image"}
             aria-label={image ? "Replace character image" : "Upload character image"}
           >
-            {isBusy ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <ImagePlus size={16} />
-            )}
+            {isBusy ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
           </button>
           <input
             ref={fileInputRef}
@@ -299,9 +292,7 @@ function ProfileHero({
             <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
               Discord Profile
             </p>
-            <h1 className="text-4xl font-semibold text-white md:text-6xl">
-              {discordName}
-            </h1>
+            <h1 className="text-4xl font-semibold text-white md:text-6xl">{discordName}</h1>
             <div className="mt-6 flex flex-wrap justify-center gap-3 md:justify-start">
               <span className="rounded-md bg-background/75 px-4 py-2 text-sm font-semibold text-foreground backdrop-blur">
                 Characters: {isLoading ? "..." : characterCount}
@@ -354,11 +345,9 @@ function CalendarCard({ cal }: { cal: CalendarSnapshot }) {
       )}
       {cal.nextHoliday && (
         <p className="text-xs text-muted-foreground">
-          Next:{" "}
-          <span className="text-foreground">{cal.nextHoliday.name}</span> in{" "}
+          Next: <span className="text-foreground">{cal.nextHoliday.name}</span> in{" "}
           {cal.nextHoliday.daysAway} day
-          {cal.nextHoliday.daysAway === 1 ? "" : "s"} (
-          {cal.nextHoliday.dateString})
+          {cal.nextHoliday.daysAway === 1 ? "" : "s"} ({cal.nextHoliday.dateString})
         </p>
       )}
     </div>
@@ -396,9 +385,7 @@ function WeatherCard({ wx }: { wx: WeatherSnapshot }) {
         <LiveChip />
       </div>
       <div className="flex items-baseline gap-3">
-        <span className={`text-3xl font-bold tabular-nums ${tempColor}`}>
-          {wx.temperatureF}F
-        </span>
+        <span className={`text-3xl font-bold tabular-nums ${tempColor}`}>{wx.temperatureF}F</span>
         <span className="text-sm capitalize text-muted-foreground">
           {wx.temperatureCategory.replace(/([A-Z])/g, " $1").trim()}
         </span>
@@ -408,12 +395,8 @@ function WeatherCard({ wx }: { wx: WeatherSnapshot }) {
           {PRECIP_LABEL[wx.precipitation] ?? wx.precipitation}
           {wx.soaked ? " (soaked)" : ""}
         </span>
-        {wx.wind !== "calm" && (
-          <span className="rounded-full bg-muted px-2 py-0.5">{wx.wind}</span>
-        )}
-        {wx.fog !== "none" && (
-          <span className="rounded-full bg-muted px-2 py-0.5">{wx.fog}</span>
-        )}
+        {wx.wind !== "calm" && <span className="rounded-full bg-muted px-2 py-0.5">{wx.wind}</span>}
+        {wx.fog !== "none" && <span className="rounded-full bg-muted px-2 py-0.5">{wx.fog}</span>}
       </div>
       <p className="text-xs capitalize text-muted-foreground">
         {wx.climate} · {wx.season}
@@ -429,9 +412,7 @@ function DashboardOverview() {
 
   const activeChars = characters?.filter((c) => c.status === "active") ?? [];
   const guildId = characters?.[0]?.discord_guild_id ?? null;
-  const uniqueGuilds = new Set(
-    characters?.map((c) => c.discord_guild_id).filter(Boolean),
-  );
+  const uniqueGuilds = new Set(characters?.map((c) => c.discord_guild_id).filter(Boolean));
   const isMultiGuild = uniqueGuilds.size > 1;
   const { calendar, weather } = useGuildState(guildId);
 
@@ -448,8 +429,7 @@ function DashboardOverview() {
 
       {!isLoading && !guildId && (
         <div className="card border-dashed p-4 text-center text-sm text-muted-foreground">
-          Import a character via{" "}
-          <code className="rounded bg-muted px-1 text-xs">/char import</code>{" "}
+          Import a character via <code className="rounded bg-muted px-1 text-xs">/char import</code>{" "}
           in Discord to see your campaign state here.
         </div>
       )}
@@ -464,7 +444,7 @@ function DashboardOverview() {
           </div>
           <Link href="/characters/new" className="btn-primary inline-flex gap-2">
             <Plus size={18} />
-            Import Character
+            Add Character
           </Link>
         </div>
 
@@ -480,11 +460,7 @@ function DashboardOverview() {
         ) : characters && characters.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {characters.map((c) => (
-              <CharacterCard
-                key={c.id}
-                character={c}
-                storedImage={characterImages[c.id]}
-              />
+              <CharacterCard key={c.id} character={c} storedImage={characterImages[c.id]} />
             ))}
           </div>
         ) : (
@@ -529,9 +505,7 @@ function DashboardOverview() {
               <p className="text-3xl text-chart-1">
                 {isLoading ? "..." : (characters?.length ?? 0)}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {activeChars.length} active
-              </p>
+              <p className="text-xs text-muted-foreground">{activeChars.length} active</p>
             </div>
             <Swords className="h-5 w-5 text-chart-1 opacity-70" />
           </div>
@@ -559,9 +533,7 @@ function DashboardOverview() {
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Content Library</p>
               <p className="text-3xl text-chart-3">Rules</p>
-              <p className="text-xs text-muted-foreground">
-                Feats, classes, ancestries
-              </p>
+              <p className="text-xs text-muted-foreground">Feats, classes, ancestries</p>
             </div>
             <Shield className="h-5 w-5 text-chart-3 opacity-70" />
           </div>
