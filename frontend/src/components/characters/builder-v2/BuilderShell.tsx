@@ -12,6 +12,8 @@ import { AncestryStep } from "./steps/AncestryStep";
 import { HeritageStep } from "./steps/HeritageStep";
 import { ClassStep } from "./steps/ClassStep";
 import { BackgroundStep } from "./steps/BackgroundStep";
+import { AbilitiesStep } from "./steps/AbilitiesStep";
+import { SkillsStep } from "./steps/SkillsStep";
 import { StubStep } from "./steps/StubStep";
 
 // Map of fully-built step components. Anything not in this map renders
@@ -23,6 +25,8 @@ const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepPr
   heritage: HeritageStep,
   class: ClassStep,
   background: BackgroundStep,
+  abilities: AbilitiesStep,
+  skills: SkillsStep,
 };
 
 export function BuilderShell() {
@@ -78,25 +82,30 @@ export function BuilderShell() {
         )}
       </div>
 
-      {/* Bottom nav (visible regardless of whether step renders its own buttons) */}
-      <div className="flex justify-between items-center">
-        <button
-          type="button"
-          onClick={stepProps.onBack}
-          disabled={stepIndex === 0}
-          className="btn-outline px-4 flex items-center gap-2 disabled:opacity-40"
-        >
-          <ArrowLeft size={16} /> Back
-        </button>
-        <span className="text-xs text-muted-foreground">{current?.label}</span>
-        <button
-          type="button"
-          onClick={stepProps.onNext}
-          disabled={stepIndex >= steps.length - 1}
-          className="btn-primary px-4 flex items-center gap-2 disabled:opacity-40"
-        >
-          Next <ArrowRight size={16} />
-        </button>
+      {/* Sticky bottom nav so Next is always reachable on long pages
+          (the card grids in Ancestry/Class/Background can be tall). */}
+      <div className="sticky bottom-2 z-30">
+        <div className="flex justify-between items-center gap-3 card px-4 py-3 bg-background/95 backdrop-blur-md shadow-lg border border-border">
+          <button
+            type="button"
+            onClick={stepProps.onBack}
+            disabled={stepIndex === 0}
+            className="btn-outline px-4 flex items-center gap-2 disabled:opacity-40"
+          >
+            <ArrowLeft size={16} /> Back
+          </button>
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            Step {stepIndex + 1} / {steps.length} · {current?.label}
+          </span>
+          <button
+            type="button"
+            onClick={stepProps.onNext}
+            disabled={stepIndex >= steps.length - 1}
+            className="btn-primary px-4 flex items-center gap-2 disabled:opacity-40"
+          >
+            Next <ArrowRight size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
