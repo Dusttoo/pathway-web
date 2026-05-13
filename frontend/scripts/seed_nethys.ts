@@ -10,6 +10,7 @@
  *   npx tsx scripts/seed_nethys.ts --only=feats      # one category
  *   npx tsx scripts/seed_nethys.ts --only=feats,spells,heritages
  *   npx tsx scripts/seed_nethys.ts --refresh         # bypass on-disk cache
+ *   npx tsx scripts/seed_nethys.ts --only=feats --replace-official --refresh
  *   npx tsx scripts/seed_nethys.ts --limit=50        # smoke test
  *   npx tsx scripts/seed_nethys.ts --dry-run         # transform but don't write
  *
@@ -18,6 +19,8 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import * as fs from "fs";
+import * as path from "path";
 import { fetchCategory, type NethysCategory, type NethysDoc } from "./nethys/fetch";
 import {
   transformFeat,
@@ -33,28 +36,57 @@ import {
   transformCondition,
 } from "./nethys/transform";
 
+function loadEnvFile(filePath: string): void {
+  if (!fs.existsSync(filePath)) return;
+
+  for (const line of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const equalsAt = trimmed.indexOf("=");
+    if (equalsAt === -1) continue;
+
+    const key = trimmed.slice(0, equalsAt).trim();
+    const value = trimmed
+      .slice(equalsAt + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, "");
+
+    if (key && process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
+loadEnvFile(path.resolve(process.cwd(), ".env.local"));
+loadEnvFile(path.resolve(process.cwd(), ".env"));
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 const BATCH = 200;
 
-if (!SUPABASE_URL || !SERVICE_KEY) {
-  console.error(
-    "Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running.\n" +
-      "  export $(grep -v '^#' frontend/.env.local | xargs)"
-  );
-  process.exit(1);
-}
-
-const db: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY);
+const db: SupabaseClient =
+  SUPABASE_URL && SERVICE_KEY ? createClient(SUPABASE_URL, SERVICE_KEY) : (null as never);
 
 // ── CLI parsing ───────────────────────────────────────────────
 
-type Args = { only: string[] | null; refresh: boolean; limit: number | null; dryRun: boolean };
+type Args = {
+  only: string[] | null;
+  refresh: boolean;
+  replaceOfficial: boolean;
+  limit: number | null;
+  dryRun: boolean;
+};
 
 function parseArgs(argv: string[]): Args {
-  const out: Args = { only: null, refresh: false, limit: null, dryRun: false };
+  const out: Args = {
+    only: null,
+    refresh: false,
+    limit: null,
+    dryRun: false,
+    replaceOfficial: false,
+  };
   for (const a of argv) {
     if (a === "--refresh") out.refresh = true;
+    else if (a === "--replace-official") out.replaceOfficial = true;
     else if (a === "--dry-run") out.dryRun = true;
     else if (a.startsWith("--only="))
       out.only = a.slice("--only=".length).split(",").filter(Boolean);
@@ -199,6 +231,39 @@ async function writeRows(
 }
 
 // ── per-category seeders ──────────────────────────────────────
+
+async function deleteRowsByIds(table: string, ids: string[]): Promise<number> {
+  let deleted = 0;
+  for (const slice of chunk(ids, BATCH)) {
+    const { error } = await db.from(table).delete().in("id", slice);
+    if (error) throw error;
+    deleted += slice.length;
+  }
+  return deleted;
+}
+
+async function replaceOfficialRows(table: string): Promise<void> {
+  if (table !== "feats") {
+    throw new Error(`--replace-official is only implemented for feats right now, not ${table}`);
+  }
+
+  const { data, error } = await db.from("feats").select("id").eq("is_official", true);
+  if (error) throw error;
+
+  const ids = (data ?? []).map((row) => row.id as string).filter(Boolean);
+  if (ids.length === 0) {
+    console.log("  replace: no official feat rows found");
+    return;
+  }
+
+  for (const slice of chunk(ids, BATCH)) {
+    const { error: linkError } = await db.from("character_feats").delete().in("feat_id", slice);
+    if (linkError) throw linkError;
+  }
+
+  const deleted = await deleteRowsByIds("feats", ids);
+  console.log(`  replace: deleted ${deleted} official feat row(s)`);
+}
 
 type Seeder = {
   key: string;
@@ -357,6 +422,12 @@ async function runSeeder(seeder: Seeder, args: Args): Promise<void> {
     }
   }
 
+  if (args.replaceOfficial && args.dryRun) {
+    console.log(`  (dry-run) would delete existing official rows from ${seeder.table}`);
+  } else if (args.replaceOfficial) {
+    await replaceOfficialRows(seeder.table);
+  }
+
   await writeRows(seeder.table, rows, {
     conflict: seeder.conflict,
     dryRun: args.dryRun,
@@ -498,6 +569,14 @@ const ALL_KEYS = new Set([...SEEDERS.map((s) => s.key), ...CUSTOM_SEEDERS]);
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  if ((!SUPABASE_URL || !SERVICE_KEY) && !args.dryRun) {
+    console.error(
+      "Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running.\n" +
+        "  Add them to frontend/.env.local or set them in this shell."
+    );
+    process.exit(1);
+  }
+
   const unknown = args.only?.filter((key) => !ALL_KEYS.has(key)) ?? [];
   if (unknown.length > 0) {
     console.error(`Unknown --only value: ${unknown.join(", ")}`);
@@ -514,6 +593,7 @@ async function main(): Promise<void> {
   console.log(
     `Nethys seed: ${selectedNames.join(", ")}` +
       (args.refresh ? " (refresh)" : "") +
+      (args.replaceOfficial ? " (replace official)" : "") +
       (args.limit ? ` (limit=${args.limit})` : "") +
       (args.dryRun ? " (dry-run)" : "")
   );
