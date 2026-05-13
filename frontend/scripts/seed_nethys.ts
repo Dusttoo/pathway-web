@@ -247,22 +247,30 @@ async function replaceOfficialRows(table: string): Promise<void> {
     throw new Error(`--replace-official is only implemented for feats right now, not ${table}`);
   }
 
-  const { data, error } = await db.from("feats").select("id").eq("is_official", true);
-  if (error) throw error;
+  let deletedTotal = 0;
 
-  const ids = (data ?? []).map((row) => row.id as string).filter(Boolean);
-  if (ids.length === 0) {
-    console.log("  replace: no official feat rows found");
-    return;
-  }
+  while (true) {
+    const { data, error } = await db
+      .from("feats")
+      .select("id")
+      .eq("is_official", true)
+      .limit(BATCH);
+    if (error) throw error;
 
-  for (const slice of chunk(ids, BATCH)) {
-    const { error: linkError } = await db.from("character_feats").delete().in("feat_id", slice);
+    const ids = (data ?? []).map((row) => row.id as string).filter(Boolean);
+    if (ids.length === 0) break;
+
+    const { error: linkError } = await db.from("character_feats").delete().in("feat_id", ids);
     if (linkError) throw linkError;
+
+    deletedTotal += await deleteRowsByIds("feats", ids);
   }
 
-  const deleted = await deleteRowsByIds("feats", ids);
-  console.log(`  replace: deleted ${deleted} official feat row(s)`);
+  console.log(
+    deletedTotal > 0
+      ? `  replace: deleted ${deletedTotal} official feat row(s)`
+      : "  replace: no official feat rows found"
+  );
 }
 
 type Seeder = {
