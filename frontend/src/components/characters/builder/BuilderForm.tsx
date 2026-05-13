@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { StepProgress } from "./StepProgress";
-import { IdentityStep } from "./IdentityStep";
-import { AncestryStep } from "./AncestryStep";
 import { ClassBackgroundStep } from "./ClassBackgroundStep";
 import { FeatsStep } from "./FeatsStep";
 import { SpellsStep } from "./SpellsStep";
+import { StartStep } from "./StartStep";
 import { AbilitySkillStep } from "./AbilitySkillStep";
 import { ReviewStep } from "./ReviewStep";
 import { DEFAULT_STATE, type BuilderState } from "./types";
@@ -29,13 +28,12 @@ export function BuilderForm() {
   return (
     <div>
       <StepProgress current={step} />
-      {step === 1 && <IdentityStep {...stepProps} />}
-      {step === 2 && <AncestryStep {...stepProps} />}
-      {step === 3 && <ClassBackgroundStep {...stepProps} />}
-      {step === 4 && <FeatsStep {...stepProps} />}
-      {step === 5 && <SpellsStep {...stepProps} />}
-      {step === 6 && <AbilitySkillStep {...stepProps} />}
-      {step === 7 && <ReviewStep {...stepProps} />}
+      {step === 1 && <StartStep {...stepProps} />}
+      {step === 2 && <ClassBackgroundStep {...stepProps} />}
+      {step === 3 && <FeatsStep {...stepProps} />}
+      {step === 4 && <SpellsStep {...stepProps} />}
+      {step === 5 && <AbilitySkillStep {...stepProps} />}
+      {step === 6 && <ReviewStep {...stepProps} />}
     </div>
   );
 }

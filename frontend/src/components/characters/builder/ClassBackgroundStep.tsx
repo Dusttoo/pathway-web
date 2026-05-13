@@ -5,16 +5,23 @@ import { ChevronDown } from "lucide-react";
 import { useClasses, useClassDetail, useBackgroundsList } from "@/lib/hooks/use-builder-data";
 import type { StepProps } from "./types";
 
+function clampProficiencyRank(raw: unknown) {
+  const value = typeof raw === "number" && Number.isFinite(raw) ? Math.round(raw) : 0;
+  return Math.max(0, Math.min(4, value));
+}
+
 export function ClassBackgroundStep({ state, update, onNext, onBack }: StepProps) {
-  const [classQ, setClassQ]       = useState("");
-  const [bgQ,    setBgQ]          = useState("");
+  const [classQ, setClassQ] = useState("");
+  const [bgQ, setBgQ] = useState("");
 
-  const { data: classPage,  isLoading: loadingClasses }    = useClasses(classQ);
-  const { data: classDetail, isLoading: loadingClassDetail } = useClassDetail(state.classId || null);
-  const { data: bgPage,     isLoading: loadingBgs }        = useBackgroundsList(bgQ);
+  const { data: classPage, isLoading: loadingClasses } = useClasses(classQ);
+  const { data: classDetail, isLoading: loadingClassDetail } = useClassDetail(
+    state.classId || null
+  );
+  const { data: bgPage, isLoading: loadingBgs } = useBackgroundsList(bgQ);
 
-  const classes     = classPage?.data ?? [];
-  const backgrounds = bgPage?.data    ?? [];
+  const classes = classPage?.data ?? [];
+  const backgrounds = bgPage?.data ?? [];
 
   // Key ability options from the selected class
   const keyAttrs: string[] = Array.isArray(classDetail?.key_attribute)
@@ -24,29 +31,42 @@ export function ClassBackgroundStep({ state, update, onNext, onBack }: StepProps
       : [];
 
   function handleClassChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const id  = e.target.value;
+    const id = e.target.value;
     const row = classes.find((c) => c.id === id);
     if (!row) {
-      update({ classId: "", className: "", classHp: 8, classInitialProfs: {}, classTrainedCount: 3, keyability: "", trainedSkills: [] });
+      update({
+        classId: "",
+        className: "",
+        classHp: 8,
+        classInitialProfs: {},
+        classTrainedCount: 3,
+        keyability: "",
+        trainedSkills: [],
+      });
       return;
     }
-    const profs       = (row.initial_proficiencies ?? {}) as Record<string, number>;
+    const profs = Object.fromEntries(
+      Object.entries((row.initial_proficiencies ?? {}) as Record<string, unknown>).map(
+        ([key, rank]) => [key, clampProficiencyRank(rank)]
+      )
+    );
     const keyAttrList = Array.isArray(row.key_attribute)
       ? (row.key_attribute as string[])
       : typeof row.key_attribute === "string"
         ? [row.key_attribute as string]
         : [];
     // Look for a trained_skill_count in class_metadata; default to 3
-    const meta            = (row.class_metadata ?? {}) as Record<string, unknown>;
-    const trainedCount    = typeof meta.trained_skill_count === "number" ? meta.trained_skill_count : 3;
+    const meta = (row.class_metadata ?? {}) as Record<string, unknown>;
+    const trainedCount =
+      typeof meta.trained_skill_count === "number" ? meta.trained_skill_count : 3;
     update({
-      classId:          row.id,
-      className:        row.name,
-      classHp:          row.class_hp ?? 8,
+      classId: row.id,
+      className: row.name,
+      classHp: row.class_hp ?? 8,
       classInitialProfs: profs,
       classTrainedCount: trainedCount,
-      keyability:       keyAttrList.length === 1 ? keyAttrList[0].toLowerCase() : "",
-      trainedSkills:    [],  // reset on class change
+      keyability: keyAttrList.length === 1 ? keyAttrList[0].toLowerCase() : "",
+      trainedSkills: [], // reset on class change
     });
   }
 
@@ -56,7 +76,9 @@ export function ClassBackgroundStep({ state, update, onNext, onBack }: StepProps
     <div className="space-y-5">
       <div>
         <h2 className="text-lg font-semibold mb-1">Class & Background</h2>
-        <p className="text-sm text-muted-foreground">Choose your class, background, and key ability.</p>
+        <p className="text-sm text-muted-foreground">
+          Choose your class, background, and key ability.
+        </p>
       </div>
 
       {/* Class */}
@@ -78,16 +100,17 @@ export function ClassBackgroundStep({ state, update, onNext, onBack }: StepProps
             onChange={handleClassChange}
             disabled={loadingClasses}
           >
-            <option value="">
-              {loadingClasses ? "Loading classes…" : "Select a class…"}
-            </option>
+            <option value="">{loadingClasses ? "Loading classes…" : "Select a class…"}</option>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} · {c.class_hp} HP{c.is_spellcaster ? " · Spellcaster" : ""}
               </option>
             ))}
           </select>
-          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <ChevronDown
+            size={14}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          />
         </div>
       </div>
 
@@ -111,7 +134,10 @@ export function ClassBackgroundStep({ state, update, onNext, onBack }: StepProps
                 </option>
               ))}
             </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <ChevronDown
+              size={14}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
           </div>
         </div>
       )}
@@ -135,11 +161,15 @@ export function ClassBackgroundStep({ state, update, onNext, onBack }: StepProps
             onChange={(e) => {
               const name = e.target.value;
               const bg = backgrounds.find((b) => b.name === name);
-              if (!bg) { update({ backgroundName: "", backgroundTrainedSkill: "" }); return; }
+              if (!bg) {
+                update({ backgroundName: "", backgroundTrainedSkill: "" });
+                return;
+              }
               const profs = Array.isArray(bg.skill_proficiencies)
                 ? (bg.skill_proficiencies as string[])
                 : [];
-              const trainedSkill = profs.find((s) => !s.toLowerCase().includes("lore"))?.toLowerCase() ?? "";
+              const trainedSkill =
+                profs.find((s) => !s.toLowerCase().includes("lore"))?.toLowerCase() ?? "";
               const loreEntry = profs.find((s) => s.toLowerCase().includes("lore"));
               const autoLore = loreEntry ? loreEntry.replace(/ lore$/i, "") : "";
               update({
@@ -150,29 +180,32 @@ export function ClassBackgroundStep({ state, update, onNext, onBack }: StepProps
             }}
             disabled={loadingBgs}
           >
-            <option value="">
-              {loadingBgs ? "Loading backgrounds…" : "Select a background…"}
-            </option>
+            <option value="">{loadingBgs ? "Loading backgrounds…" : "Select a background…"}</option>
             {backgrounds.map((b) => {
-                const profs = Array.isArray(b.skill_proficiencies)
-                  ? (b.skill_proficiencies as string[])
-                  : [];
-                const trainedSkill = profs.find((s) => !s.toLowerCase().includes("lore"));
-                return (
-                  <option key={b.id} value={b.name}>
-                    {b.name}{trainedSkill ? ` · ${trainedSkill}` : ""}
-                  </option>
-                );
-              })}
+              const profs = Array.isArray(b.skill_proficiencies)
+                ? (b.skill_proficiencies as string[])
+                : [];
+              const trainedSkill = profs.find((s) => !s.toLowerCase().includes("lore"));
+              return (
+                <option key={b.id} value={b.name}>
+                  {b.name}
+                  {trainedSkill ? ` · ${trainedSkill}` : ""}
+                </option>
+              );
+            })}
           </select>
-          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <ChevronDown
+            size={14}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          />
         </div>
       </div>
 
       {/* Lore skill from background */}
       <div>
         <label className="block text-sm font-medium mb-1">
-          Background Lore Skill <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+          Background Lore Skill{" "}
+          <span className="text-xs text-muted-foreground font-normal">(optional)</span>
         </label>
         <input
           className="input w-full"
@@ -187,7 +220,9 @@ export function ClassBackgroundStep({ state, update, onNext, onBack }: StepProps
       </div>
 
       <div className="flex justify-between pt-2">
-        <button type="button" onClick={onBack} className="btn-outline px-6">← Back</button>
+        <button type="button" onClick={onBack} className="btn-outline px-6">
+          ← Back
+        </button>
         <button
           type="button"
           onClick={onNext}

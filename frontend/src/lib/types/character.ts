@@ -20,7 +20,7 @@ export type NativeBuildInput = {
   trained_skills: string[];
   background_trained_skill?: string; // e.g. "athletics" — auto-granted by background
   additional_skills?: { name: string; rank: number }[];
-  custom_feats?: { name: string; featType: string; level: number }[];
+  custom_feats?: { name: string; featType: string; level: number; details?: string }[];
   custom_specials?: string[];
   custom_attacks?: { name: string; bonus: string; damage: string; traits: string }[];
   deity: string;

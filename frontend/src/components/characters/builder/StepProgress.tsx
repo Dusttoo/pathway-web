@@ -1,8 +1,7 @@
 "use client";
 
 const STEPS = [
-  "Identity",
-  "Ancestry",
+  "Start",
   "Class & Background",
   "Feats",
   "Spells",

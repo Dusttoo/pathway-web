@@ -40,23 +40,56 @@ const ALL_SKILLS = [
   "computers",
 ];
 
+const OFFICIAL_VERSATILE_HERITAGE_NAMES = new Set(
+  [
+    "Aiuvarin",
+    "Dromaar",
+    "Aphorite",
+    "Ardande",
+    "Changeling",
+    "Dhampir",
+    "Dragonblood",
+    "Duskwalker",
+    "Ganzi",
+    "Hungerseed",
+    "Ifrit",
+    "Nephilim",
+    "Oread",
+    "Suli",
+    "Sylph",
+    "Talos",
+    "Undine",
+    "Beastkin",
+    "Reflection",
+  ].map((name) => name.toLowerCase())
+);
+
+function clampProficiencyRank(raw: unknown, fallback = 0): number {
+  const value = typeof raw === "number" && Number.isFinite(raw) ? Math.round(raw) : fallback;
+  return Math.max(0, Math.min(4, value));
+}
+
 function synthesizeBuild(
   input: NativeBuildInput,
   ancestry: AncestryRow,
   charClass: ClassRow
 ): object {
-  const classProfs = (charClass.initial_proficiencies ?? {}) as Record<string, number>;
+  const classProfs = Object.fromEntries(
+    Object.entries((charClass.initial_proficiencies ?? {}) as Record<string, unknown>).map(
+      ([key, rank]) => [key, clampProficiencyRank(rank)]
+    )
+  ) as Record<string, number>;
   const baseSkills = Object.fromEntries(ALL_SKILLS.map((s) => [s, 0]));
 
-  // Background-granted skill (rank 2, does not consume a free pick slot)
+  // Background-granted skill (rank 1, does not consume a free pick slot)
   const bgSkillProfs: Record<string, number> = {};
   if (input.background_trained_skill) {
     const sk = input.background_trained_skill.toLowerCase();
-    bgSkillProfs[sk] = Math.max(classProfs[sk] ?? 0, 2);
+    bgSkillProfs[sk] = Math.max(classProfs[sk] ?? 0, 1);
   }
 
   const trainedSkillProfs = Object.fromEntries(
-    (input.trained_skills ?? []).map((skill) => [skill, Math.max(classProfs[skill] ?? 0, 2)])
+    (input.trained_skills ?? []).map((skill) => [skill, Math.max(classProfs[skill] ?? 0, 1)])
   );
 
   const additionalSkillProfs = Object.fromEntries(
@@ -68,7 +101,7 @@ function synthesizeBuild(
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "_")
           .replace(/^_|_$/g, ""),
-        Math.max(2, Math.min(5, Math.round(skill.rank || 2))),
+        Math.max(1, Math.min(4, Math.round(skill.rank || 1))),
       ])
   );
 
@@ -76,9 +109,9 @@ function synthesizeBuild(
     .filter((feat) => feat.name.trim())
     .map((feat) => [
       feat.name.trim(),
-      null,
       feat.featType || "Other",
       feat.level ? `Level ${feat.level}` : null,
+      feat.details?.trim() || null,
     ]);
   const customSpecials = (input.custom_specials ?? [])
     .map((special) => special.trim())
@@ -100,11 +133,11 @@ function synthesizeBuild(
     ...additionalSkillProfs,
   };
 
-  // All characters are at least Trained (rank 2) in Perception
-  if ((mergedProfs.perception ?? 0) < 2) mergedProfs.perception = 2;
+  // All characters are at least Trained (rank 1) in Perception
+  if ((mergedProfs.perception ?? 0) < 1) mergedProfs.perception = 1;
 
   const dexMod = Math.floor((input.abilities.dex - 10) / 2);
-  const unarmoredRank = mergedProfs.unarmored ?? 2;
+  const unarmoredRank = mergedProfs.unarmored ?? 1;
   const acProfBonus = unarmoredRank > 0 ? unarmoredRank * 2 + input.level : 0;
   const sizeStr = (ancestry.size ?? "medium").toLowerCase();
   const sizeNum = ANCESTRY_SIZE_MAP[sizeStr] ?? 2;
@@ -156,12 +189,12 @@ function synthesizeBuild(
       specials: customSpecials,
       custom_attacks: customAttacks,
       lores: [
-        ...(input.lore ? [[input.lore, 2]] : []),
+        ...(input.lore ? [[input.lore, 1]] : []),
         ...(input.additional_skills ?? [])
           .filter((skill) => /lore$/i.test(skill.name.trim()))
           .map((skill) => [
             skill.name.trim().replace(/\s+lore$/i, ""),
-            Math.max(2, Math.min(5, Math.round(skill.rank || 2))),
+            Math.max(1, Math.min(4, Math.round(skill.rank || 1))),
           ]),
       ],
       equipmentContainers: {},
@@ -264,18 +297,35 @@ export async function POST(request: Request) {
     // Builder-v2 sends variant_rules + art at top level (not on native_build)
     // so the synthesizer doesn't have to know about them.
     const variantRules = (body.variant_rules ?? null) as Record<string, unknown> | null;
-    const art = nb.description?.portrait_url || null;
+    const art = nb?.description?.portrait_url || null;
 
-    if (!nb?.name || !nb.ancestry_id || !nb.class_id || !nb.background || !nb.abilities) {
+    if (
+      !nb?.name ||
+      !nb.ancestry_id ||
+      !nb.heritage ||
+      !nb.class_id ||
+      !nb.background ||
+      !nb.abilities
+    ) {
       return NextResponse.json(
-        { error: "native_build requires name, ancestry_id, class_id, background, and abilities" },
+        {
+          error:
+            "native_build requires name, ancestry_id, heritage, class_id, background, and abilities",
+        },
         { status: 400 }
       );
     }
 
-    const [ancestryResult, classResult] = await Promise.all([
+    const [ancestryResult, classResult, heritageResult] = await Promise.all([
       ctx.service.from("ancestries").select("*").eq("id", nb.ancestry_id).single(),
       ctx.service.from("character_classes").select("*").eq("id", nb.class_id).single(),
+      ctx.service
+        .from("heritages")
+        .select("id")
+        .ilike("name", nb.heritage)
+        .or(`ancestry_id.eq.${nb.ancestry_id},is_versatile.eq.true`)
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     if (ancestryResult.error || !ancestryResult.data) {
@@ -283,6 +333,15 @@ export async function POST(request: Request) {
     }
     if (classResult.error || !classResult.data) {
       return NextResponse.json({ error: "Class not found" }, { status: 400 });
+    }
+    if (
+      (!heritageResult.data || heritageResult.error) &&
+      !OFFICIAL_VERSATILE_HERITAGE_NAMES.has(nb.heritage.toLowerCase())
+    ) {
+      return NextResponse.json(
+        { error: "Heritage must match the selected ancestry or be a versatile heritage" },
+        { status: 400 }
+      );
     }
 
     const pathbuilderData = synthesizeBuild(nb, ancestryResult.data, classResult.data);

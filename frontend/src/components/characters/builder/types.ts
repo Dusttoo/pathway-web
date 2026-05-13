@@ -31,7 +31,7 @@ export type BuilderState = {
   abilities: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
   trainedSkills: string[];
   additionalSkills: { name: string; rank: number }[];
-  customFeats: { name: string; featType: string; level: number }[];
+  customFeats: { name: string; featType: string; level: number; details: string }[];
   selectedFeats: {
     feat_id: string;
     feat_name: string;
