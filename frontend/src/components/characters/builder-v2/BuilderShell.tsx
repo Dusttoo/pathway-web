@@ -10,6 +10,8 @@ import { StartStep } from "./steps/StartStep";
 import { OptionsStep } from "./steps/OptionsStep";
 import { AncestryStep } from "./steps/AncestryStep";
 import { HeritageStep } from "./steps/HeritageStep";
+import { ClassStep } from "./steps/ClassStep";
+import { BackgroundStep } from "./steps/BackgroundStep";
 import { StubStep } from "./steps/StubStep";
 
 // Map of fully-built step components. Anything not in this map renders
@@ -19,6 +21,8 @@ const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepPr
   options: OptionsStep,
   ancestry: AncestryStep,
   heritage: HeritageStep,
+  class: ClassStep,
+  background: BackgroundStep,
 };
 
 export function BuilderShell() {
