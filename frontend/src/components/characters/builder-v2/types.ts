@@ -14,6 +14,7 @@ export type FeatSlot =
 
 export type Tradition = "arcane" | "divine" | "occult" | "primal";
 export type SpellSource = "spellbook" | "repertoire" | "innate" | "focus";
+export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 
 export type SelectedFeat = {
   feat_id: string;
@@ -34,6 +35,12 @@ export type StartingItem = {
   item_id: string;
   item_name: string;
   quantity: number;
+};
+
+export type AbilityBoostChoices = {
+  ancestryFree: AbilityKey[];
+  background: AbilityKey[];
+  free: AbilityKey[];
 };
 
 // PF2e variant rules — toggled per character at creation. Mirrors the
@@ -92,6 +99,8 @@ export type BuilderState = {
   ancestryHp: number;
   ancestrySpeed: number;
   ancestrySize: string;
+  ancestryBoostOptions: string[];
+  ancestryFlawOptions: string[];
   heritageId: string;
   heritageName: string;
   defaultLanguages: string[];
@@ -113,11 +122,13 @@ export type BuilderState = {
   // Background
   backgroundId: string;
   backgroundName: string;
+  backgroundBoostOptions: string[];
   backgroundTrainedSkill: string;
   lore: string;
 
   // Abilities + Skills
-  abilities: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+  abilities: Record<AbilityKey, number>;
+  abilityBoostChoices: AbilityBoostChoices;
   trainedSkills: string[];
   additionalSkills: { name: string; rank: number }[];
 
@@ -169,6 +180,8 @@ export const DEFAULT_STATE: BuilderState = {
   ancestryHp: 8,
   ancestrySpeed: 25,
   ancestrySize: "Medium",
+  ancestryBoostOptions: [],
+  ancestryFlawOptions: [],
   heritageId: "",
   heritageName: "",
   defaultLanguages: [],
@@ -187,10 +200,12 @@ export const DEFAULT_STATE: BuilderState = {
 
   backgroundId: "",
   backgroundName: "",
+  backgroundBoostOptions: [],
   backgroundTrainedSkill: "",
   lore: "",
 
   abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+  abilityBoostChoices: { ancestryFree: [], background: [], free: [] },
   trainedSkills: [],
   additionalSkills: [],
 

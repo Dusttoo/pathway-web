@@ -12,16 +12,21 @@ export function AncestryStep({ state, update }: StepProps) {
 
   function selectAncestry(row: (typeof ancestries)[number]) {
     const langs = Array.isArray(row.languages) ? (row.languages as string[]) : [];
+    const boosts = Array.isArray(row.attribute_boosts) ? (row.attribute_boosts as string[]) : [];
+    const flaws = Array.isArray(row.attribute_flaws) ? (row.attribute_flaws as string[]) : [];
     update({
       ancestryId: row.id,
       ancestryName: row.name,
       ancestryHp: row.ancestry_hp ?? 8,
       ancestrySpeed: row.speed ?? 25,
       ancestrySize: row.size ?? "Medium",
+      ancestryBoostOptions: boosts,
+      ancestryFlawOptions: flaws,
       defaultLanguages: langs,
       languages: langs,
       heritageId: "",
       heritageName: "",
+      abilityBoostChoices: { ...state.abilityBoostChoices, ancestryFree: [] },
     });
   }
 

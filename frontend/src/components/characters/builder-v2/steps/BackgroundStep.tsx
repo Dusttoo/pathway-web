@@ -17,12 +17,15 @@ export function BackgroundStep({ state, update }: StepProps) {
 
   function selectBackground(row: (typeof backgrounds)[number]) {
     const skills = asStringList(row.skill_proficiencies);
+    const boosts = asStringList(row.attribute_boosts);
     // Backgrounds typically grant one free trained skill — surface the first
     // as the default; AbilitiesStep / SkillsStep can let the user reassign.
     update({
       backgroundId: row.id,
       backgroundName: row.name,
+      backgroundBoostOptions: boosts,
       backgroundTrainedSkill: skills[0] ?? "",
+      abilityBoostChoices: { ...state.abilityBoostChoices, background: [] },
     });
   }
 
