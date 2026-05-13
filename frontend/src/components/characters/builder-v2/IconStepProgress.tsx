@@ -16,7 +16,7 @@ export function IconStepProgress({ steps, currentIndex, onJump }: Props) {
         const Icon = step.icon;
         const done = i < currentIndex;
         const active = i === currentIndex;
-        const reachable = i <= currentIndex;
+        const reachable = !!onJump;
 
         return (
           <div key={step.key} className="flex items-start shrink-0">
@@ -31,7 +31,7 @@ export function IconStepProgress({ steps, currentIndex, onJump }: Props) {
 
             <button
               type="button"
-              disabled={!reachable || !onJump}
+              disabled={!reachable}
               onClick={() => reachable && onJump?.(i)}
               className="flex flex-col items-center gap-1.5 shrink-0 px-1 group disabled:cursor-default"
               aria-current={active ? "step" : undefined}
@@ -46,7 +46,7 @@ export function IconStepProgress({ steps, currentIndex, onJump }: Props) {
                         ? "bg-primary/20 text-primary"
                         : "bg-muted text-muted-foreground"
                   }
-                  ${reachable && onJump ? "group-hover:scale-105" : ""}`}
+                  ${reachable ? "group-hover:scale-105" : ""}`}
               >
                 {done ? <Check size={18} strokeWidth={3} /> : <Icon size={20} />}
               </div>
