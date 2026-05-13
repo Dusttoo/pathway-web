@@ -1,8 +1,7 @@
 "use client";
 
 import { Info } from "lucide-react";
-import type { StepProps } from "../types";
-import type { VariantRules } from "../types";
+import type { StepProps, VariantRules } from "../types";
 
 type Toggle = {
   key: keyof VariantRules;
@@ -141,7 +140,7 @@ function ToggleRow({
   );
 }
 
-export function OptionsStep({ state, update }: StepProps) {
+export function VariantRulesSection({ state, update }: Pick<StepProps, "state" | "update">) {
   const v = state.variantRules;
 
   function setRule<K extends keyof VariantRules>(key: K, next: VariantRules[K]) {

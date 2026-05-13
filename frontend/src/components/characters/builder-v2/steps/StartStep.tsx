@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import type { StepProps } from "../types";
+import { VariantRulesSection } from "./VariantRulesSection";
 
 const ALIGNMENTS = [
   { value: "LG", label: "Lawful Good" },
@@ -17,12 +18,13 @@ const ALIGNMENTS = [
 
 export function StartStep({ state, update }: StepProps) {
   return (
-    <div className="space-y-5">
-      <p className="text-sm text-muted-foreground">
-        The basics of who your character is. You can change any of these later.
-      </p>
+    <div className="space-y-8">
+      <section className="space-y-5">
+        <p className="text-sm text-muted-foreground">
+          The basics of who your character is. You can change any of these later.
+        </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
           <label className="block text-sm font-medium mb-1">
             Character Name <span className="text-destructive">*</span>
@@ -112,9 +114,18 @@ export function StartStep({ state, update }: StepProps) {
         </div>
       </div>
 
-      {!state.name.trim() && (
-        <p className="text-xs text-amber-500/80">A name is required before continuing.</p>
-      )}
+        {!state.name.trim() && (
+          <p className="text-xs text-amber-500/80">A name is required before continuing.</p>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 pt-2 border-t border-border">
+          <SlidersHorizontal size={16} className="text-primary" />
+          <h3 className="text-base font-semibold">Options</h3>
+        </div>
+        <VariantRulesSection state={state} update={update} />
+      </section>
     </div>
   );
 }

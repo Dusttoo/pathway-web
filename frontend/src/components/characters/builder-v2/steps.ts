@@ -4,7 +4,6 @@
 
 import {
   PlayCircle,
-  SlidersHorizontal,
   Users,
   GitBranch,
   Shield,
@@ -24,7 +23,6 @@ import type { BuilderState } from "./types";
 
 export type StepKey =
   | "start"
-  | "options"
   | "ancestry"
   | "heritage"
   | "class"
@@ -79,7 +77,6 @@ function classNameLower(state: BuilderState): string {
 
 export const STEPS: StepDef[] = [
   { key: "start", label: "Start", icon: PlayCircle, shouldShow: () => true },
-  { key: "options", label: "Options", icon: SlidersHorizontal, shouldShow: () => true },
   { key: "ancestry", label: "Ancestry", icon: Users, shouldShow: () => true },
   { key: "heritage", label: "Heritage", icon: GitBranch, shouldShow: () => true },
   { key: "class", label: "Class", icon: Shield, shouldShow: () => true },
