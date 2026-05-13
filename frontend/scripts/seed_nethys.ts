@@ -242,35 +242,52 @@ async function deleteRowsByIds(table: string, ids: string[]): Promise<number> {
   return deleted;
 }
 
+const replacedOfficialTables = new Set<string>();
+
 async function replaceOfficialRows(table: string): Promise<void> {
-  if (table !== "feats") {
-    throw new Error(`--replace-official is only implemented for feats right now, not ${table}`);
+  if (replacedOfficialTables.has(table)) return;
+
+  if (!["feats", "spells"].includes(table)) {
+    throw new Error(`--replace-official is only implemented for feats and spells, not ${table}`);
   }
 
   let deletedTotal = 0;
 
   while (true) {
-    const { data, error } = await db
-      .from("feats")
-      .select("id")
-      .eq("is_official", true)
-      .limit(BATCH);
+    const { data, error } = await db.from(table).select("id").eq("is_official", true).limit(BATCH);
     if (error) throw error;
 
     const ids = (data ?? []).map((row) => row.id as string).filter(Boolean);
     if (ids.length === 0) break;
 
-    const { error: linkError } = await db.from("character_feats").delete().in("feat_id", ids);
-    if (linkError) throw linkError;
+    if (table === "feats") {
+      const { error: linkError } = await db.from("character_feats").delete().in("feat_id", ids);
+      if (linkError) throw linkError;
+    }
 
-    deletedTotal += await deleteRowsByIds("feats", ids);
+    if (table === "spells") {
+      const { error: knownError } = await db
+        .from("character_known_spells")
+        .delete()
+        .in("spell_id", ids);
+      if (knownError) throw knownError;
+
+      const { error: preparedError } = await db
+        .from("character_prepared_spells")
+        .delete()
+        .in("spell_id", ids);
+      if (preparedError) throw preparedError;
+    }
+
+    deletedTotal += await deleteRowsByIds(table, ids);
   }
 
   console.log(
     deletedTotal > 0
-      ? `  replace: deleted ${deletedTotal} official feat row(s)`
-      : "  replace: no official feat rows found"
+      ? `  replace: deleted ${deletedTotal} official ${table} row(s)`
+      : `  replace: no official ${table} rows found`
   );
+  replacedOfficialTables.add(table);
 }
 
 type Seeder = {

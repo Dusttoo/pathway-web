@@ -451,7 +451,8 @@ export function transformSpell(doc: NethysDoc): Row {
   const traitLower = traits.map((t) => t.toLowerCase());
   const category = s(src.category).toLowerCase();
   const spellType = s(src.spell_type ?? src.type).toLowerCase();
-  const level = n(src.level, 1);
+  const isCantrip = spellType.includes("cantrip") || traitLower.includes("cantrip");
+  const level = isCantrip ? 0 : n(src.level, 1);
   const traditions = arr(src.tradition).map((t) => t.toLowerCase());
   const cast = actionCost(src.actions) ?? s(src.cast) ?? null;
   const defense = s(src.defense ?? src.saving_throw) || null;
@@ -463,7 +464,6 @@ export function transformSpell(doc: NethysDoc): Row {
     category === "focus" || spellType.includes("focus") || traitLower.includes("focus");
   const isRitual =
     category === "ritual" || spellType.includes("ritual") || traitLower.includes("ritual");
-  const isCantrip = spellType.includes("cantrip") || traitLower.includes("cantrip");
   const displayType = isCantrip ? "Cantrip" : isFocus ? "Focus" : isRitual ? "Ritual" : "Spell";
   const heightened = heightening(src);
   const sourceLabel = sourceText(src) ?? "";

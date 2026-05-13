@@ -1,6 +1,35 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+type SpellRow = {
+  id: string;
+  is_official: boolean | null;
+  level: number;
+  name: string;
+  traditions: unknown;
+};
+
+function listValues(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap((item) => listValues(item));
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function normalize(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function matchesTradition(row: SpellRow, tradition: string | null): boolean {
+  if (!tradition) return true;
+  const expected = normalize(tradition);
+  return listValues(row.traditions).some((value) => normalize(value) === expected);
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") ?? "";
@@ -15,23 +44,26 @@ export async function GET(request: Request) {
   const supabase = createServiceClient();
   let query = supabase
     .from("spells")
-    .select("*", { count: "exact" })
+    .select("*")
     .eq("is_official", true)
     .order("level", { ascending: true })
-    .order("name", { ascending: true })
-    .range(offset, offset + limit - 1);
+    .order("name", { ascending: true });
 
   if (q) query = query.ilike("name", `%${q}%`);
-  if (tradition) query = query.contains("traditions", [tradition]);
   if (level) query = query.eq("level", parseInt(level));
   if (isFocus === "true") query = query.eq("is_focus_spell", true);
   if (isRitual === "true") query = query.eq("is_ritual", true);
 
-  const { data, count, error } = await query;
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data, total: count, page, limit });
+  const filtered = ((data ?? []) as SpellRow[]).filter((spell) =>
+    matchesTradition(spell, tradition)
+  );
+  const paged = filtered.slice(offset, offset + limit);
+
+  return NextResponse.json({ data: paged, total: filtered.length, page, limit });
 }
