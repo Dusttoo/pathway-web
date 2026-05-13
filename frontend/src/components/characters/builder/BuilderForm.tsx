@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { StepProgress }        from "./StepProgress";
-import { IdentityStep }        from "./IdentityStep";
-import { AncestryStep }        from "./AncestryStep";
+import { StepProgress } from "./StepProgress";
+import { IdentityStep } from "./IdentityStep";
+import { AncestryStep } from "./AncestryStep";
 import { ClassBackgroundStep } from "./ClassBackgroundStep";
-import { AbilitySkillStep }    from "./AbilitySkillStep";
-import { ReviewStep }          from "./ReviewStep";
+import { FeatsStep } from "./FeatsStep";
+import { SpellsStep } from "./SpellsStep";
+import { AbilitySkillStep } from "./AbilitySkillStep";
+import { ReviewStep } from "./ReviewStep";
 import { DEFAULT_STATE, type BuilderState } from "./types";
 
 export function BuilderForm() {
-  const [step,  setStep]  = useState(1);
+  const [step, setStep] = useState(1);
   const [state, setState] = useState<BuilderState>(DEFAULT_STATE);
 
   function update(patch: Partial<BuilderState>) {
@@ -27,11 +29,13 @@ export function BuilderForm() {
   return (
     <div>
       <StepProgress current={step} />
-      {step === 1 && <IdentityStep        {...stepProps} />}
-      {step === 2 && <AncestryStep        {...stepProps} />}
+      {step === 1 && <IdentityStep {...stepProps} />}
+      {step === 2 && <AncestryStep {...stepProps} />}
       {step === 3 && <ClassBackgroundStep {...stepProps} />}
-      {step === 4 && <AbilitySkillStep    {...stepProps} />}
-      {step === 5 && <ReviewStep          {...stepProps} />}
+      {step === 4 && <FeatsStep {...stepProps} />}
+      {step === 5 && <SpellsStep {...stepProps} />}
+      {step === 6 && <AbilitySkillStep {...stepProps} />}
+      {step === 7 && <ReviewStep {...stepProps} />}
     </div>
   );
 }
