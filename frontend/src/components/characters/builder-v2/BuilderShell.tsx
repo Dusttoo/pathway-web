@@ -11,22 +11,36 @@ import { OptionsStep } from "./steps/OptionsStep";
 import { AncestryStep } from "./steps/AncestryStep";
 import { HeritageStep } from "./steps/HeritageStep";
 import { ClassStep } from "./steps/ClassStep";
+import { CompanionStep } from "./steps/CompanionStep";
 import { BackgroundStep } from "./steps/BackgroundStep";
 import { AbilitiesStep } from "./steps/AbilitiesStep";
 import { SkillsStep } from "./steps/SkillsStep";
+import { FeatsStep } from "./steps/FeatsStep";
+import { DescriptionStep } from "./steps/DescriptionStep";
+import { PersonalityStep } from "./steps/PersonalityStep";
+import { EquipmentStep } from "./steps/EquipmentStep";
+import { SpellsStep } from "./steps/SpellsStep";
+import { ReviewStep } from "./steps/ReviewStep";
 import { StubStep } from "./steps/StubStep";
 
-// Map of fully-built step components. Anything not in this map renders
-// as a StubStep so the flow remains traversable while we iterate.
+// Every step now has a real component — StubStep stays as a safety
+// fallback if the step config drifts ahead of the components.
 const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepProps>>> = {
   start: StartStep,
   options: OptionsStep,
   ancestry: AncestryStep,
   heritage: HeritageStep,
   class: ClassStep,
+  companion: CompanionStep,
   background: BackgroundStep,
   abilities: AbilitiesStep,
   skills: SkillsStep,
+  feats: FeatsStep,
+  description: DescriptionStep,
+  personality: PersonalityStep,
+  equipment: EquipmentStep,
+  spells: SpellsStep,
+  review: ReviewStep,
 };
 
 export function BuilderShell() {

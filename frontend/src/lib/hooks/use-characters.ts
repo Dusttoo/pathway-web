@@ -59,6 +59,9 @@ type NativeCharacterCreate = {
   source: "native";
   discord_guild_id?: string;
   native_build: NativeBuildInput;
+  // Builder-v2 sends variant rules at the top level so the synthesizer
+  // doesn't need to carry them through.
+  variant_rules?: Record<string, boolean>;
 };
 
 type CharacterCreatePayload = PathbuilderImport | NativeCharacterCreate;
