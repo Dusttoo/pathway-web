@@ -1,7 +1,7 @@
 "use client";
 
 import { MainLayout } from "@/components/layout";
-import { BuilderForm } from "@/components/characters/builder/BuilderForm";
+import { BuilderShell } from "@/components/characters/builder-v2/BuilderShell";
 import { useCreateCharacter, useDiscordGuilds } from "@/lib/hooks/use-characters";
 import { useAuth } from "@/lib/providers/auth-provider";
 import { ArrowLeft, Upload, ChevronDown, AlertCircle } from "lucide-react";
@@ -292,8 +292,8 @@ export default function NewCharacterPage() {
       </div>
 
       {tab === "build" ? (
-        <div className="card p-6 max-w-2xl">
-          <BuilderForm />
+        <div className="max-w-5xl">
+          <BuilderShell />
         </div>
       ) : (
         <div className="max-w-xl">
