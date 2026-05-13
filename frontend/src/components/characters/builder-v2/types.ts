@@ -36,6 +36,44 @@ export type StartingItem = {
   quantity: number;
 };
 
+// PF2e variant rules — toggled per character at creation. Mirrors the
+// shape of the `characters.variant_rules` jsonb column (migration
+// 20260514000000_character_variant_rules.sql).
+export type VariantRules = {
+  // Advanced — variant rules
+  freeArchetype: boolean;
+  freeArchetypeNoRestrictions: boolean;
+  freeArchetypeNoAbilityReqs: boolean;
+  ancestryParagon: boolean;
+  automaticBonusProgression: boolean;
+  proficiencyWithoutLevel: boolean;
+  legacyDualClassing: boolean;
+  legacyStamina: boolean;
+  legacyGradualBoost: boolean;
+
+  // Remaster / Mythic
+  showMythic: boolean;
+  mythicViaCustomFeats: boolean;
+  mythicDestiniesAsArchetypes: boolean;
+  updatedMagusPsychicSpells: boolean;
+};
+
+export const DEFAULT_VARIANT_RULES: VariantRules = {
+  freeArchetype: false,
+  freeArchetypeNoRestrictions: false,
+  freeArchetypeNoAbilityReqs: false,
+  ancestryParagon: false,
+  automaticBonusProgression: false,
+  proficiencyWithoutLevel: false,
+  legacyDualClassing: false,
+  legacyStamina: false,
+  legacyGradualBoost: false,
+  showMythic: false,
+  mythicViaCustomFeats: false,
+  mythicDestiniesAsArchetypes: false,
+  updatedMagusPsychicSpells: false,
+};
+
 export type BuilderState = {
   // Start
   name: string;
@@ -44,6 +82,9 @@ export type BuilderState = {
   gender: string;
   age: string;
   deity: string;
+
+  // Options (variant rules)
+  variantRules: VariantRules;
 
   // Ancestry + Heritage
   ancestryId: string;
@@ -120,6 +161,8 @@ export const DEFAULT_STATE: BuilderState = {
   gender: "",
   age: "",
   deity: "",
+
+  variantRules: DEFAULT_VARIANT_RULES,
 
   ancestryId: "",
   ancestryName: "",

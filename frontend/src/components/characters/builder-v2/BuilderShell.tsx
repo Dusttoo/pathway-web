@@ -7,6 +7,7 @@ import { visibleSteps, type StepDef } from "./steps";
 import { DEFAULT_STATE, type BuilderState, type StepProps } from "./types";
 
 import { StartStep } from "./steps/StartStep";
+import { OptionsStep } from "./steps/OptionsStep";
 import { AncestryStep } from "./steps/AncestryStep";
 import { HeritageStep } from "./steps/HeritageStep";
 import { StubStep } from "./steps/StubStep";
@@ -15,6 +16,7 @@ import { StubStep } from "./steps/StubStep";
 // as a StubStep so the flow remains traversable while we iterate.
 const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepProps>>> = {
   start: StartStep,
+  options: OptionsStep,
   ancestry: AncestryStep,
   heritage: HeritageStep,
 };
