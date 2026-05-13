@@ -237,7 +237,9 @@ type Tab = "build" | "import";
 
 export default function NewCharacterPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<Tab>("build");
+  // Default to Pathbuilder Import until the v2 builder's Review step ships.
+  // Switch the default once BuilderShell can create a character end-to-end.
+  const [tab, setTab] = useState<Tab>("import");
 
   if (!user) {
     return (
@@ -265,19 +267,8 @@ export default function NewCharacterPage() {
         </p>
       </div>
 
-      {/* Tab toggle */}
+      {/* Tab toggle — Import is the working path; Build is in-progress */}
       <div className="flex gap-2 mb-6 max-w-md">
-        <button
-          type="button"
-          onClick={() => setTab("build")}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            tab === "build"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted hover:bg-muted/80 text-foreground"
-          }`}
-        >
-          Build Character
-        </button>
         <button
           type="button"
           onClick={() => setTab("import")}
@@ -289,10 +280,41 @@ export default function NewCharacterPage() {
         >
           Import from Pathbuilder
         </button>
+        <button
+          type="button"
+          onClick={() => setTab("build")}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+            tab === "build"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted hover:bg-muted/80 text-foreground"
+          }`}
+        >
+          Build Character
+          <span className="text-[10px] uppercase tracking-wide bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded">
+            Beta
+          </span>
+        </button>
       </div>
 
       {tab === "build" ? (
-        <div className="max-w-5xl">
+        <div className="max-w-5xl space-y-4">
+          <div className="card p-3 bg-amber-500/5 border-amber-500/30 text-sm text-amber-200 flex items-start gap-2">
+            <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-500" />
+            <div>
+              <p className="font-medium">Builder is a work in progress.</p>
+              <p className="text-xs text-amber-200/80 mt-0.5">
+                You can click through the new flow but can&apos;t save a character yet. Use{" "}
+                <button
+                  type="button"
+                  className="underline hover:text-amber-100"
+                  onClick={() => setTab("import")}
+                >
+                  Import from Pathbuilder
+                </button>{" "}
+                to create a character today.
+              </p>
+            </div>
+          </div>
           <BuilderShell />
         </div>
       ) : (
