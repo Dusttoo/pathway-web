@@ -40,6 +40,7 @@ export type NethysCategory =
 
 export type NethysDoc = {
   _id: string;
+  sort?: unknown[];
   _source: Record<string, unknown> & { name?: string; category?: string; url?: string };
 };
 
@@ -94,8 +95,11 @@ async function postEs(body: Record<string, unknown>, attempt = 0): Promise<EsRes
 }
 
 /**
- * Fetch every document for a category, paginating with `search_after` against
- * `_id` so we can go past the 10k window. Caches the full result to disk.
+ * Fetch every document for a category, paginating with `search_after`.
+ *
+ * AoN's public ES cluster no longer allows fielddata access on `_id`, so sort
+ * against the keyword subfield for `_source.id` instead. That field mirrors the
+ * document id and is stable enough for deterministic cache refreshes.
  */
 export async function fetchCategory(
   category: NethysCategory,
@@ -113,7 +117,7 @@ export async function fetchCategory(
     const body: Record<string, unknown> = {
       size: PAGE_SIZE,
       query: { term: { category } },
-      sort: [{ _id: "asc" }],
+      sort: [{ "id.keyword": "asc" }],
     };
     if (after) body.search_after = after;
 
@@ -125,13 +129,13 @@ export async function fetchCategory(
     if (opts.limit && out.length >= opts.limit) break;
 
     const last = hits[hits.length - 1];
-    after = [last._id];
+    after = last.sort ?? [last._source.id ?? last._id];
 
     if (hits.length < PAGE_SIZE) break;
     await sleep(PAGE_DELAY_MS);
   }
 
-  writeCache(category, out);
+  if (!opts.limit) writeCache(category, out);
   return opts.limit ? out.slice(0, opts.limit) : out;
 }
 
