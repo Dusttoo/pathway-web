@@ -1,7 +1,6 @@
 "use client";
 
-import { AlertCircle, ChevronDown } from "lucide-react";
-import { useDiscordGuilds } from "@/lib/hooks/use-characters";
+import { ChevronDown } from "lucide-react";
 import type { StepProps } from "../types";
 
 const ALIGNMENTS = [
@@ -15,59 +14,6 @@ const ALIGNMENTS = [
   { value: "CN", label: "Chaotic Neutral" },
   { value: "CE", label: "Chaotic Evil" },
 ];
-
-function GuildPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-  const { data: guilds, isLoading, error } = useDiscordGuilds();
-
-  if (isLoading) {
-    return (
-      <div className="input w-full flex items-center gap-2 text-muted-foreground text-sm">
-        <div className="spinner w-4 h-4" /> Loading your servers…
-      </div>
-    );
-  }
-
-  if (error || !guilds?.length) {
-    return (
-      <div className="space-y-2">
-        {error && (
-          <div className="flex items-center gap-2 text-xs text-amber-500">
-            <AlertCircle size={12} />
-            Couldn&apos;t load servers — paste your Server ID instead.
-          </div>
-        )}
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="e.g. 1234567890123456789"
-          className="input w-full font-mono"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="input w-full appearance-none pr-8"
-      >
-        <option value="">None (no Discord server)</option>
-        {guilds.map((g) => (
-          <option key={g.id} value={g.id}>
-            {g.name}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={14}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-      />
-    </div>
-  );
-}
 
 export function StartStep({ state, update }: StepProps) {
   return (
@@ -163,17 +109,6 @@ export function StartStep({ state, update }: StepProps) {
             value={state.deity}
             onChange={(e) => update({ deity: e.target.value })}
           />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium mb-1">
-            Discord Server{" "}
-            <span className="text-xs text-muted-foreground font-normal">(optional)</span>
-          </label>
-          <GuildPicker value={state.guildId} onChange={(id) => update({ guildId: id })} />
-          <p className="text-xs text-muted-foreground mt-1">
-            Link this character to a server so the Pathway bot can find it.
-          </p>
         </div>
       </div>
 

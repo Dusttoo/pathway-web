@@ -44,7 +44,6 @@ export type BuilderState = {
   gender: string;
   age: string;
   deity: string;
-  guildId: string;
 
   // Ancestry + Heritage
   ancestryId: string;
@@ -121,7 +120,6 @@ export const DEFAULT_STATE: BuilderState = {
   gender: "",
   age: "",
   deity: "",
-  guildId: "",
 
   ancestryId: "",
   ancestryName: "",
