@@ -48,11 +48,45 @@ function metadataValues(metadata: unknown, key: string): string[] {
   return [];
 }
 
-function metadataMatches(metadata: unknown, key: string, expected: string | null): boolean {
+function listValues(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap((item) => listValues(item));
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (typeof value === "number" && Number.isFinite(value)) return [String(value)];
+  return [];
+}
+
+const METADATA_KEY_ALIASES: Record<string, string[]> = {
+  classes: ["classes", "class", "class_name", "class_names", "class_raw", "class_slug"],
+  ancestry: ["ancestry", "ancestries", "ancestry_name", "ancestry_names", "ancestry_raw"],
+  archetype: ["archetype", "archetypes", "archetype_name", "archetype_names", "archetype_raw"],
+};
+
+function metadataAliasValues(metadata: unknown, key: string): string[] {
+  const keys = METADATA_KEY_ALIASES[key] ?? [key];
+  return keys.flatMap((alias) => metadataValues(metadata, alias));
+}
+
+function rowMatchValues(row: FeatRow, key: string): string[] {
+  const metadata = metadataAliasValues(row.feat_metadata, key);
+  const traits = listValues(row.traits);
+
+  if (key === "classes" || key === "ancestry" || key === "archetype") {
+    return [...metadata, ...traits];
+  }
+
+  return metadata;
+}
+
+function featMatches(row: FeatRow, key: string, expected: string | null): boolean {
   if (!expected) return true;
 
   const expectedValue = normalizeText(expected);
-  return metadataValues(metadata, key).some((value) => normalizeText(value) === expectedValue);
+  return rowMatchValues(row, key).some((value) => normalizeText(value) === expectedValue);
 }
 
 function completenessScore(row: FeatRow): number {
@@ -132,9 +166,9 @@ export async function GET(request: Request) {
 
   const filtered = ((data ?? []) as FeatRow[]).filter(
     (feat) =>
-      metadataMatches(feat.feat_metadata, "classes", className) &&
-      metadataMatches(feat.feat_metadata, "ancestry", ancestry) &&
-      metadataMatches(feat.feat_metadata, "archetype", archetype)
+      featMatches(feat, "classes", className) &&
+      featMatches(feat, "ancestry", ancestry) &&
+      featMatches(feat, "archetype", archetype)
   );
   const deduped = dedupeFeats(filtered);
   const paged = deduped.slice(offset, offset + limit);

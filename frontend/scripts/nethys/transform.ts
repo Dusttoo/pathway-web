@@ -49,6 +49,25 @@ function arr(v: unknown): string[] {
   return [];
 }
 
+function unique(values: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  for (const value of values) {
+    const trimmed = value.trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+
+  return out;
+}
+
+function arrFields(src: Row, keys: string[]): string[] {
+  return unique(keys.flatMap((key) => arr(src[key])));
+}
+
 function first(v: unknown, fallback = ""): string {
   return arr(v)[0] ?? fallback;
 }
@@ -185,6 +204,44 @@ function featType(src: Row, traits: string[]): string {
   return fromRaw ?? "general";
 }
 
+const CLASS_TRAITS = new Set([
+  "alchemist",
+  "animist",
+  "barbarian",
+  "bard",
+  "champion",
+  "cleric",
+  "commander",
+  "druid",
+  "exemplar",
+  "fighter",
+  "guardian",
+  "gunslinger",
+  "inventor",
+  "investigator",
+  "kineticist",
+  "magus",
+  "monk",
+  "necromancer",
+  "oracle",
+  "psychic",
+  "ranger",
+  "rogue",
+  "sorcerer",
+  "summoner",
+  "swashbuckler",
+  "thaumaturge",
+  "witch",
+  "wizard",
+]);
+
+function titleCase(value: string): string {
+  return value
+    .split(/\s+/)
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : word))
+    .join(" ");
+}
+
 export function transformFeat(doc: NethysDoc): Row {
   const src = source(doc);
   const id = aonId(doc);
@@ -199,6 +256,39 @@ export function transformFeat(doc: NethysDoc): Row {
   const trigger = s(src.trigger) || null;
   const rarityLabel = rarity(src.rarity, traits);
   const sourceLabel = sourceText(src);
+  const classes = arrFields(src, [
+    "class",
+    "classes",
+    "class_name",
+    "class_names",
+    "class_raw",
+    "class_slug",
+  ]);
+  const ancestry = arrFields(src, [
+    "ancestry",
+    "ancestries",
+    "ancestry_name",
+    "ancestry_names",
+    "ancestry_raw",
+  ]);
+  const archetype = arrFields(src, [
+    "archetype",
+    "archetypes",
+    "archetype_name",
+    "archetype_names",
+    "archetype_raw",
+  ]);
+  const skills = arrFields(src, ["skill", "skills", "skill_name", "skill_names", "skill_raw"]);
+  const inferredClasses =
+    type === "class_feat"
+      ? traits
+          .filter((trait) => CLASS_TRAITS.has(trait.toLowerCase()))
+          .map((trait) => titleCase(trait))
+      : [];
+  const inferredArchetype =
+    type === "archetype" && archetype.length === 0 && / dedication$/i.test(name)
+      ? [name.replace(/ dedication$/i, "")]
+      : [];
 
   return {
     aon_id: id,
@@ -229,12 +319,15 @@ export function transformFeat(doc: NethysDoc): Row {
       trigger,
       rarity: rarityLabel,
       source: sourceLabel,
-      classes: arr(src.class),
-      ancestry: arr(src.ancestry),
-      archetype: arr(src.archetype),
-      skills: arr(src.skill),
+      classes: unique([...classes, ...inferredClasses]),
+      ancestry,
+      archetype: unique([...archetype, ...inferredArchetype]),
+      skills,
       frequency: s(src.frequency) || null,
       requirements: s(src.requirement) || null,
+      search_text: [name, traits.join(" "), prerequisites, sourceLabel, description]
+        .filter(Boolean)
+        .join(" "),
       remaster_id: src.remaster_id,
       resistance: src.resistance,
       weakness: src.weakness,

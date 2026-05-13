@@ -1,12 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, Gift, Info, Loader2, Search, Sparkles, X } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+  Gift,
+  Info,
+  Loader2,
+  Search,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { useFeats, type FeatParams } from "@/lib/hooks/use-feats";
 import type { FeatSlot, StepProps, BuilderState } from "../types";
 import type { Tables } from "@/lib/types/database.types";
 
 type Feat = Tables<"feats">;
+
+type FeatWithAon = Feat & {
+  aon_url?: string | null;
+};
 
 type FeatSlotKind = FeatSlot | "ancestry_paragon";
 
@@ -494,6 +508,7 @@ export function FeatsStep({ state, update }: StepProps) {
             )}
             {activeSlot &&
               feats.map((feat) => {
+                const aonUrl = (feat as FeatWithAon).aon_url;
                 const prereq = prerequisiteStatus(feat, state, activeSlot);
                 const selectedInSlot = selectedForSlot(state, activeSlot)?.feat_id === feat.id;
                 const selectedElsewhere = selectedIds.has(feat.id) && !selectedInSlot;
@@ -521,6 +536,17 @@ export function FeatsStep({ state, update }: StepProps) {
                           <p className="text-xs text-muted-foreground mt-1 italic">
                             Prereq: {feat.prerequisites}
                           </p>
+                        )}
+                        {aonUrl && (
+                          <a
+                            href={aonUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            View on Archives of Nethys <ExternalLink size={11} />
+                          </a>
                         )}
                       </div>
                       <button
