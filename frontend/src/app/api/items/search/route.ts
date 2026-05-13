@@ -4,15 +4,39 @@ import { NextResponse } from "next/server";
 // ── Types (also imported by the combobox component) ───────────────────────────
 
 export type ItemSearchResult = {
-  id:        string;
-  name:      string;
-  source:    "official" | "homebrew";
+  id: string;
+  name: string;
+  source: "official" | "homebrew";
   item_type?: string;
-  level?:    number;
-  rarity?:   string;
+  level?: number;
+  rarity?: string;
 };
 
 export type ItemSearchResponse = { results: ItemSearchResult[] };
+
+function searchKey(item: ItemSearchResult): string {
+  return [
+    item.source,
+    item.name.trim().toLowerCase().replace(/\s+/g, " "),
+    item.level ?? 0,
+    item.item_type?.trim().toLowerCase() ?? "",
+  ].join("|");
+}
+
+function dedupeResults(items: ItemSearchResult[]): ItemSearchResult[] {
+  const byItem = new Map<string, ItemSearchResult>();
+
+  for (const item of items) {
+    const key = searchKey(item);
+    const existing = byItem.get(key);
+
+    if (!existing || (!existing.rarity && item.rarity)) {
+      byItem.set(key, item);
+    }
+  }
+
+  return [...byItem.values()];
+}
 
 // ── GET /api/items/search?q=<query>&limit=<n> ─────────────────────────────────
 // Typeahead endpoint used by ItemSearchCombobox.
@@ -21,7 +45,7 @@ export type ItemSearchResponse = { results: ItemSearchResult[] };
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const q     = searchParams.get("q")?.trim() ?? "";
+  const q = searchParams.get("q")?.trim() ?? "";
   const limit = Math.min(20, Math.max(1, parseInt(searchParams.get("limit") ?? "6")));
 
   if (q.length < 2) {
@@ -38,8 +62,8 @@ export async function GET(request: Request) {
       .eq("is_official", true)
       .ilike("name", `%${q}%`)
       .order("level", { ascending: true })
-      .order("name",  { ascending: true })
-      .limit(limit),
+      .order("name", { ascending: true })
+      .limit(limit * 3),
     service
       .from("homebrew_entries")
       .select("id, name")
@@ -49,30 +73,36 @@ export async function GET(request: Request) {
       .limit(limit),
   ]);
 
-  const official: ItemSearchResult[] = (officialRows ?? []).map((r) => ({
-    id:        r.id,
-    name:      r.name,
-    source:    "official",
-    item_type: r.item_type ?? undefined,
-    level:     r.level ?? undefined,
-    rarity:    r.rarity ?? undefined,
-  }));
+  const official = dedupeResults(
+    (officialRows ?? []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      source: "official" as const,
+      item_type: r.item_type ?? undefined,
+      level: r.level ?? undefined,
+      rarity: r.rarity ?? undefined,
+    }))
+  );
 
   const homebrew: ItemSearchResult[] = (homebrewRows ?? []).map((r) => ({
-    id:     r.id,
-    name:   r.name,
+    id: r.id,
+    name: r.name,
     source: "homebrew",
   }));
 
+  const combined = dedupeResults([...official, ...homebrew]);
+
   // Combine and sort: names that start with the query float to the top
   const qLower = q.toLowerCase();
-  const all = [...official, ...homebrew].sort((a, b) => {
-    const aStarts = a.name.toLowerCase().startsWith(qLower);
-    const bStarts = b.name.toLowerCase().startsWith(qLower);
-    if (aStarts && !bStarts) return -1;
-    if (!aStarts && bStarts) return 1;
-    return a.name.localeCompare(b.name);
-  });
+  const all = combined
+    .sort((a, b) => {
+      const aStarts = a.name.toLowerCase().startsWith(qLower);
+      const bStarts = b.name.toLowerCase().startsWith(qLower);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, limit);
 
   return NextResponse.json({ results: all } satisfies ItemSearchResponse);
 }
