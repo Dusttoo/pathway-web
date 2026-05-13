@@ -39,7 +39,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
 
   return (
     <div className="space-y-5">
-      <div className="card p-3 bg-muted/30 flex items-start gap-2 text-sm text-muted-foreground">
+      <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2 text-sm text-muted-foreground">
         <Info size={16} className="shrink-0 mt-0.5 text-primary" />
         <p>
           Enter your <span className="font-medium text-foreground">final scores</span> after

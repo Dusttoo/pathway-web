@@ -97,9 +97,10 @@ export function BuilderShell() {
       </div>
 
       {/* Sticky bottom nav so Next is always reachable on long pages
-          (the card grids in Ancestry/Class/Background can be tall). */}
+          (the card grids in Ancestry/Class/Background can be tall).
+          NB: don't use the .card class here — it forces column flex. */}
       <div className="sticky bottom-2 z-30">
-        <div className="flex justify-between items-center gap-3 card px-4 py-3 bg-background/95 backdrop-blur-md shadow-lg border border-border">
+        <div className="flex flex-row justify-between items-center gap-3 rounded-lg border-2 border-border bg-background/95 backdrop-blur-md shadow-lg px-4 py-3">
           <button
             type="button"
             onClick={stepProps.onBack}

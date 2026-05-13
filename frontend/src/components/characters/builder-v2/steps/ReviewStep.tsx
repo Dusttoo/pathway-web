@@ -215,7 +215,7 @@ export function ReviewStep({ state }: StepProps) {
       </div>
 
       {submitError && (
-        <div className="card p-3 bg-destructive/5 border-destructive/30 flex items-start gap-2 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex items-start gap-2 text-sm text-destructive">
           <AlertCircle size={16} className="shrink-0 mt-0.5" />
           <span>{submitError}</span>
         </div>

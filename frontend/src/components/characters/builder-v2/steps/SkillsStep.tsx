@@ -90,7 +90,7 @@ export function SkillsStep({ state, update }: StepProps) {
         {bgSkill ? ` and background (${bgSkill})` : ""}.
       </p>
 
-      <div className="card p-3 bg-muted/30 flex items-center justify-between text-sm">
+      <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-center justify-between text-sm">
         <span>
           <span className="font-semibold">{userPicked.length}</span> of{" "}
           <span className="font-semibold">{freePicks}</span> free picks used
