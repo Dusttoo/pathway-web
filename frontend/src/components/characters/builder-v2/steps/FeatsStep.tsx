@@ -65,6 +65,8 @@ const PROF_RANKS: Record<string, number> = {
   legendary: 4,
 };
 
+const SKILL_LABELS = new Map(SKILL_NAMES.map((skill) => [skill, titleCase(skill)]));
+
 const FEAT_DESCRIPTIONS: Record<FeatSlotKind, string> = {
   ancestry: "An ancestry feat comes from your ancestry or versatile heritage choices.",
   ancestry_paragon: "Ancestry Paragon grants extra ancestry feat slots at specific levels.",
@@ -190,6 +192,13 @@ function normalize(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function titleCase(value: string): string {
+  return value
+    .split(/\s+/)
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(" ");
+}
+
 function skillRank(state: BuilderState, skill: string): number {
   const key = normalize(skill);
   const classRank = state.classInitialProfs[key] ?? 0;
@@ -242,7 +251,7 @@ function prerequisiteStatus(feat: Feat, state: BuilderState, slot: SlotInstance)
   for (const skill of SKILL_NAMES) {
     for (const [rankName, rank] of Object.entries(PROF_RANKS)) {
       if (lower.includes(`${rankName} in ${skill}`) && skillRank(state, skill) < rank) {
-        warnings.push(`Requires ${rankName} in ${skill}.`);
+        warnings.push(`Requires ${titleCase(rankName)} in ${SKILL_LABELS.get(skill) ?? skill}.`);
       }
     }
   }

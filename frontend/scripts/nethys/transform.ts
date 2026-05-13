@@ -109,8 +109,25 @@ function sourceText(src: Row): string | null {
   );
 }
 
+function stripMarkup(raw: string): string {
+  return raw
+    .replace(/\r/g, "\n")
+    .replace(/<title\b[^>]*>[\s\S]*?<\/title>/gi, " ")
+    .replace(/<traits>[\s\S]*?<\/traits>/gi, " ")
+    .replace(/<additional-info>[\s\S]*?<\/additional-info>/gi, " ")
+    .replace(/<column\b[^>]*>[\s\S]*?<\/column>/gi, " ")
+    .replace(/<actions\b[^>]*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/_{1,2}([^_]+)_{1,2}/g, "$1")
+    .replace(/\s*---\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function descriptionText(src: Row): string {
-  return s(src.text) || s(src.summary) || s(src.summary_markdown);
+  return stripMarkup(s(src.summary_markdown) || s(src.summary) || s(src.text));
 }
 
 function metadata(src: Row, extra: Row = {}): Row {
