@@ -7,7 +7,6 @@ import { visibleSteps, type StepDef } from "./steps";
 import { DEFAULT_STATE, type BuilderState, type StepProps } from "./types";
 
 import { StartStep } from "./steps/StartStep";
-import { OptionsStep } from "./steps/OptionsStep";
 import { AncestryStep } from "./steps/AncestryStep";
 import { HeritageStep } from "./steps/HeritageStep";
 import { ClassStep } from "./steps/ClassStep";
@@ -27,7 +26,6 @@ import { StubStep } from "./steps/StubStep";
 // fallback if the step config drifts ahead of the components.
 const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepProps>>> = {
   start: StartStep,
-  options: OptionsStep,
   ancestry: AncestryStep,
   heritage: HeritageStep,
   class: ClassStep,
