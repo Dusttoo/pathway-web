@@ -68,7 +68,7 @@ const SPELLCASTER_CLASSES = new Set([
   "witch",
   "summoner",
   "animist",
-  "thaumaturge",
+  "necromancer",
 ]);
 
 function classNameLower(state: BuilderState): string {

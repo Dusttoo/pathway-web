@@ -1,6 +1,53 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+type ClassRow = {
+  class_features: unknown;
+  class_hp: number;
+  class_metadata: unknown;
+  created_at: string;
+  created_by_user_id: string | null;
+  description: string | null;
+  discord_guild_id: string | null;
+  id: string;
+  initial_proficiencies: unknown;
+  is_official: boolean;
+  is_spellcaster: boolean;
+  key_attribute: unknown;
+  name: string;
+  source: string | null;
+  spellcasting_ability: string | null;
+  updated_at: string;
+};
+
+const OFFICIAL_SPELLCASTER_CLASSES = new Set(
+  [
+    "Animist",
+    "Bard",
+    "Cleric",
+    "Druid",
+    "Magus",
+    "Necromancer",
+    "Oracle",
+    "Psychic",
+    "Sorcerer",
+    "Summoner",
+    "Witch",
+    "Wizard",
+  ].map((name) => name.toLowerCase())
+);
+
+function normalizeCasterFlags(rows: ClassRow[]): ClassRow[] {
+  return rows.map((row) => {
+    if (!row.is_official) return row;
+
+    return {
+      ...row,
+      is_spellcaster: OFFICIAL_SPELLCASTER_CLASSES.has(row.name.trim().toLowerCase()),
+    };
+  });
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") ?? "";
@@ -29,5 +76,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data, total: count, page, limit });
+  return NextResponse.json({
+    data: normalizeCasterFlags((data ?? []) as ClassRow[]),
+    total: count,
+    page,
+    limit,
+  });
 }
