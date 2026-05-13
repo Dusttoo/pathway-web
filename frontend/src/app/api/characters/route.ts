@@ -1,29 +1,49 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import type { Json, Tables } from "@/lib/types/database.types";
+import type { Json, Tables, TablesInsert } from "@/lib/types/database.types";
 import type { NativeBuildInput } from "@/lib/types/character";
 import { NextResponse } from "next/server";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type AncestryRow = Tables<"ancestries">;
-type ClassRow    = Tables<"character_classes">;
+type ClassRow = Tables<"character_classes">;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const ANCESTRY_SIZE_MAP: Record<string, number> = {
-  tiny: 1, small: 1, medium: 2, large: 3, huge: 4, gargantuan: 5,
+  tiny: 1,
+  small: 1,
+  medium: 2,
+  large: 3,
+  huge: 4,
+  gargantuan: 5,
 };
 
 const ALL_SKILLS = [
-  "acrobatics", "arcana", "athletics", "crafting", "deception", "diplomacy",
-  "intimidation", "medicine", "nature", "occultism", "performance", "religion",
-  "society", "stealth", "survival", "thievery", "piloting", "computers",
+  "acrobatics",
+  "arcana",
+  "athletics",
+  "crafting",
+  "deception",
+  "diplomacy",
+  "intimidation",
+  "medicine",
+  "nature",
+  "occultism",
+  "performance",
+  "religion",
+  "society",
+  "stealth",
+  "survival",
+  "thievery",
+  "piloting",
+  "computers",
 ];
 
 function synthesizeBuild(
   input: NativeBuildInput,
   ancestry: AncestryRow,
-  charClass: ClassRow,
+  charClass: ClassRow
 ): object {
   const classProfs = (charClass.initial_proficiencies ?? {}) as Record<string, number>;
   const baseSkills = Object.fromEntries(ALL_SKILLS.map((s) => [s, 0]));
@@ -36,19 +56,20 @@ function synthesizeBuild(
   }
 
   const trainedSkillProfs = Object.fromEntries(
-    (input.trained_skills ?? []).map((skill) => [
-      skill,
-      Math.max(classProfs[skill] ?? 0, 2),
-    ]),
+    (input.trained_skills ?? []).map((skill) => [skill, Math.max(classProfs[skill] ?? 0, 2)])
   );
 
   const additionalSkillProfs = Object.fromEntries(
     (input.additional_skills ?? [])
       .filter((skill) => skill.name.trim())
       .map((skill) => [
-        skill.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""),
+        skill.name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_|_$/g, ""),
         Math.max(2, Math.min(5, Math.round(skill.rank || 2))),
-      ]),
+      ])
   );
 
   const customFeats = (input.custom_feats ?? [])
@@ -91,67 +112,90 @@ function synthesizeBuild(
   return {
     success: true,
     build: {
-      name:       input.name,
-      class:      input.class,
-      dualClass:  null,
-      level:      input.level,
-      xp:         0,
-      ancestry:   input.ancestry,
-      heritage:   input.heritage,
+      name: input.name,
+      class: input.class,
+      dualClass: null,
+      level: input.level,
+      xp: 0,
+      ancestry: input.ancestry,
+      heritage: input.heritage,
       background: input.background,
-      alignment:  input.alignment,
-      gender:     input.gender  || "Not set",
-      age:        input.age     || "Not set",
-      deity:      input.deity   || "Not set",
-      size:       sizeNum,
-      sizeName:   ancestry.size ?? "Medium",
+      alignment: input.alignment,
+      gender: input.gender || "Not set",
+      age: input.age || "Not set",
+      deity: input.deity || "Not set",
+      size: sizeNum,
+      sizeName: ancestry.size ?? "Medium",
       keyability: input.keyability,
-      languages:  input.languages.length ? input.languages : ["None selected"],
-      rituals: [], resistances: [], inventorMods: [],
+      languages: input.languages.length ? input.languages : ["None selected"],
+      rituals: [],
+      resistances: [],
+      inventorMods: [],
       abilities: {
         ...input.abilities,
         breakdown: {
-          ancestryFree: [], ancestryBoosts: [], ancestryFlaws: [],
-          backgroundBoosts: [], classBoosts: [], mapLevelledBoosts: {},
+          ancestryFree: [],
+          ancestryBoosts: [],
+          ancestryFlaws: [],
+          backgroundBoosts: [],
+          classBoosts: [],
+          mapLevelledBoosts: {},
         },
       },
       attributes: {
-        ancestryhp:      ancestry.ancestry_hp ?? 8,
-        classhp:         charClass.class_hp   ?? 8,
-        bonushp:         0,
+        ancestryhp: ancestry.ancestry_hp ?? 8,
+        classhp: charClass.class_hp ?? 8,
+        bonushp: 0,
         bonushpPerLevel: 0,
-        speed:           ancestry.speed ?? 25,
-        speedBonus:      0,
+        speed: ancestry.speed ?? 25,
+        speedBonus: 0,
       },
       proficiencies: mergedProfs,
       mods: {},
-      feats:    customFeats,
+      feats: customFeats,
       specials: customSpecials,
       custom_attacks: customAttacks,
-      lores:    [
+      lores: [
         ...(input.lore ? [[input.lore, 2]] : []),
         ...(input.additional_skills ?? [])
           .filter((skill) => /lore$/i.test(skill.name.trim()))
-          .map((skill) => [skill.name.trim().replace(/\s+lore$/i, ""), Math.max(2, Math.min(5, Math.round(skill.rank || 2)))]),
+          .map((skill) => [
+            skill.name.trim().replace(/\s+lore$/i, ""),
+            Math.max(2, Math.min(5, Math.round(skill.rank || 2))),
+          ]),
       ],
       equipmentContainers: {},
-      equipment: [],
+      equipment: (input.equipment_refs ?? [])
+        .filter((e) => e.name.trim())
+        .map((e) => [e.name.trim(), Math.max(1, e.quantity)] as [string, number]),
       specificProficiencies: { trained: [], expert: [], master: [], legendary: [] },
       weapons: [],
-      armor:   [],
-      money:   input.money,
+      armor: [],
+      money: input.money,
       spellCasters: [],
       focusPoints: 0,
-      focus:   {},
+      focus: {},
       formula: [],
       acTotal: {
         acProfBonus,
         acAbilityBonus: dexMod,
-        acItemBonus:    0,
-        acTotal:        10 + acProfBonus + dexMod,
-        shieldBonus:    null,
+        acItemBonus: 0,
+        acTotal: 10 + acProfBonus + dexMod,
+        shieldBonus: null,
       },
-      pets: [], familiars: [],
+      pets: input.companion?.type
+        ? [
+            {
+              type: input.companion.type,
+              name: input.companion.name,
+              subtype: input.companion.subtype,
+            },
+          ]
+        : [],
+      familiars: [],
+      // Builder-v2 narrative fields — read by the sheet, ignored by the bot.
+      description: input.description ?? {},
+      personality: input.personality ?? {},
     },
   };
 }
@@ -160,13 +204,15 @@ function synthesizeBuild(
 
 async function resolveUser() {
   const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
   if (!authUser) return null;
 
   const service = createServiceClient();
   const discordId =
-    authUser.identities?.find((i) => i.provider === "discord")
-      ?.identity_data?.provider_id ?? authUser.id;
+    authUser.identities?.find((i) => i.provider === "discord")?.identity_data?.provider_id ??
+    authUser.id;
 
   const { data: dbUser } = await service
     .from("users")
@@ -185,7 +231,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const guildId = searchParams.get("guild_id");
-  const status  = searchParams.get("status") ?? "active";
+  const status = searchParams.get("status") ?? "active";
 
   let query = ctx.service
     .from("characters")
@@ -215,11 +261,15 @@ export async function POST(request: Request) {
 
   if (source === "native") {
     const nb: NativeBuildInput = body.native_build;
+    // Builder-v2 sends variant_rules + art at top level (not on native_build)
+    // so the synthesizer doesn't have to know about them.
+    const variantRules = (body.variant_rules ?? null) as Record<string, unknown> | null;
+    const art = nb.description?.portrait_url || null;
 
     if (!nb?.name || !nb.ancestry_id || !nb.class_id || !nb.background || !nb.abilities) {
       return NextResponse.json(
         { error: "native_build requires name, ancestry_id, class_id, background, and abilities" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -237,24 +287,40 @@ export async function POST(request: Request) {
 
     const pathbuilderData = synthesizeBuild(nb, ancestryResult.data, classResult.data);
 
-    const { data, error } = await ctx.service
+    // variant_rules + art columns may not be in the generated types yet
+    // (migrations 20260512100000 / 20260514000000). Cast at the insert site
+    // and retry without them if Postgres reports undefined_column (42703).
+    const baseRow: TablesInsert<"characters"> = {
+      user_id: ctx.appUserId,
+      discord_guild_id: discord_guild_id ?? null,
+      source: "native",
+      name: nb.name,
+      char_key: nb.name.toLowerCase().replace(/\s+/g, "-"),
+      ancestry_name: nb.ancestry,
+      heritage_name: nb.heritage || null,
+      class_name: nb.class,
+      background_name: nb.background,
+      level: nb.level ?? 1,
+      pathbuilder_data: pathbuilderData as Json,
+      currency: (nb.money ?? { cp: 0, sp: 0, gp: 15, pp: 0 }) as Json,
+    };
+    const fullRow = {
+      ...baseRow,
+      ...(variantRules ? { variant_rules: variantRules } : {}),
+      ...(art ? { art } : {}),
+    };
+
+    let { data, error } = await ctx.service
       .from("characters")
-      .insert({
-        user_id:          ctx.appUserId,
-        discord_guild_id: discord_guild_id ?? null,
-        source:           "native",
-        name:             nb.name,
-        char_key:         nb.name.toLowerCase().replace(/\s+/g, "-"),
-        ancestry_name:    nb.ancestry,
-        heritage_name:    nb.heritage || null,
-        class_name:       nb.class,
-        background_name:  nb.background,
-        level:            nb.level ?? 1,
-        pathbuilder_data: pathbuilderData as Json,
-        currency:         (nb.money ?? { cp: 0, sp: 0, gp: 15, pp: 0 }) as Json,
-      })
+      .insert(fullRow as unknown as TablesInsert<"characters">)
       .select()
       .single();
+
+    if (error && error.code === "42703" && (variantRules || art)) {
+      const retry = await ctx.service.from("characters").insert(baseRow).select().single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data, { status: 201 });
@@ -280,17 +346,17 @@ export async function POST(request: Request) {
   const { data, error } = await ctx.service
     .from("characters")
     .insert({
-      user_id:          ctx.appUserId,
+      user_id: ctx.appUserId,
       discord_guild_id,
-      source:           "pathbuilder",
-      name:             build.name,
-      char_key:         build.name.toLowerCase().replace(/\s+/g, "-"),
-      ancestry_name:    build.ancestry   ?? null,
-      heritage_name:    build.heritage   ?? null,
-      class_name:       build.class      ?? null,
-      background_name:  build.background ?? null,
-      level:            build.level      ?? 1,
-      pathbuilder_id:   pathbuilder_id   ?? null,
+      source: "pathbuilder",
+      name: build.name,
+      char_key: build.name.toLowerCase().replace(/\s+/g, "-"),
+      ancestry_name: build.ancestry ?? null,
+      heritage_name: build.heritage ?? null,
+      class_name: build.class ?? null,
+      background_name: build.background ?? null,
+      level: build.level ?? 1,
+      pathbuilder_id: pathbuilder_id ?? null,
       pathbuilder_data,
     })
     .select()

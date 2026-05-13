@@ -26,6 +26,30 @@ export type NativeBuildInput = {
   deity: string;
   languages: string[];
   money: { cp: number; sp: number; gp: number; pp: number };
+  // Equipment selected at character creation. Stored as [name, qty] tuples
+  // inside pathbuilder_data.build.equipment so the bot can read it directly.
+  equipment_refs?: { name: string; quantity: number }[];
+  // Companion bookkeeping — currently free-form; future iteration ties into
+  // the companions table.
+  companion?: { type: string; name: string; subtype: string };
+  // Narrative + physical — stored on pathbuilder_data.build.description /
+  // .personality so the sheet can render them, plus art on characters.art.
+  description?: {
+    height?: string;
+    weight?: string;
+    eyes?: string;
+    hair?: string;
+    skin?: string;
+    distinguishing_features?: string;
+    portrait_url?: string;
+  };
+  personality?: {
+    traits?: string;
+    ideals?: string;
+    bonds?: string;
+    flaws?: string;
+    backstory?: string;
+  };
 };
 
 export function getAbilityModifier(score: number): number {
