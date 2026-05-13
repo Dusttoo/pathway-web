@@ -37,6 +37,18 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+const MATCH_ALIASES: Record<string, string[]> = {
+  "half-elf": ["aiuvarin", "elf", "human"],
+  aiuvarin: ["half-elf", "elf", "human"],
+  "half-orc": ["dromaar", "orc", "human"],
+  dromaar: ["half-orc", "orc", "human"],
+};
+
+function expectedValues(expected: string): string[] {
+  const normalized = normalizeText(expected);
+  return [normalized, ...(MATCH_ALIASES[normalized] ?? [])];
+}
+
 function metadataValues(metadata: unknown, key: string): string[] {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return [];
 
@@ -85,8 +97,8 @@ function rowMatchValues(row: FeatRow, key: string): string[] {
 function featMatches(row: FeatRow, key: string, expected: string | null): boolean {
   if (!expected) return true;
 
-  const expectedValue = normalizeText(expected);
-  return rowMatchValues(row, key).some((value) => normalizeText(value) === expectedValue);
+  const expectedSet = new Set(expectedValues(expected));
+  return rowMatchValues(row, key).some((value) => expectedSet.has(normalizeText(value)));
 }
 
 function completenessScore(row: FeatRow): number {

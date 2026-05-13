@@ -197,12 +197,81 @@ function featType(src: Row, traits: string[]): string {
   if (fromRaw && fromRaw !== "general") return fromRaw;
 
   const lower = traits.map((t) => t.toLowerCase());
-  if (lower.includes("ancestry")) return "ancestry";
-  if (lower.includes("class")) return "class_feat";
   if (lower.includes("archetype")) return "archetype";
+  if (lower.some((trait) => ANCESTRY_TRAITS.has(trait))) return "ancestry";
+  if (lower.includes("ancestry")) return "ancestry";
+  if (lower.some((trait) => CLASS_TRAITS.has(trait))) return "class_feat";
+  if (lower.includes("class")) return "class_feat";
   if (lower.includes("skill")) return "skill";
   return fromRaw ?? "general";
 }
+
+const ANCESTRY_TRAITS = new Set([
+  "aiuvarin",
+  "anadi",
+  "android",
+  "aphorite",
+  "ardande",
+  "athamaru",
+  "automaton",
+  "awakened animal",
+  "azarketi",
+  "beastkin",
+  "catfolk",
+  "changeling",
+  "conrasu",
+  "dhampir",
+  "dragonblood",
+  "dromaar",
+  "duskwalker",
+  "dwarf",
+  "elf",
+  "fetchling",
+  "fleshwarp",
+  "ganzi",
+  "gnoll",
+  "gnome",
+  "goblin",
+  "goloma",
+  "grippli",
+  "halfling",
+  "half-elf",
+  "half-orc",
+  "hobgoblin",
+  "human",
+  "hungerseed",
+  "jotunborn",
+  "kashrishi",
+  "kholo",
+  "kitsune",
+  "kobold",
+  "leshy",
+  "lizardfolk",
+  "merfolk",
+  "minotaur",
+  "nagaji",
+  "nephilim",
+  "orc",
+  "oread",
+  "poppet",
+  "ratfolk",
+  "samsaran",
+  "sarangay",
+  "shisk",
+  "shoony",
+  "sprite",
+  "strix",
+  "suli",
+  "sylph",
+  "talos",
+  "tanuki",
+  "tengu",
+  "tiefling",
+  "undine",
+  "vanara",
+  "vishkanya",
+  "yaksha",
+]);
 
 const CLASS_TRAITS = new Set([
   "alchemist",
@@ -285,6 +354,12 @@ export function transformFeat(doc: NethysDoc): Row {
           .filter((trait) => CLASS_TRAITS.has(trait.toLowerCase()))
           .map((trait) => titleCase(trait))
       : [];
+  const inferredAncestry =
+    type === "ancestry"
+      ? traits
+          .filter((trait) => ANCESTRY_TRAITS.has(trait.toLowerCase()))
+          .map((trait) => titleCase(trait))
+      : [];
   const inferredArchetype =
     type === "archetype" && archetype.length === 0 && / dedication$/i.test(name)
       ? [name.replace(/ dedication$/i, "")]
@@ -320,7 +395,7 @@ export function transformFeat(doc: NethysDoc): Row {
       rarity: rarityLabel,
       source: sourceLabel,
       classes: unique([...classes, ...inferredClasses]),
-      ancestry,
+      ancestry: unique([...ancestry, ...inferredAncestry]),
       archetype: unique([...archetype, ...inferredArchetype]),
       skills,
       frequency: s(src.frequency) || null,
