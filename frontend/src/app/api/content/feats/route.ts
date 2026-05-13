@@ -33,6 +33,28 @@ function hasStructuredJson(value: unknown): boolean {
   return Array.isArray(value) ? value.length > 0 : !!value && typeof value === "object";
 }
 
+function normalizeText(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function metadataValues(metadata: unknown, key: string): string[] {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return [];
+
+  const value = (metadata as Record<string, unknown>)[key];
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+  if (typeof value === "string") return [value];
+  return [];
+}
+
+function metadataMatches(metadata: unknown, key: string, expected: string | null): boolean {
+  if (!expected) return true;
+
+  const expectedValue = normalizeText(expected);
+  return metadataValues(metadata, key).some((value) => normalizeText(value) === expectedValue);
+}
+
 function completenessScore(row: FeatRow): number {
   const rarity = row.rarity?.toLowerCase();
   const descriptionLength = row.description?.trim().length ?? 0;
@@ -101,9 +123,6 @@ export async function GET(request: Request) {
   if (levelMax) query = query.lte("level", parseInt(levelMax));
   if (rarity) query = query.eq("rarity", rarity);
   if (traits.length > 0) query = query.contains("traits", traits);
-  if (className) query = query.contains("feat_metadata->classes", [className]);
-  if (ancestry) query = query.contains("feat_metadata->ancestry", [ancestry]);
-  if (archetype) query = query.contains("feat_metadata->archetype", [archetype]);
 
   const { data, error } = await query;
 
@@ -111,7 +130,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const deduped = dedupeFeats((data ?? []) as FeatRow[]);
+  const filtered = ((data ?? []) as FeatRow[]).filter(
+    (feat) =>
+      metadataMatches(feat.feat_metadata, "classes", className) &&
+      metadataMatches(feat.feat_metadata, "ancestry", ancestry) &&
+      metadataMatches(feat.feat_metadata, "archetype", archetype)
+  );
+  const deduped = dedupeFeats(filtered);
   const paged = deduped.slice(offset, offset + limit);
 
   return NextResponse.json({ data: paged, total: deduped.length, page, limit });
