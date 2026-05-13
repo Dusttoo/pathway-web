@@ -45,7 +45,6 @@ export type NethysDoc = {
 
 type EsResponse = {
   hits: { total: { value: number } | number; hits: NethysDoc[] };
-  pit_id?: string;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -94,8 +93,9 @@ async function postEs(body: Record<string, unknown>, attempt = 0): Promise<EsRes
 }
 
 /**
- * Fetch every document for a category, paginating with `search_after` against
- * `_id` so we can go past the 10k window. Caches the full result to disk.
+ * Fetch every document for a category. Sorts on `_doc` (no fielddata access
+ * required) and paginates with `from`/`size`; every PF2e category is well
+ * under the 10k window so we don't need `search_after`.
  */
 export async function fetchCategory(
   category: NethysCategory,
@@ -107,15 +107,15 @@ export async function fetchCategory(
   }
 
   const out: NethysDoc[] = [];
-  let after: unknown[] | null = null;
+  let from = 0;
 
   while (true) {
     const body: Record<string, unknown> = {
       size: PAGE_SIZE,
+      from,
       query: { term: { category } },
-      sort: [{ _id: "asc" }],
+      sort: ["_doc"],
     };
-    if (after) body.search_after = after;
 
     const json = await postEs(body);
     const hits = json.hits?.hits ?? [];
@@ -124,10 +124,8 @@ export async function fetchCategory(
     for (const hit of hits) out.push(hit);
     if (opts.limit && out.length >= opts.limit) break;
 
-    const last = hits[hits.length - 1];
-    after = [last._id];
-
     if (hits.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
     await sleep(PAGE_DELAY_MS);
   }
 
