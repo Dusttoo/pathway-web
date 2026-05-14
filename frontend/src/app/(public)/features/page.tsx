@@ -2,84 +2,129 @@
 
 import Link from "next/link";
 import {
-  Swords,
-  BookOpen,
-  Dice6,
-  Users,
-  Zap,
-  Shield,
-  Search,
-  Star,
   ArrowRight,
+  BookOpen,
   Check,
+  ClipboardList,
+  Database,
+  Dice6,
+  ScrollText,
+  Search,
+  Shield,
+  Sparkles,
+  Star,
+  Swords,
+  Users,
+  Wand2,
 } from "lucide-react";
 
 const features = [
   {
-    icon: Swords,
-    title: "Pathbuilder Import",
-    description: "Paste your Pathbuilder 2e character ID or JSON and your full character sheet is imported instantly — ability scores, feats, equipment, proficiencies, everything.",
+    icon: ClipboardList,
+    title: "Character Sheets That Sync",
+    description:
+      "Import characters from Pathbuilder or the Pathway web builder, then use the same sheet in Discord and on the website.",
     bullets: [
-      "Import by Pathbuilder character ID",
-      "Paste raw Pathbuilder JSON",
-      "Auto-parsed ability modifiers and saves",
-      "Feats, equipment, and specials displayed",
+      "Import with Pathbuilder codes, Pathbuilder JSON URLs, raw exports, or Pathway web JSON IDs",
+      "Create and edit characters directly in the web app",
+      "Track active characters per Discord user",
+      "View compact Discord sheets, feats, abilities, portraits, attacks, inventory, and spells",
+    ],
+  },
+  {
+    icon: Swords,
+    title: "Table-Ready Combat Tools",
+    description:
+      "Run PF2e combat from Discord with initiative, monster actions, player rolls, HP tracking, effects, and scene-break utilities.",
+    bullets: [
+      "Initiative commands for start, end, next, previous, view, join, add, and remove",
+      "Player combat rolls through /i attack, /i save, /i skill, and /i cast",
+      "Monster attacks, saves, skills, perception, initiative, and spellcasting outside or inside combat",
+      "HP, healing, temporary HP, effects, multiple attack penalty, and grouped monsters",
     ],
   },
   {
     icon: BookOpen,
-    title: "Rules Library",
-    description: "The complete PF2e content library, indexed and searchable. Browse by category or search across all content types at once.",
+    title: "PF2e Lookup Library",
+    description:
+      "Look up the rules and content your table needs without leaving Discord or the website.",
     bullets: [
-      "Spells — all traditions, levels, and traits",
-      "Feats — ancestry, class, archetype, skill, general",
-      "Ancestries and heritages",
-      "Backgrounds and character classes",
-      "Bestiary — monsters and animal companions",
-      "Items, weapons, and equipment",
-    ],
-  },
-  {
-    icon: Dice6,
-    title: "Discord Bot Commands",
-    description: "The Pathway bot handles the in-session experience. Roll dice, check rules, and look up character info without leaving Discord.",
-    bullets: [
-      "/roll — dice with modifiers",
-      "/spell — spell lookup with full details",
-      "/feat — feat details and prerequisites",
-      "/character sheet — your current stats",
-      "Secret rolls visible only to the GM",
+      "Spells, feats, actions, traits, rules, conditions, classes, class features, ancestries, and heritages",
+      "Bestiary support for monsters, attacks, saves, skills, descriptions, and art where available",
+      "Equipment and item lookup, including homebrew harvest materials and custom campaign items",
+      "Deities, Eberron deities, dragonmarked houses, languages, rituals, and familiar PF2e references",
     ],
   },
   {
     icon: Search,
-    title: "Smart Search",
-    description: "Find anything in the PF2e ruleset fast. Filter by level, tradition, trait, rarity, and more.",
+    title: "Fast Search and Suggestions",
+    description:
+      "Pathway is designed for quick lookup at the table, with autocomplete where Discord supports it and clearer duplicate handling.",
     bullets: [
-      "Full-text search across all content",
-      "Filter spells by tradition or level",
-      "Filter feats by type and prerequisites",
-      "Filter monsters by level and type",
+      "Slash-command autocomplete for lookup-heavy commands",
+      "Duplicate-aware results that prefer useful detail without hiding official variants",
+      "Searchable web library pages for spells, feats, items, monsters, ancestries, backgrounds, and classes",
+      "Filters for level, type, tradition, trait, rarity, and category where supported",
     ],
   },
   {
-    icon: Users,
-    title: "Multiple Characters",
-    description: "Manage all your characters in one place. Import as many Pathbuilder characters as you need — each linked to your Discord account.",
+    icon: Dice6,
+    title: "Dice, Skills, Saves, and Resources",
+    description:
+      "Use character data for the common rolls and trackers your table reaches for every session.",
     bullets: [
-      "Unlimited characters",
-      "Per-character status (active/inactive/retired)",
-      "Quick-switch between characters",
+      "General dice rolls, aliases, reusable snippets, and custom roll expressions",
+      "Character skills, Lore skills, Perception, saves, attacks, spellcasting, rest, and refocus",
+      "Counters, notes, coin, inventory, conditions, and custom resources",
+      "Companion and eidolon support with imported or manually managed stats",
+    ],
+  },
+  {
+    icon: ScrollText,
+    title: "Downtime, Hunts, and Campaign Utilities",
+    description:
+      "Support the parts of PF2e that happen between fights, from earning income to campaign calendars.",
+    bullets: [
+      "Downtime commands such as income, crafting, forgery, research, retraining, scouting, disguise, and subsist",
+      "Hunt and harvest tools with creature-trait skills, level-based DCs, and reward tables",
+      "Server calendar and weather settings, including Eberron calendar support",
+      "Scene breaks with /br and /break for clean Discord session pacing",
+    ],
+  },
+  {
+    icon: Wand2,
+    title: "Homebrew and Campaign Databases",
+    description:
+      "Build the campaign-specific pieces your table needs and keep them available to both the bot and website.",
+    bullets: [
+      "Create homebrew monsters, spells, feats, items, ancestries, heritages, classes, and backgrounds",
+      "Support for Eberron-friendly data such as deities and dragonmarked houses",
+      "Custom attacks, Lore skills, class options, spellcasting details, and builder-friendly records",
+      "Shared storage through Supabase so bot and web data stay together",
+    ],
+  },
+  {
+    icon: Database,
+    title: "Web App Companion",
+    description:
+      "Use the website for the bigger workflows that are easier outside a Discord message box.",
+    bullets: [
+      "Character list, mini sheets, full sheet views, portraits, inventory, notes, feats, abilities, and companions",
+      "Character builder with ancestries, heritages, classes, backgrounds, skills, feats, spells, and equipment",
+      "Library browsing, command reference, homebrew forms, feedback, and support links",
+      "Discord login keeps your web account connected to the bot identity you already use",
     ],
   },
   {
     icon: Shield,
-    title: "Discord Auth",
-    description: "Sign in with the Discord account you already use for the bot. No separate password or registration needed.",
+    title: "Closed Beta Ready",
+    description:
+      "Pathway is being prepared for invited testers, with clearer docs, privacy pages, and server-safe data handling.",
     bullets: [
-      "Single click Discord login",
-      "Your characters follow your Discord identity",
-      "Server-linked guild settings",
+      "Invite-only closed beta messaging and support flow",
+      "Updated Privacy Policy, Terms of Service, GDPR, and cookie documentation",
+      "Supabase-backed persistence for character, campaign, and homebrew data",
+      "Community feedback and bug reporting through the support server and web contact form",
     ],
   },
 ];
@@ -94,47 +139,60 @@ export default function FeaturesPage() {
             <span className="text-sm font-medium text-primary">Feature Overview</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-heading font-bold text-foreground mb-6">
-            Everything Pathway offers
+            Everything Pathway brings to your table
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            From Discord bot commands to full character sheets and rules browsing — here&apos;s what Pathway brings to your PF2e game.
+            A Discord bot and web companion for PF2e character management, combat, rules lookup,
+            downtime, homebrew, and campaign tools.
           </p>
         </div>
       </section>
 
       <section className="py-16 bg-background">
         <div className="container max-w-5xl mx-auto px-4 md:px-8">
-          <div className="space-y-8">
-            {features.map((feature, idx) => {
+          <div className="grid gap-6 md:grid-cols-2">
+            {features.map((feature) => {
               const Icon = feature.icon;
               return (
-                <div key={feature.title} className={`card p-8 flex flex-col md:flex-row gap-8 ${idx % 2 === 1 ? "md:flex-row-reverse" : ""}`}>
-                  <div className="md:w-1/3 flex flex-col items-start">
-                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                      <Icon className="h-7 w-7 text-primary" />
+                <div key={feature.title} className="card p-7 flex flex-col">
+                  <div className="flex items-start gap-4 mb-5">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Icon className="h-6 w-6 text-primary" />
                     </div>
-                    <h2 className="text-2xl font-heading font-bold text-foreground mb-3">{feature.title}</h2>
-                    <p className="text-muted-foreground text-sm">{feature.description}</p>
+                    <div>
+                      <h2 className="text-xl font-heading font-bold text-foreground mb-2">
+                        {feature.title}
+                      </h2>
+                      <p className="text-muted-foreground text-sm">{feature.description}</p>
+                    </div>
                   </div>
-                  <div className="md:w-2/3">
-                    <ul className="space-y-3">
-                      {feature.bullets.map((bullet) => (
-                        <li key={bullet} className="flex items-start gap-3">
-                          <Check className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
-                          <span className="text-foreground">{bullet}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <ul className="space-y-3">
+                    {feature.bullets.map((bullet) => (
+                      <li key={bullet} className="flex items-start gap-3">
+                        <Check className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+                        <span className="text-foreground text-sm leading-6">{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-12 text-center">
-            <Link href="/login" className="btn-primary text-base px-8 py-3 inline-flex items-center gap-2">
-              Get Started Free
+          <div className="mt-12 flex flex-col sm:flex-row justify-center gap-4">
+            <Link
+              href="/commands"
+              className="btn-primary text-base px-8 py-3 inline-flex items-center justify-center gap-2"
+            >
+              View Commands
               <ArrowRight className="h-5 w-5" />
+            </Link>
+            <Link
+              href="/login"
+              className="btn-outline text-base px-8 py-3 inline-flex items-center justify-center gap-2"
+            >
+              Open Web App
+              <Sparkles className="h-5 w-5" />
             </Link>
           </div>
         </div>
