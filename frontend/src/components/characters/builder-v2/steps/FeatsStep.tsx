@@ -98,6 +98,7 @@ function featSlotsForLevel(state: BuilderState): SlotInstance[] {
         filterParams: (s) => ({
           feat_type: "ancestry",
           ancestry: s.ancestryName,
+          heritage: s.heritageName,
           level_max: level,
         }),
       });
@@ -114,6 +115,7 @@ function featSlotsForLevel(state: BuilderState): SlotInstance[] {
         filterParams: (s) => ({
           feat_type: "ancestry",
           ancestry: s.ancestryName,
+          heritage: s.heritageName,
           level_max: level,
         }),
       });

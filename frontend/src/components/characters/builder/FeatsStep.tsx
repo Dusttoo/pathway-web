@@ -21,7 +21,12 @@ const SLOT_DEFS: SlotDef[] = [
     slot: "ancestry",
     label: "Ancestry Feat",
     featType: "ancestry",
-    filterParams: (s) => ({ feat_type: "ancestry", ancestry: s.ancestryName, level_max: s.level }),
+    filterParams: (s) => ({
+      feat_type: "ancestry",
+      ancestry: s.ancestryName,
+      heritage: s.heritageName,
+      level_max: s.level,
+    }),
   },
   {
     slot: "class",

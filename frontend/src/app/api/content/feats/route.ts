@@ -101,6 +101,18 @@ function featMatches(row: FeatRow, key: string, expected: string | null): boolea
   return rowMatchValues(row, key).some((value) => expectedSet.has(normalizeText(value)));
 }
 
+function featMatchesAny(row: FeatRow, key: string, expected: string[]): boolean {
+  const expectedSet = new Set(
+    expected
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .flatMap(expectedValues)
+  );
+
+  if (expectedSet.size === 0) return true;
+  return rowMatchValues(row, key).some((value) => expectedSet.has(normalizeText(value)));
+}
+
 function completenessScore(row: FeatRow): number {
   const rarity = row.rarity?.toLowerCase();
   const descriptionLength = row.description?.trim().length ?? 0;
@@ -143,7 +155,7 @@ export async function GET(request: Request) {
   const rarity = searchParams.get("rarity");
   const traits = searchParams.getAll("trait");
   const className = searchParams.get("class");
-  const ancestry = searchParams.get("ancestry");
+  const ancestryFilters = [...searchParams.getAll("ancestry"), ...searchParams.getAll("heritage")];
   const archetype = searchParams.get("archetype");
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "25")));
@@ -179,7 +191,7 @@ export async function GET(request: Request) {
   const filtered = ((data ?? []) as FeatRow[]).filter(
     (feat) =>
       featMatches(feat, "classes", className) &&
-      featMatches(feat, "ancestry", ancestry) &&
+      featMatchesAny(feat, "ancestry", ancestryFilters) &&
       featMatches(feat, "archetype", archetype)
   );
   const deduped = dedupeFeats(filtered);

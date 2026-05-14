@@ -23,6 +23,7 @@ export type FeatParams = {
   trait?: string[];
   class?: string;
   ancestry?: string;
+  heritage?: string;
   archetype?: string;
   page?: number;
   limit?: number;
@@ -45,6 +46,7 @@ function buildQs(params: FeatParams): URLSearchParams {
   if (params.rarity) qs.set("rarity", params.rarity);
   if (params.class) qs.set("class", params.class);
   if (params.ancestry) qs.set("ancestry", params.ancestry);
+  if (params.heritage) qs.set("heritage", params.heritage);
   if (params.archetype) qs.set("archetype", params.archetype);
   if (params.trait) for (const t of params.trait) qs.append("trait", t);
   if (params.page) qs.set("page", String(params.page));
