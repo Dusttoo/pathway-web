@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, AlertCircle, Sparkles, Users2 } from "lucide-react";
+import { useState } from "react";
+import { Loader2, AlertCircle, Sparkles, Users2, Search } from "lucide-react";
 import { useAncestryDetail } from "@/lib/hooks/use-builder-data";
 import type { StepProps } from "../types";
 
@@ -33,6 +34,7 @@ function statBenefit(benefits: unknown, key: string): unknown {
 }
 
 export function HeritageStep({ state, update }: StepProps) {
+  const [searchQ, setSearchQ] = useState("");
   const { data: detail, isLoading } = useAncestryDetail(state.ancestryId || null);
 
   if (!state.ancestryId) {
@@ -52,9 +54,17 @@ export function HeritageStep({ state, update }: StepProps) {
     );
   }
 
-  const ancestryHeritages = (detail?.heritages ?? []).filter((h) => !h.is_versatile);
-  const versatileIds = new Set(ancestryHeritages.map((h) => h.id));
-  const versatile = (detail?.versatileHeritages ?? []).filter((h) => !versatileIds.has(h.id));
+  const query = searchQ.trim().toLowerCase();
+  const matchesSearch = (h: { name: string; description?: string | null }) =>
+    !query ||
+    h.name.toLowerCase().includes(query) ||
+    (h.description ?? "").toLowerCase().includes(query);
+  const allAncestryHeritages = (detail?.heritages ?? []).filter((h) => !h.is_versatile);
+  const ancestryHeritages = allAncestryHeritages.filter(matchesSearch);
+  const versatileIds = new Set(allAncestryHeritages.map((h) => h.id));
+  const versatile = (detail?.versatileHeritages ?? []).filter(
+    (h) => !versatileIds.has(h.id) && matchesSearch(h)
+  );
 
   function pick(h: { id: string; name: string; benefits?: unknown }) {
     const ancestryHp =
@@ -85,6 +95,20 @@ export function HeritageStep({ state, update }: StepProps) {
         Heritages refine your ancestry — a specific bloodline, region, or magical lineage that
         grants extra abilities.
       </p>
+
+      <div className="relative">
+        <Search
+          size={14}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+        />
+        <input
+          className="input w-full pl-8"
+          type="text"
+          placeholder="Search heritages..."
+          value={searchQ}
+          onChange={(e) => setSearchQ(e.target.value)}
+        />
+      </div>
 
       {/* Ancestry-specific heritages */}
       {ancestryHeritages.length > 0 && (
