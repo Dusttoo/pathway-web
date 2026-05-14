@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search, Loader2, Heart, Sparkles, Key } from "lucide-react";
 import { useClasses, useClassDetail } from "@/lib/hooks/use-builder-data";
 import type { StepProps } from "../types";
+import { AonLink } from "../AonLink";
 
 function asAttrList(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string");
@@ -78,10 +79,8 @@ export function ClassStep({ state, update }: StepProps) {
           const selected = state.classId === c.id;
           const keyAttrs = asAttrList(c.key_attribute);
           return (
-            <button
+            <div
               key={c.id}
-              type="button"
-              onClick={() => selectClass(c)}
               className={`text-left p-4 rounded-lg border-2 transition-all
                 ${
                   selected
@@ -89,28 +88,31 @@ export function ClassStep({ state, update }: StepProps) {
                     : "border-border hover:border-primary/40 hover:bg-muted/40"
                 }`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold">{c.name}</h3>
-                {c.is_spellcaster && (
-                  <span className="text-[10px] uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-1">
-                    <Sparkles size={9} /> Caster
+              <button type="button" onClick={() => selectClass(c)} className="w-full text-left">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">{c.name}</h3>
+                  {c.is_spellcaster && (
+                    <span className="text-[10px] uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <Sparkles size={9} /> Caster
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Heart size={11} /> {c.class_hp ?? 8} HP/lvl
                   </span>
+                  {keyAttrs.length > 0 && (
+                    <span className="flex items-center gap-1 capitalize">
+                      <Key size={11} /> {keyAttrs.join(" / ").toLowerCase()}
+                    </span>
+                  )}
+                </div>
+                {c.description && (
+                  <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{c.description}</p>
                 )}
-              </div>
-              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Heart size={11} /> {c.class_hp ?? 8} HP/lvl
-                </span>
-                {keyAttrs.length > 0 && (
-                  <span className="flex items-center gap-1 capitalize">
-                    <Key size={11} /> {keyAttrs.join(" / ").toLowerCase()}
-                  </span>
-                )}
-              </div>
-              {c.description && (
-                <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{c.description}</p>
-              )}
-            </button>
+              </button>
+              <AonLink name={c.name} isOfficial={c.is_official} className="mt-2" />
+            </div>
           );
         })}
       </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search, Loader2, CheckCircle2, BookOpen } from "lucide-react";
 import { useBackgroundsList } from "@/lib/hooks/use-builder-data";
 import type { StepProps } from "../types";
+import { AonLink } from "../AonLink";
 
 function asStringList(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string");
@@ -72,10 +73,8 @@ export function BackgroundStep({ state, update }: StepProps) {
           const skills = asStringList(bg.skill_proficiencies);
           const boosts = asStringList(bg.attribute_boosts);
           return (
-            <button
+            <div
               key={bg.id}
-              type="button"
-              onClick={() => selectBackground(bg)}
               className={`text-left p-4 rounded-lg border-2 transition-all
                 ${
                   selected
@@ -83,25 +82,34 @@ export function BackgroundStep({ state, update }: StepProps) {
                     : "border-border hover:border-primary/40 hover:bg-muted/40"
                 }`}
             >
-              <h3 className="font-semibold mb-2">{bg.name}</h3>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                {boosts.length > 0 && (
-                  <div className="flex items-center gap-1 capitalize">
-                    <span className="font-medium text-foreground">Boosts:</span>{" "}
-                    {boosts.join(", ").toLowerCase()}
-                  </div>
+              <button
+                type="button"
+                onClick={() => selectBackground(bg)}
+                className="w-full text-left"
+              >
+                <h3 className="font-semibold mb-2">{bg.name}</h3>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  {boosts.length > 0 && (
+                    <div className="flex items-center gap-1 capitalize">
+                      <span className="font-medium text-foreground">Boosts:</span>{" "}
+                      {boosts.join(", ").toLowerCase()}
+                    </div>
+                  )}
+                  {skills.length > 0 && (
+                    <div className="flex items-start gap-1">
+                      <CheckCircle2 size={11} className="mt-0.5 shrink-0" />
+                      <span>{skills.join(", ")}</span>
+                    </div>
+                  )}
+                </div>
+                {bg.description && (
+                  <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                    {bg.description}
+                  </p>
                 )}
-                {skills.length > 0 && (
-                  <div className="flex items-start gap-1">
-                    <CheckCircle2 size={11} className="mt-0.5 shrink-0" />
-                    <span>{skills.join(", ")}</span>
-                  </div>
-                )}
-              </div>
-              {bg.description && (
-                <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{bg.description}</p>
-              )}
-            </button>
+              </button>
+              <AonLink name={bg.name} isOfficial={bg.is_official} className="mt-2" />
+            </div>
           );
         })}
       </div>

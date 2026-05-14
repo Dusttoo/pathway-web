@@ -6,8 +6,12 @@ import { useSpells } from "@/lib/hooks/use-spells";
 import { useClassDetail } from "@/lib/hooks/use-builder-data";
 import type { StepProps, BuilderState } from "../types";
 import type { Tables } from "@/lib/types/database.types";
+import { AonLink, valueFromMetadata } from "../AonLink";
 
 type Spell = Tables<"spells">;
+type SpellWithAon = Spell & {
+  aon_url?: string | null;
+};
 type Tradition = BuilderState["selectedSpells"][number]["tradition"];
 type SpellSource = BuilderState["selectedSpells"][number]["spell_source"];
 
@@ -88,7 +92,7 @@ export function SpellsStep({ state, update }: StepProps) {
   const defaultTradition: Tradition =
     typeof metadataTradition === "string" && TRADITIONS.includes(metadataTradition as Tradition)
       ? (metadataTradition as Tradition)
-      : CLASS_TRADITION[classKey] ?? "arcane";
+      : (CLASS_TRADITION[classKey] ?? "arcane");
   const defaultSource: SpellSource =
     metadataType === "spontaneous" || (!metadataType && SPONTANEOUS.has(classKey))
       ? "repertoire"
@@ -316,6 +320,8 @@ export function SpellsStep({ state, update }: StepProps) {
           const key = `${spell.id}:${tradition}:${spellSource}`;
           const alreadyAdded = selectedKeys.has(key);
           const disabled = alreadyAdded || currentBudgetFull || spell.level !== rank;
+          const aonUrl =
+            (spell as SpellWithAon).aon_url || valueFromMetadata(spell.spell_metadata, "aon_url");
           return (
             <div key={spell.id} className="p-3 flex items-start gap-3 hover:bg-muted/30">
               <div className="flex-1 min-w-0">
@@ -339,6 +345,12 @@ export function SpellsStep({ state, update }: StepProps) {
                     {spell.duration ? ` · Duration: ${spell.duration}` : ""}
                   </p>
                 )}
+                <AonLink
+                  name={spell.name}
+                  url={aonUrl}
+                  isOfficial={spell.is_official}
+                  className="mt-1"
+                />
               </div>
               <button
                 type="button"

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search, Loader2, Heart, Footprints, Ruler } from "lucide-react";
 import { useAncestries } from "@/lib/hooks/use-builder-data";
 import type { StepProps } from "../types";
+import { AonLink } from "../AonLink";
 
 export function AncestryStep({ state, update }: StepProps) {
   const [searchQ, setSearchQ] = useState("");
@@ -73,10 +74,8 @@ export function AncestryStep({ state, update }: StepProps) {
         {ancestries.map((a) => {
           const selected = state.ancestryId === a.id;
           return (
-            <button
+            <div
               key={a.id}
-              type="button"
-              onClick={() => selectAncestry(a)}
               className={`text-left p-4 rounded-lg border-2 transition-all
                 ${
                   selected
@@ -84,29 +83,32 @@ export function AncestryStep({ state, update }: StepProps) {
                     : "border-border hover:border-primary/40 hover:bg-muted/40"
                 }`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold">{a.name}</h3>
-                {a.rarity && a.rarity !== "Common" && (
-                  <span className="text-[10px] uppercase tracking-wide text-amber-500">
-                    {a.rarity}
+              <button type="button" onClick={() => selectAncestry(a)} className="w-full text-left">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">{a.name}</h3>
+                  {a.rarity && a.rarity !== "Common" && (
+                    <span className="text-[10px] uppercase tracking-wide text-amber-500">
+                      {a.rarity}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Heart size={11} /> {a.ancestry_hp ?? 8} HP
                   </span>
+                  <span className="flex items-center gap-1">
+                    <Footprints size={11} /> {a.speed ?? 25} ft
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Ruler size={11} /> {a.size ?? "Medium"}
+                  </span>
+                </div>
+                {a.description && (
+                  <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{a.description}</p>
                 )}
-              </div>
-              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Heart size={11} /> {a.ancestry_hp ?? 8} HP
-                </span>
-                <span className="flex items-center gap-1">
-                  <Footprints size={11} /> {a.speed ?? 25} ft
-                </span>
-                <span className="flex items-center gap-1">
-                  <Ruler size={11} /> {a.size ?? "Medium"}
-                </span>
-              </div>
-              {a.description && (
-                <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{a.description}</p>
-              )}
-            </button>
+              </button>
+              <AonLink name={a.name} isOfficial={a.is_official} className="mt-2" />
+            </div>
           );
         })}
       </div>

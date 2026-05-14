@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2, AlertCircle, Sparkles, Users2, Search } from "lucide-react";
 import { useAncestryDetail } from "@/lib/hooks/use-builder-data";
 import type { StepProps } from "../types";
+import { AonLink, valueFromMetadata } from "../AonLink";
 
 function numberFromBenefit(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -31,6 +32,10 @@ function statBenefit(benefits: unknown, key: string): unknown {
     if (value !== undefined) return value;
   }
   return record[key];
+}
+
+function heritageAonUrl(benefits: unknown): string | null {
+  return valueFromMetadata(benefits, "aon_url");
 }
 
 export function HeritageStep({ state, update }: StepProps) {
@@ -121,10 +126,8 @@ export function HeritageStep({ state, update }: StepProps) {
             {ancestryHeritages.map((h) => {
               const selected = state.heritageId === h.id;
               return (
-                <button
+                <div
                   key={h.id}
-                  type="button"
-                  onClick={() => pick(h)}
                   className={`text-left p-3 rounded-lg border-2 transition-all
                     ${
                       selected
@@ -132,13 +135,21 @@ export function HeritageStep({ state, update }: StepProps) {
                         : "border-border hover:border-primary/40 hover:bg-muted/40"
                     }`}
                 >
-                  <p className="font-semibold text-sm">{h.name}</p>
-                  {h.description && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {h.description}
-                    </p>
-                  )}
-                </button>
+                  <button type="button" onClick={() => pick(h)} className="w-full text-left">
+                    <p className="font-semibold text-sm">{h.name}</p>
+                    {h.description && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {h.description}
+                      </p>
+                    )}
+                  </button>
+                  <AonLink
+                    name={h.name}
+                    url={heritageAonUrl(h.benefits)}
+                    isOfficial={h.is_official}
+                    className="mt-2"
+                  />
+                </div>
               );
             })}
           </div>
@@ -158,10 +169,8 @@ export function HeritageStep({ state, update }: StepProps) {
             {versatile.map((h) => {
               const selected = state.heritageId === h.id;
               return (
-                <button
+                <div
                   key={h.id}
-                  type="button"
-                  onClick={() => pick(h)}
                   className={`text-left p-3 rounded-lg border-2 transition-all
                     ${
                       selected
@@ -169,13 +178,21 @@ export function HeritageStep({ state, update }: StepProps) {
                         : "border-border hover:border-primary/40 hover:bg-muted/40"
                     }`}
                 >
-                  <p className="font-semibold text-sm">{h.name}</p>
-                  {h.description && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {h.description}
-                    </p>
-                  )}
-                </button>
+                  <button type="button" onClick={() => pick(h)} className="w-full text-left">
+                    <p className="font-semibold text-sm">{h.name}</p>
+                    {h.description && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {h.description}
+                      </p>
+                    )}
+                  </button>
+                  <AonLink
+                    name={h.name}
+                    url={heritageAonUrl(h.benefits)}
+                    isOfficial={h.is_official}
+                    className="mt-2"
+                  />
+                </div>
               );
             })}
           </div>

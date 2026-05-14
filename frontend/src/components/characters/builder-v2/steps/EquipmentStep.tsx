@@ -4,6 +4,12 @@ import { useState } from "react";
 import { Search, Loader2, Plus, Minus, X, Coins } from "lucide-react";
 import { useItems } from "@/lib/hooks/use-items";
 import type { StepProps } from "../types";
+import { AonLink, valueFromMetadata } from "../AonLink";
+
+type ItemWithAon = {
+  aon_url?: string | null;
+  item_metadata?: unknown;
+};
 
 const ITEM_TYPES: { value: string; label: string }[] = [
   { value: "", label: "All types" },
@@ -124,6 +130,8 @@ export function EquipmentStep({ state, update }: StepProps) {
         )}
         {items.map((item) => {
           const inList = selectedIds.has(item.id);
+          const aonUrl =
+            (item as ItemWithAon).aon_url || valueFromMetadata(item.item_metadata, "aon_url");
           return (
             <div key={item.id} className="p-3 flex items-center gap-3 hover:bg-muted/30">
               <div className="flex-1 min-w-0">
@@ -145,6 +153,12 @@ export function EquipmentStep({ state, update }: StepProps) {
                     </span>
                   )}
                 </div>
+                <AonLink
+                  name={item.name}
+                  url={aonUrl}
+                  isOfficial={item.is_official}
+                  className="mt-1"
+                />
               </div>
               <button
                 type="button"

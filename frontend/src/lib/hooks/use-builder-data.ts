@@ -100,6 +100,7 @@ type BackgroundRow = {
   description: string | null;
   skill_proficiencies: unknown;
   attribute_boosts: unknown;
+  is_official: boolean | null;
 };
 
 export function useBackgroundsList(q = "") {
