@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { dedupeItems, type DedupeItemRow } from "@/lib/items/dedupe";
 import { NextResponse } from "next/server";
 
 // ── Types (also imported by the combobox component) ───────────────────────────
@@ -13,30 +14,6 @@ export type ItemSearchResult = {
 };
 
 export type ItemSearchResponse = { results: ItemSearchResult[] };
-
-function searchKey(item: ItemSearchResult): string {
-  return [
-    item.source,
-    item.name.trim().toLowerCase().replace(/\s+/g, " "),
-    item.level ?? 0,
-    item.item_type?.trim().toLowerCase() ?? "",
-  ].join("|");
-}
-
-function dedupeResults(items: ItemSearchResult[]): ItemSearchResult[] {
-  const byItem = new Map<string, ItemSearchResult>();
-
-  for (const item of items) {
-    const key = searchKey(item);
-    const existing = byItem.get(key);
-
-    if (!existing || (!existing.rarity && item.rarity)) {
-      byItem.set(key, item);
-    }
-  }
-
-  return [...byItem.values()];
-}
 
 // ── GET /api/items/search?q=<query>&limit=<n> ─────────────────────────────────
 // Typeahead endpoint used by ItemSearchCombobox.
@@ -58,7 +35,7 @@ export async function GET(request: Request) {
   const [{ data: officialRows }, { data: homebrewRows }] = await Promise.all([
     service
       .from("items")
-      .select("id, name, item_type, level, rarity")
+      .select("*")
       .eq("is_official", true)
       .ilike("name", `%${q}%`)
       .order("level", { ascending: true })
@@ -73,16 +50,14 @@ export async function GET(request: Request) {
       .limit(limit),
   ]);
 
-  const official = dedupeResults(
-    (officialRows ?? []).map((r) => ({
-      id: r.id,
-      name: r.name,
-      source: "official" as const,
-      item_type: r.item_type ?? undefined,
-      level: r.level ?? undefined,
-      rarity: r.rarity ?? undefined,
-    }))
-  );
+  const official = dedupeItems((officialRows ?? []) as unknown as DedupeItemRow[]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    source: "official" as const,
+    item_type: r.item_type ?? undefined,
+    level: r.level ?? undefined,
+    rarity: r.rarity ?? undefined,
+  }));
 
   const homebrew: ItemSearchResult[] = (homebrewRows ?? []).map((r) => ({
     id: r.id,
@@ -90,7 +65,7 @@ export async function GET(request: Request) {
     source: "homebrew",
   }));
 
-  const combined = dedupeResults([...official, ...homebrew]);
+  const combined = [...official, ...homebrew];
 
   // Combine and sort: names that start with the query float to the top
   const qLower = q.toLowerCase();

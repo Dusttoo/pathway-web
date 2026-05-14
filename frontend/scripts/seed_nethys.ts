@@ -122,13 +122,40 @@ function isLegacyRemaster(row: Record<string, unknown>): boolean {
   return Array.isArray(remasterId) ? remasterId.length > 0 : Boolean(remasterId);
 }
 
+function hasUsefulValue(value: unknown): boolean {
+  if (typeof value === "string") return value.trim().length > 0;
+  if (typeof value === "number") return Number.isFinite(value) && value > 0;
+  if (typeof value === "boolean") return value;
+  if (Array.isArray(value)) return value.length > 0;
+  if (value && typeof value === "object") return Object.keys(value).length > 0;
+  return false;
+}
+
+function rowCompletenessScore(row: Record<string, unknown>): number {
+  const description = String(row.description ?? "");
+  const metadata = metadataFor(row);
+  return (
+    (hasUsefulValue(row.aon_id) ? 10_000 : 0) +
+    (hasUsefulValue(row.aon_url) ? 2_500 : 0) +
+    (hasUsefulValue(row.source) ? 1_000 : 0) +
+    (hasUsefulValue(row.price_cp) ? 750 : 0) +
+    (hasUsefulValue(row.bulk) ? 250 : 0) +
+    (hasUsefulValue(row.usage) ? 250 : 0) +
+    (hasUsefulValue(row.item_type) ? 200 : 0) +
+    (hasUsefulValue(row.item_subtype) ? 150 : 0) +
+    (hasUsefulValue(row.traits) ? 100 : 0) +
+    (hasUsefulValue(metadata) ? 100 : 0) +
+    Math.min(description.trim().length, 5_000)
+  );
+}
+
 function preferredRow(
   current: Record<string, unknown>,
   next: Record<string, unknown>
 ): Record<string, unknown> {
   if (isLegacyRemaster(current) && !isLegacyRemaster(next)) return next;
   if (!isLegacyRemaster(current) && isLegacyRemaster(next)) return current;
-  return next;
+  return rowCompletenessScore(next) > rowCompletenessScore(current) ? next : current;
 }
 
 function dedupeRows(rows: Record<string, unknown>[], fields?: string[]): Record<string, unknown>[] {
@@ -382,6 +409,8 @@ const SEEDERS: Seeder[] = [
     conflict: "aon_id",
     transform: transformItem,
     filter: (r) => !!r.name,
+    dedupeBy: ["name", "level"],
+    adoptExistingBy: ["name", "level"],
   },
   {
     key: "weapons",
@@ -390,6 +419,8 @@ const SEEDERS: Seeder[] = [
     conflict: "aon_id",
     transform: transformItem,
     filter: (r) => !!r.name,
+    dedupeBy: ["name", "level"],
+    adoptExistingBy: ["name", "level"],
   },
   {
     key: "armor",
@@ -398,6 +429,8 @@ const SEEDERS: Seeder[] = [
     conflict: "aon_id",
     transform: transformItem,
     filter: (r) => !!r.name,
+    dedupeBy: ["name", "level"],
+    adoptExistingBy: ["name", "level"],
   },
   {
     key: "shields",
@@ -406,6 +439,8 @@ const SEEDERS: Seeder[] = [
     conflict: "aon_id",
     transform: transformItem,
     filter: (r) => !!r.name,
+    dedupeBy: ["name", "level"],
+    adoptExistingBy: ["name", "level"],
   },
   {
     key: "actions",
