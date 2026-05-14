@@ -10,6 +10,9 @@ export type NativeBuildInput = {
   age: string;
   ancestry: string;
   ancestry_id: string;
+  ancestry_hp?: number;
+  ancestry_speed?: number;
+  ancestry_size?: string;
   heritage: string;
   class: string;
   class_id: string;

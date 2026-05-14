@@ -5,6 +5,34 @@ import { ChevronDown } from "lucide-react";
 import { useAncestries, useAncestryDetail } from "@/lib/hooks/use-builder-data";
 import type { StepProps } from "./types";
 
+function numberFromBenefit(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const match = value.match(/-?\d+/);
+    if (match) return parseInt(match[0], 10);
+  }
+  return undefined;
+}
+
+function stringFromBenefit(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    const strings = value.filter((item) => typeof item === "string");
+    return strings.length ? strings.join(", ") : undefined;
+  }
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function statBenefit(benefits: unknown, key: string): unknown {
+  if (!benefits || typeof benefits !== "object" || Array.isArray(benefits)) return undefined;
+  const record = benefits as Record<string, unknown>;
+  const stats = record.stats;
+  if (stats && typeof stats === "object" && !Array.isArray(stats)) {
+    const value = (stats as Record<string, unknown>)[key];
+    if (value !== undefined) return value;
+  }
+  return record[key];
+}
+
 export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
   const [searchQ, setSearchQ] = useState("");
 
@@ -19,6 +47,7 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
   const versatileHeritages = (ancestryDetail?.versatileHeritages ?? []).filter(
     (h) => !ancestryHeritageIds.has(h.id)
   );
+  const selectedAncestry = ancestryDetail ?? ancestries.find((a) => a.id === state.ancestryId);
 
   function handleAncestryChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const id = e.target.value;
@@ -45,6 +74,33 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
       heritageName: "", // reset when ancestry changes
       defaultLanguages: langs,
       languages: langs, // pre-populate languages for step 5
+    });
+  }
+
+  function handleHeritageChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const heritageName = e.target.value;
+    const heritage = [...ancestryHeritages, ...versatileHeritages].find(
+      (h) => h.name === heritageName
+    );
+    const benefits = heritage?.benefits;
+    const ancestryHp =
+      numberFromBenefit(statBenefit(benefits, "ancestry_hp")) ??
+      numberFromBenefit(statBenefit(benefits, "hp")) ??
+      selectedAncestry?.ancestry_hp ??
+      8;
+    const ancestrySpeed =
+      numberFromBenefit(statBenefit(benefits, "speed")) ??
+      numberFromBenefit(statBenefit(benefits, "land_speed")) ??
+      selectedAncestry?.speed ??
+      25;
+    const ancestrySize =
+      stringFromBenefit(statBenefit(benefits, "size")) ?? selectedAncestry?.size ?? "Medium";
+
+    update({
+      heritageName,
+      ancestryHp,
+      ancestrySpeed,
+      ancestrySize,
     });
   }
 
@@ -102,7 +158,7 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
             <select
               className="input w-full appearance-none pr-8"
               value={state.heritageName}
-              onChange={(e) => update({ heritageName: e.target.value })}
+              onChange={handleHeritageChange}
               disabled={loadingDetail}
             >
               <option value="">

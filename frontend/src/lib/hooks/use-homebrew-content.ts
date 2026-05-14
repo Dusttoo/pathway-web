@@ -23,6 +23,7 @@ export type HomebrewClassInput = {
   spellcasting_ability?: string;
   trained_skill_count: number;
   class_trained_skills: string[];
+  class_lore_skills: string[];
   description?: string;
 };
 

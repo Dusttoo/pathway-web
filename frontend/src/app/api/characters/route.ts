@@ -69,6 +69,27 @@ function clampProficiencyRank(raw: unknown, fallback = 0): number {
   return Math.max(0, Math.min(4, value));
 }
 
+function loreTopicFromKey(key: string): string | null {
+  if (key.startsWith("lore:")) {
+    const topic = key
+      .slice("lore:".length)
+      .replace(/[_-]+/g, " ")
+      .trim();
+    return topic || null;
+  }
+  if (key.endsWith("_lore")) {
+    const topic = key.slice(0, -"_lore".length).replace(/[_-]+/g, " ").trim();
+    return topic || null;
+  }
+  return null;
+}
+
+function loreTopicName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const topic = value.trim().replace(/\s+lore$/i, "");
+  return topic || null;
+}
+
 function synthesizeBuild(
   input: NativeBuildInput,
   ancestry: AncestryRow,
@@ -79,6 +100,12 @@ function synthesizeBuild(
       ([key, rank]) => [key, clampProficiencyRank(rank)]
     )
   ) as Record<string, number>;
+  const classMetadata = (charClass.class_metadata ?? {}) as Record<string, unknown>;
+  const classLoreSkills = Array.isArray(classMetadata.class_lore_skills)
+    ? classMetadata.class_lore_skills
+        .map(loreTopicName)
+        .filter((topic): topic is string => !!topic)
+    : [];
   const baseSkills = Object.fromEntries(ALL_SKILLS.map((s) => [s, 0]));
 
   // Background-granted skill (rank 1, does not consume a free pick slot)
@@ -139,8 +166,24 @@ function synthesizeBuild(
   const dexMod = Math.floor((input.abilities.dex - 10) / 2);
   const unarmoredRank = mergedProfs.unarmored ?? 1;
   const acProfBonus = unarmoredRank > 0 ? unarmoredRank * 2 + input.level : 0;
-  const sizeStr = (ancestry.size ?? "medium").toLowerCase();
+  const ancestrySize = input.ancestry_size ?? ancestry.size ?? "Medium";
+  const ancestryHp = input.ancestry_hp ?? ancestry.ancestry_hp ?? 8;
+  const ancestrySpeed = input.ancestry_speed ?? ancestry.speed ?? 25;
+  const sizeStr = ancestrySize.split(",")[0]?.trim().toLowerCase() || "medium";
   const sizeNum = ANCESTRY_SIZE_MAP[sizeStr] ?? 2;
+  const classLoreProfs = Object.entries(classProfs)
+    .map(([key, rank]) => {
+      const topic = loreTopicFromKey(key);
+      return topic ? [topic, Math.max(1, Math.min(4, Math.round(rank || 1)))] : null;
+    })
+    .filter((entry): entry is [string, number] => !!entry);
+  const classLores = new Map<string, [string, number]>();
+  for (const topic of classLoreSkills) {
+    classLores.set(topic.toLowerCase(), [topic, 1]);
+  }
+  for (const [topic, rank] of classLoreProfs) {
+    if (!classLores.has(topic.toLowerCase())) classLores.set(topic.toLowerCase(), [topic, rank]);
+  }
 
   return {
     success: true,
@@ -158,7 +201,7 @@ function synthesizeBuild(
       age: input.age || "Not set",
       deity: input.deity || "Not set",
       size: sizeNum,
-      sizeName: ancestry.size ?? "Medium",
+      sizeName: ancestrySize,
       keyability: input.keyability,
       languages: input.languages.length ? input.languages : ["None selected"],
       rituals: [],
@@ -176,11 +219,11 @@ function synthesizeBuild(
         },
       },
       attributes: {
-        ancestryhp: ancestry.ancestry_hp ?? 8,
+        ancestryhp: ancestryHp,
         classhp: charClass.class_hp ?? 8,
         bonushp: 0,
         bonushpPerLevel: 0,
-        speed: ancestry.speed ?? 25,
+        speed: ancestrySpeed,
         speedBonus: 0,
       },
       proficiencies: mergedProfs,
@@ -189,6 +232,7 @@ function synthesizeBuild(
       specials: customSpecials,
       custom_attacks: customAttacks,
       lores: [
+        ...classLores.values(),
         ...(input.lore ? [[input.lore, 1]] : []),
         ...(input.additional_skills ?? [])
           .filter((skill) => /lore$/i.test(skill.name.trim()))

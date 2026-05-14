@@ -4,6 +4,34 @@ import { Loader2, AlertCircle, Sparkles, Users2 } from "lucide-react";
 import { useAncestryDetail } from "@/lib/hooks/use-builder-data";
 import type { StepProps } from "../types";
 
+function numberFromBenefit(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const match = value.match(/-?\d+/);
+    if (match) return parseInt(match[0], 10);
+  }
+  return undefined;
+}
+
+function stringFromBenefit(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    const strings = value.filter((item) => typeof item === "string");
+    return strings.length ? strings.join(", ") : undefined;
+  }
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function statBenefit(benefits: unknown, key: string): unknown {
+  if (!benefits || typeof benefits !== "object" || Array.isArray(benefits)) return undefined;
+  const record = benefits as Record<string, unknown>;
+  const stats = record.stats;
+  if (stats && typeof stats === "object" && !Array.isArray(stats)) {
+    const value = (stats as Record<string, unknown>)[key];
+    if (value !== undefined) return value;
+  }
+  return record[key];
+}
+
 export function HeritageStep({ state, update }: StepProps) {
   const { data: detail, isLoading } = useAncestryDetail(state.ancestryId || null);
 
@@ -28,8 +56,27 @@ export function HeritageStep({ state, update }: StepProps) {
   const versatileIds = new Set(ancestryHeritages.map((h) => h.id));
   const versatile = (detail?.versatileHeritages ?? []).filter((h) => !versatileIds.has(h.id));
 
-  function pick(h: { id: string; name: string }) {
-    update({ heritageId: h.id, heritageName: h.name });
+  function pick(h: { id: string; name: string; benefits?: unknown }) {
+    const ancestryHp =
+      numberFromBenefit(statBenefit(h.benefits, "ancestry_hp")) ??
+      numberFromBenefit(statBenefit(h.benefits, "hp")) ??
+      detail?.ancestry_hp ??
+      state.ancestryHp;
+    const ancestrySpeed =
+      numberFromBenefit(statBenefit(h.benefits, "speed")) ??
+      numberFromBenefit(statBenefit(h.benefits, "land_speed")) ??
+      detail?.speed ??
+      state.ancestrySpeed;
+    const ancestrySize =
+      stringFromBenefit(statBenefit(h.benefits, "size")) ?? detail?.size ?? state.ancestrySize;
+
+    update({
+      heritageId: h.id,
+      heritageName: h.name,
+      ancestryHp,
+      ancestrySpeed,
+      ancestrySize,
+    });
   }
 
   return (

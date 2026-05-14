@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import {
-  Plus, Pencil, Trash2, Search, ChevronDown, Loader2, Wand2, AlertTriangle,
+  Plus, Pencil, Trash2, Search, ChevronDown, Loader2, Wand2, AlertTriangle, X,
 } from "lucide-react";
 import {
   useHomebrewClasses,
@@ -31,14 +31,36 @@ type ClassItem = {
   spellcasting_ability?: string;
   description?: string;
   class_trained_skills: string[];
+  class_lore_skills: string[];
   trained_skill_count: number;
 };
+
+function cleanLoreSkill(value: string): string {
+  const topic = value.trim().replace(/\s+lore$/i, "").replace(/\s+/g, " ");
+  return topic ? `${topic} Lore` : "";
+}
+
+function loreKey(value: string): string {
+  return cleanLoreSkill(value)
+    .replace(/\s+lore$/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+}
 
 function toItem(raw: Record<string, unknown>): ClassItem {
   // Extract class_trained_skills from initial_proficiencies (any skill at rank 2)
   const profs = (raw.initial_proficiencies ?? {}) as Record<string, unknown>;
   const class_trained_skills = SKILLS.filter((s) => profs[s] === 2);
   const meta = (raw.class_metadata ?? {}) as Record<string, unknown>;
+  const class_lore_skills = Array.isArray(meta.class_lore_skills)
+    ? meta.class_lore_skills
+        .map((skill) => (typeof skill === "string" ? cleanLoreSkill(skill) : ""))
+        .filter(Boolean)
+    : Object.entries(profs)
+        .filter(([key, rank]) => key.startsWith("lore:") && rank === 2)
+        .map(([key]) => cleanLoreSkill(key.slice("lore:".length).replace(/[_-]+/g, " ")))
+        .filter(Boolean);
 
   return {
     id: String(raw.id ?? ""),
@@ -55,6 +77,7 @@ function toItem(raw: Record<string, unknown>): ClassItem {
       : undefined,
     description: raw.description ? String(raw.description) : undefined,
     class_trained_skills,
+    class_lore_skills,
     trained_skill_count: typeof meta.trained_skill_count === "number"
       ? meta.trained_skill_count
       : 3,
@@ -89,6 +112,10 @@ function ClassForm({
   const [classSkills, setClassSkills] = useState<string[]>(
     initialValues?.class_trained_skills ?? []
   );
+  const [classLoreSkills, setClassLoreSkills] = useState<string[]>(
+    initialValues?.class_lore_skills ?? []
+  );
+  const [loreInput, setLoreInput] = useState("");
   const [description, setDesc] = useState(initialValues?.description ?? "");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -103,6 +130,19 @@ function ClassForm({
     setClassSkills((prev) =>
       prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
     );
+  }
+  function addLoreSkill() {
+    const skill = cleanLoreSkill(loreInput);
+    if (!skill) return;
+    const key = loreKey(skill);
+    setClassLoreSkills((prev) =>
+      prev.some((existing) => loreKey(existing) === key) ? prev : [...prev, skill]
+    );
+    setLoreInput("");
+  }
+  function removeLoreSkill(skill: string) {
+    const key = loreKey(skill);
+    setClassLoreSkills((prev) => prev.filter((existing) => loreKey(existing) !== key));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -120,6 +160,7 @@ function ClassForm({
       spellcasting_ability: isSpell ? spellAbility || undefined : undefined,
       trained_skill_count: trainedCount,
       class_trained_skills: classSkills,
+      class_lore_skills: classLoreSkills,
       description: description || undefined,
     };
     try {
@@ -255,6 +296,53 @@ function ClassForm({
         </div>
       </div>
 
+      {/* Class-granted Lore skills */}
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          Class-Granted Lore Skills
+        </label>
+        <p className="text-xs text-muted-foreground mb-2">
+          Add specific Lore skills granted by the class, such as Warfare Lore or Dragonmark Lore.
+        </p>
+        <div className="flex gap-2">
+          <input
+            className="input flex-1 text-sm"
+            value={loreInput}
+            onChange={(e) => setLoreInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addLoreSkill();
+              }
+            }}
+            placeholder="e.g. Warfare Lore"
+          />
+          <button type="button" onClick={addLoreSkill} className="btn-outline px-3">
+            <Plus size={14} />
+          </button>
+        </div>
+        {classLoreSkills.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {classLoreSkills.map((skill) => (
+              <span
+                key={skill}
+                className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs"
+              >
+                {skill}
+                <button
+                  type="button"
+                  onClick={() => removeLoreSkill(skill)}
+                  className="text-muted-foreground hover:text-destructive"
+                  title={`Remove ${skill}`}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div>
         <label className="block text-sm font-medium mb-1">
           Description{" "}
@@ -353,6 +441,11 @@ function ClassCard({
       {item.class_trained_skills.length > 0 && (
         <p className="text-xs text-muted-foreground capitalize">
           Class skills: {item.class_trained_skills.join(", ")}
+        </p>
+      )}
+      {item.class_lore_skills.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Class lore: {item.class_lore_skills.join(", ")}
         </p>
       )}
       {item.description && (
