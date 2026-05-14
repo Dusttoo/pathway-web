@@ -24,6 +24,7 @@ export type HomebrewClassInput = {
   trained_skill_count: number;
   class_trained_skills: string[];
   class_lore_skills: string[];
+  class_proficiencies: Record<string, number>;
   description?: string;
 };
 

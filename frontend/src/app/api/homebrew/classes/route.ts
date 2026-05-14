@@ -15,6 +15,51 @@ function loreKey(value: string): string {
     .replace(/^_|_$/g, "")}`;
 }
 
+const CLASS_PROFICIENCY_KEYS = [
+  "classDC",
+  "perception",
+  "fortitude",
+  "reflex",
+  "will",
+  "heavy",
+  "medium",
+  "light",
+  "unarmored",
+  "advanced",
+  "martial",
+  "simple",
+  "unarmed",
+  "castingArcane",
+  "castingDivine",
+  "castingOccult",
+  "castingPrimal",
+];
+
+const DEFAULT_CLASS_PROFICIENCIES: Record<string, number> = {
+  classDC: 2, perception: 2,
+  fortitude: 2, reflex: 2, will: 2,
+  heavy: 0, medium: 0, light: 2, unarmored: 2,
+  advanced: 0, martial: 0, simple: 2, unarmed: 2,
+  castingArcane: 0, castingDivine: 0, castingOccult: 0, castingPrimal: 0,
+};
+
+function proficiencyRank(value: unknown, fallback: number): number {
+  const n = typeof value === "number" ? value : parseInt(String(value ?? ""), 10);
+  return [0, 2, 4, 6, 8].includes(n) ? n : fallback;
+}
+
+function cleanClassProficiencies(value: unknown): Record<string, number> {
+  const input = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+  return Object.fromEntries(
+    CLASS_PROFICIENCY_KEYS.map((key) => [
+      key,
+      proficiencyRank(input[key], DEFAULT_CLASS_PROFICIENCIES[key] ?? 0),
+    ])
+  );
+}
+
 async function resolveUser() {
   const supabase = await createClient();
   const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -63,6 +108,7 @@ export async function POST(request: Request) {
     trained_skill_count,
     class_trained_skills,
     class_lore_skills,
+    class_proficiencies,
     description,
   } = body;
 
@@ -82,17 +128,14 @@ export async function POST(request: Request) {
   const loreSkills = Array.isArray(class_lore_skills)
     ? class_lore_skills.map(cleanLoreSkill).filter((skill): skill is string => !!skill)
     : [];
+  const grantedProficiencies = cleanClassProficiencies(class_proficiencies);
   const ALL_SKILLS = [
     "acrobatics","arcana","athletics","crafting","deception","diplomacy",
     "intimidation","medicine","nature","occultism","performance","religion",
     "society","stealth","survival","thievery",
   ];
   const proficiencies: Record<string, number> = {
-    classDC: 2, perception: 2,
-    fortitude: 2, reflex: 2, will: 2,
-    heavy: 0, medium: 0, light: 2, unarmored: 2,
-    advanced: 0, martial: 0, simple: 2, unarmed: 2,
-    castingArcane: 0, castingDivine: 0, castingOccult: 0, castingPrimal: 0,
+    ...grantedProficiencies,
     ...Object.fromEntries(ALL_SKILLS.map((s) => [s, 0])),
     ...Object.fromEntries(trainedSkills.map((s) => [s, 2])),
     ...Object.fromEntries(loreSkills.map((s) => [loreKey(s), 2])),
