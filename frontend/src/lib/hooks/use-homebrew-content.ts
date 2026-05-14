@@ -25,6 +25,11 @@ export type HomebrewClassInput = {
   class_trained_skills: string[];
   class_lore_skills: string[];
   class_proficiencies: Record<string, number>;
+  spellcasting_type?: "prepared" | "spontaneous";
+  spellcasting_tradition?: "arcane" | "divine" | "occult" | "primal";
+  cantrips_known?: number;
+  focus_points?: number;
+  spell_slot_progression?: Record<string, number[]>;
   description?: string;
 };
 

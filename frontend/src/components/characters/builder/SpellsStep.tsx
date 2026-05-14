@@ -35,12 +35,27 @@ function maxRankForLevel(level: number): number {
   return Math.min(10, Math.max(1, Math.ceil(level / 2)));
 }
 
+function classMetadataValue(classDetail: unknown, key: string): unknown {
+  if (!classDetail || typeof classDetail !== "object") return undefined;
+  const metadata = (classDetail as { class_metadata?: unknown }).class_metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return undefined;
+  return (metadata as Record<string, unknown>)[key];
+}
+
 export function SpellsStep({ state, update, onNext, onBack }: StepProps) {
   const { data: classDetail } = useClassDetail(state.classId || null);
 
   const classKey = state.className.toLowerCase();
-  const defaultTradition: Tradition = CLASS_TRADITION[classKey] ?? "arcane";
-  const defaultSource: SpellSource = SPONTANEOUS.has(classKey) ? "repertoire" : "spellbook";
+  const metadataTradition = classMetadataValue(classDetail, "spellcasting_tradition");
+  const metadataType = classMetadataValue(classDetail, "spellcasting_type");
+  const defaultTradition: Tradition =
+    typeof metadataTradition === "string" && TRADITIONS.includes(metadataTradition as Tradition)
+      ? (metadataTradition as Tradition)
+      : CLASS_TRADITION[classKey] ?? "arcane";
+  const defaultSource: SpellSource =
+    metadataType === "spontaneous" || (!metadataType && SPONTANEOUS.has(classKey))
+      ? "repertoire"
+      : "spellbook";
 
   const [tradition, setTradition] = useState<Tradition>(defaultTradition);
   const [spellSource, setSpellSource] = useState<SpellSource>(defaultSource);

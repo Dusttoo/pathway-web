@@ -61,6 +61,51 @@ function loreTopicName(value: unknown): string | null {
   return topic || null;
 }
 
+function metadataString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function metadataNumber(value: unknown, fallback: number, max: number): number {
+  const n = typeof value === "number" ? value : parseInt(String(value ?? ""), 10);
+  return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : fallback;
+}
+
+function spellSlotsForLevel(metadata: Record<string, unknown>, level: number): number[] {
+  const progression = metadata.spell_slot_progression;
+  const table = progression && typeof progression === "object" && !Array.isArray(progression)
+    ? (progression as Record<string, unknown>)
+    : {};
+  const row: unknown[] = Array.isArray(table[String(level)])
+    ? (table[String(level)] as unknown[])
+    : [];
+  return Array.from({ length: 10 }, (_, i) => {
+    const raw = row[i];
+    const n = typeof raw === "number" ? raw : parseInt(String(raw ?? "0"), 10);
+    return Number.isFinite(n) ? Math.max(0, Math.min(9, n)) : 0;
+  });
+}
+
+function classSpellCaster(
+  input: NativeBuildInput,
+  charClass: ClassRow,
+  metadata: Record<string, unknown>
+) {
+  if (!charClass.is_spellcaster) return null;
+  const tradition = metadataString(metadata.spellcasting_tradition) ?? "arcane";
+  const castingType = metadataString(metadata.spellcasting_type) ?? "prepared";
+  const cantrips = metadataNumber(metadata.cantrips_known, 5, 10);
+  const slots = spellSlotsForLevel(metadata, input.level);
+  return {
+    name: input.class,
+    ability: charClass.spellcasting_ability ?? null,
+    tradition,
+    castingType,
+    spellSource: castingType === "spontaneous" ? "repertoire" : "spellbook",
+    cantrips,
+    perDay: [cantrips, ...slots],
+  };
+}
+
 function synthesizeBuild(
   input: NativeBuildInput,
   ancestry: AncestryRow,
@@ -151,6 +196,7 @@ function synthesizeBuild(
   for (const [topic, rank] of classLoreProfs) {
     if (!classLores.has(topic.toLowerCase())) classLores.set(topic.toLowerCase(), [topic, rank]);
   }
+  const spellCaster = classSpellCaster(input, charClass, classMetadata);
 
   return {
     success: true,
@@ -216,8 +262,8 @@ function synthesizeBuild(
       weapons: [],
       armor: [],
       money: input.money,
-      spellCasters: [],
-      focusPoints: 0,
+      spellCasters: spellCaster ? [spellCaster] : [],
+      focusPoints: metadataNumber(classMetadata.focus_points, 0, 3),
       focus: {},
       formula: [],
       acTotal: {
