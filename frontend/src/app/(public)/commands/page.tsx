@@ -56,12 +56,12 @@ const commandGroups: CommandGroup[] = [
     id: "characters",
     title: "Characters",
     summary:
-      "Import Pathbuilder sheets, set active characters, edit sheet data, and view character output.",
+      "Import Pathbuilder or Pathway web sheets, set active characters, edit sheet data, and view character output.",
     commands: [
       {
         name: "char",
         description:
-          "Import, create, edit, and manage saved character sheets. /char update accepts Pathbuilder codes, Pathbuilder JSON URLs, and Pathway web JSON IDs.",
+          "Import, create, edit, and manage saved character sheets. /char import and /char update accept Pathbuilder codes, Pathbuilder JSON URLs, and Pathway web JSON IDs.",
         syntax: "/char <subcommand>",
         subcommands: [
           "add",
@@ -89,6 +89,7 @@ const commandGroups: CommandGroup[] = [
         ],
         examples: [
           "/char add file:sheet.json",
+          "/char import id:1a501305-de50-4391-a0cf-44f4c5869d3d",
           "/char update id:e33b3c85-03d5-44f0-9cc1-40a139a0a7db",
           "/char active character:Hylia",
           "/char attack name:Rapier attack:+7 damage:1d6+1 damage_type:piercing",
