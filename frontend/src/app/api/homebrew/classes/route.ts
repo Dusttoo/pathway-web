@@ -1,6 +1,20 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+function cleanLoreSkill(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const topic = value.trim().replace(/\s+lore$/i, "").replace(/\s+/g, " ");
+  return topic ? `${topic} Lore` : null;
+}
+
+function loreKey(value: string): string {
+  return `lore:${value
+    .replace(/\s+lore$/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")}`;
+}
+
 async function resolveUser() {
   const supabase = await createClient();
   const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -48,6 +62,7 @@ export async function POST(request: Request) {
     spellcasting_ability,
     trained_skill_count,
     class_trained_skills,
+    class_lore_skills,
     description,
   } = body;
 
@@ -64,6 +79,9 @@ export async function POST(request: Request) {
 
   // Build initial_proficiencies from class-trained skills
   const trainedSkills: string[] = Array.isArray(class_trained_skills) ? class_trained_skills : [];
+  const loreSkills = Array.isArray(class_lore_skills)
+    ? class_lore_skills.map(cleanLoreSkill).filter((skill): skill is string => !!skill)
+    : [];
   const ALL_SKILLS = [
     "acrobatics","arcana","athletics","crafting","deception","diplomacy",
     "intimidation","medicine","nature","occultism","performance","religion",
@@ -77,6 +95,7 @@ export async function POST(request: Request) {
     castingArcane: 0, castingDivine: 0, castingOccult: 0, castingPrimal: 0,
     ...Object.fromEntries(ALL_SKILLS.map((s) => [s, 0])),
     ...Object.fromEntries(trainedSkills.map((s) => [s, 2])),
+    ...Object.fromEntries(loreSkills.map((s) => [loreKey(s), 2])),
   };
 
   const { data, error } = await ctx.service
@@ -93,7 +112,10 @@ export async function POST(request: Request) {
       source: "Homebrew",
       initial_proficiencies: proficiencies,
       class_features: {},
-      class_metadata: { trained_skill_count: trained_skill_count ?? 3 },
+      class_metadata: {
+        trained_skill_count: trained_skill_count ?? 3,
+        class_lore_skills: loreSkills,
+      },
     })
     .select()
     .single();

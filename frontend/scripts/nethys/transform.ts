@@ -32,6 +32,20 @@ function arr(v: unknown): string[] {
   return [];
 }
 
+function firstString(v: unknown, fallback = ""): string {
+  const values = arr(v);
+  if (values.length) return values.join(", ");
+  return s(v, fallback);
+}
+
+function speedFeet(v: unknown, fallback = 25): number {
+  if (typeof v === "object" && v !== null && !Array.isArray(v)) {
+    const speed = v as Record<string, unknown>;
+    return n(speed.land ?? speed.max ?? speed.walk, fallback);
+  }
+  return n(v, fallback);
+}
+
 function bool(v: unknown): boolean {
   return v === true || v === "true";
 }
@@ -226,8 +240,8 @@ export function transformAncestry(doc: NethysDoc): Record<string, unknown> {
     name: s(src.name).trim(),
     description: s(src.text ?? src.summary),
     ancestry_hp: n(src.hp, 8),
-    size: s(src.size, "Medium"),
-    speed: n(src.speed, 25),
+    size: firstString(src.size, "Medium"),
+    speed: speedFeet(src.speed, 25),
     attribute_boosts: arr(src.attribute),
     attribute_flaws: arr(src.attribute_flaw),
     languages: arr(src.language),

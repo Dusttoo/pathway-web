@@ -8,6 +8,26 @@ const ALL_SKILLS = [
   "society", "stealth", "survival", "thievery",
 ];
 
+function cleanLoreSkill(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const topic = value.trim().replace(/\s+lore$/i, "").replace(/\s+/g, " ");
+  return topic ? `${topic} Lore` : null;
+}
+
+function loreKey(value: string): string {
+  return `lore:${value
+    .replace(/\s+lore$/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")}`;
+}
+
+function objectRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 async function resolveOwnership(id: string) {
   const supabase = await createClient();
   const {
@@ -30,7 +50,7 @@ async function resolveOwnership(id: string) {
 
   const { data: cls } = await service
     .from("character_classes")
-    .select("id, created_by_user_id, is_official")
+    .select("id, created_by_user_id, is_official, class_metadata")
     .eq("id", id)
     .maybeSingle();
 
@@ -38,7 +58,7 @@ async function resolveOwnership(id: string) {
     return { error: "Not found or not yours", status: 403 } as const;
   }
 
-  return { service, appUserId: dbUser.id } as const;
+  return { service, appUserId: dbUser.id, classMetadata: cls.class_metadata } as const;
 }
 
 // ── PATCH /api/homebrew/classes/[id] ─────────────────────────────────────────
@@ -63,6 +83,7 @@ export async function PATCH(
     spellcasting_ability?: string;
     trained_skill_count?: number;
     class_trained_skills?: string[];
+    class_lore_skills?: string[];
     description?: string;
   };
   try {
@@ -79,6 +100,7 @@ export async function PATCH(
     spellcasting_ability,
     trained_skill_count,
     class_trained_skills,
+    class_lore_skills,
     description,
   } = body;
 
@@ -90,6 +112,9 @@ export async function PATCH(
   const trainedSkills: string[] = Array.isArray(class_trained_skills)
     ? class_trained_skills
     : [];
+  const loreSkills = Array.isArray(class_lore_skills)
+    ? class_lore_skills.map(cleanLoreSkill).filter((skill): skill is string => !!skill)
+    : undefined;
   const proficiencies: Record<string, number> = {
     classDC: 2, perception: 2,
     fortitude: 2, reflex: 2, will: 2,
@@ -98,6 +123,7 @@ export async function PATCH(
     castingArcane: 0, castingDivine: 0, castingOccult: 0, castingPrimal: 0,
     ...Object.fromEntries(ALL_SKILLS.map((s) => [s, 0])),
     ...Object.fromEntries(trainedSkills.map((s) => [s, 2])),
+    ...(loreSkills ? Object.fromEntries(loreSkills.map((s) => [loreKey(s), 2])) : {}),
   };
 
   const keyAttrList: string[] | undefined =
@@ -126,9 +152,15 @@ export async function PATCH(
     updates.spellcasting_ability = is_spellcaster ? (spellcasting_ability ?? null) : null;
   }
   if (description !== undefined) updates.description = description || null;
-  if (class_trained_skills !== undefined) updates.initial_proficiencies = proficiencies as Json;
-  if (trained_skill_count !== undefined) {
-    updates.class_metadata = { trained_skill_count } as Json;
+  if (class_trained_skills !== undefined || class_lore_skills !== undefined) {
+    updates.initial_proficiencies = proficiencies as Json;
+  }
+  if (trained_skill_count !== undefined || loreSkills !== undefined) {
+    updates.class_metadata = {
+      ...objectRecord(resolved.classMetadata),
+      ...(trained_skill_count !== undefined ? { trained_skill_count } : {}),
+      ...(loreSkills !== undefined ? { class_lore_skills: loreSkills } : {}),
+    } as Json;
   }
 
   const { data, error } = await resolved.service
