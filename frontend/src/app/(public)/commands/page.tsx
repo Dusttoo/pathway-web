@@ -60,7 +60,8 @@ const commandGroups: CommandGroup[] = [
     commands: [
       {
         name: "char",
-        description: "Import, create, edit, and manage saved character sheets.",
+        description:
+          "Import, create, edit, and manage saved character sheets. /char update accepts Pathbuilder codes, Pathbuilder JSON URLs, and Pathway web JSON IDs.",
         syntax: "/char <subcommand>",
         subcommands: [
           "add",
@@ -79,6 +80,7 @@ const commandGroups: CommandGroup[] = [
           "skill",
           "lore",
           "weapon",
+          "attack",
           "item",
           "spellcasting",
           "feat",
@@ -87,8 +89,10 @@ const commandGroups: CommandGroup[] = [
         ],
         examples: [
           "/char add file:sheet.json",
+          "/char update id:e33b3c85-03d5-44f0-9cc1-40a139a0a7db",
           "/char active character:Hylia",
-          "/char hp current:18",
+          "/char attack name:Rapier attack:+7 damage:1d6+1 damage_type:piercing",
+          "/char lore name:Underworld bonus:+6",
         ],
       },
       {
@@ -104,6 +108,13 @@ const commandGroups: CommandGroup[] = [
         syntax: "/feats [character]",
       },
       {
+        name: "abilities",
+        description:
+          "Display a character's special abilities and features without cluttering the main sheet.",
+        syntax: "/abilities [character]",
+        examples: ["/abilities", "/abilities character:Isolde"],
+      },
+      {
         name: "portrait",
         description: "Show the current portrait art for a character.",
         syntax: "/portrait [character]",
@@ -117,6 +128,7 @@ const commandGroups: CommandGroup[] = [
           "info",
           "list",
           "add",
+          "import",
           "mine",
           "sheet",
           "active",
@@ -134,7 +146,12 @@ const commandGroups: CommandGroup[] = [
           "art",
           "roll",
         ],
-        examples: ["/companion add name:Shadow base:wolf", "/companion sheet name:Shadow"],
+        examples: [
+          "/companion add name:Shadow base:wolf",
+          "/companion import file:abyss.pdf",
+          "/companion hp name:Shadow amount:+12",
+          "/companion sheet name:Shadow",
+        ],
       },
     ],
   },
@@ -258,15 +275,22 @@ const commandGroups: CommandGroup[] = [
       },
       {
         name: "mattack",
-        description: "GM command for manually rolling an attack for a combatant in initiative.",
+        description:
+          "GM command for rolling a monster attack in or out of initiative, including multiple attack penalty support.",
         syntax:
           "/mattack attacker:<name> name:<attack> target:<target> [bonus] [damage] [type] [map] [agile]",
+        examples: ["/mattack attacker:Goblin Warrior name:dogslicer target:Hylia"],
       },
       {
         name: "m",
-        description: "GM quick monster actions.",
+        description:
+          "GM quick monster actions for saves, skills, spellcasting, abilities, and attack lists in or out of initiative.",
         syntax: "/m <subcommand>",
         subcommands: ["save", "skill", "cast", "ability", "attacks"],
+        examples: [
+          "/m skill monster:Goblin Warrior skill:stealth",
+          "/m save monster:Goblin Warrior save:fortitude",
+        ],
       },
     ],
   },
@@ -636,12 +660,6 @@ const commandGroups: CommandGroup[] = [
         subcommands: ["paste", "file", "remove"],
         ownerOnly: true,
       },
-      {
-        name: "diagnose",
-        description: "Show a diagnostic dump of saved character data.",
-        syntax: "/diagnose [download]",
-        options: ["download - bot-owner-only full character export"],
-      },
     ],
   },
   {
@@ -663,6 +681,12 @@ const commandGroups: CommandGroup[] = [
           "moon",
           "clear",
           "setting",
+          "autotick",
+        ],
+        examples: [
+          "/calendar today",
+          "/calendar setting setting:Eberron",
+          "/calendar autotick enabled:true",
         ],
       },
       {
@@ -680,12 +704,14 @@ const commandGroups: CommandGroup[] = [
           "clear",
           "setting",
         ],
+        examples: ["/weather current", "/weather roll climate:temperate", "/weather apply"],
       },
       {
         name: "eberron",
         description: "Eberron campaign reference lookups.",
         syntax: "/eberron <subcommand>",
         subcommands: ["house", "deity"],
+        examples: ["/eberron house name:Cannith", "/eberron deity name:Silver Flame"],
       },
     ],
   },
