@@ -169,7 +169,8 @@ export function AbilitiesStep({ state, update }: StepProps) {
     const active = state.selectedAncestryFlaws.includes(key);
     const selectedAncestryFlaws = active
       ? state.selectedAncestryFlaws.filter((flaw) => flaw !== key)
-      : state.selectedAncestryFlaws.length < 2 && !state.abilityBoostChoices.ancestryFree.includes(key)
+      : state.selectedAncestryFlaws.length < 2 &&
+          !state.abilityBoostChoices.ancestryFree.includes(key)
         ? [...state.selectedAncestryFlaws, key]
         : state.selectedAncestryFlaws;
     const ancestryFree =
@@ -178,7 +179,11 @@ export function AbilitiesStep({ state, update }: StepProps) {
         : state.abilityBoostChoices.ancestryFree;
     const abilityBoostChoices = { ...state.abilityBoostChoices, ancestryFree };
     const nextState = { ...state, selectedAncestryFlaws, abilityBoostChoices };
-    update({ selectedAncestryFlaws, abilityBoostChoices, abilities: calculateAbilities(nextState) });
+    update({
+      selectedAncestryFlaws,
+      abilityBoostChoices,
+      abilities: calculateAbilities(nextState),
+    });
   }
 
   function toggleBackground(key: AbilityKey) {
@@ -250,8 +255,8 @@ export function AbilitiesStep({ state, update }: StepProps) {
               <h3 className="font-semibold">Ancestry</h3>
               <p className="text-xs text-muted-foreground">
                 {usePrintedAncestry
-                  ? "Use printed ancestry boosts and flaws."
-                  : "Alternate ancestry boosts: pick two free boosts instead of printed boosts/flaws."}
+                  ? "Use standard ancestry boosts and flaws."
+                  : "Alternate ancestry boosts: pick two free boosts instead of standard boosts/flaws."}
               </p>
             </div>
             <div className="flex gap-2">
@@ -264,7 +269,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
                     : "bg-muted text-muted-foreground"
                 }`}
               >
-                Remaster
+                Alternate
               </button>
               <button
                 type="button"
@@ -275,7 +280,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
                     : "bg-muted text-muted-foreground"
                 }`}
               >
-                Printed
+                Standard
               </button>
             </div>
           </div>
@@ -290,7 +295,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
                       : ""
                   }`
                 : usePrintedAncestry
-                  ? "No fixed ancestry boosts found for this ancestry."
+                  ? "No standard ancestry boosts found for this ancestry."
                   : state.selectedAncestryFlaws.length >= 2
                     ? "Two voluntary flaws unlock a third boost."
                     : "Choose two free ancestry boosts."
