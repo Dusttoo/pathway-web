@@ -43,7 +43,8 @@ export function AbilitiesStep({ state, update }: StepProps) {
 
   function toggleAncestryBoost(key: Ability) {
     const selected = state.selectedAncestryBoosts.includes(key);
-    const maxBoosts = state.ancestryBoostMode === "remaster" && state.selectedAncestryFlaws.length ? 3 : 2;
+    const maxBoosts =
+      state.ancestryBoostMode === "remaster" && state.selectedAncestryFlaws.length >= 2 ? 3 : 2;
     if (selected) {
       update({ selectedAncestryBoosts: state.selectedAncestryBoosts.filter((item) => item !== key) });
     } else if (state.selectedAncestryBoosts.length < maxBoosts) {
@@ -55,12 +56,15 @@ export function AbilitiesStep({ state, update }: StepProps) {
     if (state.ancestryBoostMode !== "remaster") return;
     const selected = state.selectedAncestryFlaws.includes(key);
     if (selected) {
+      const flaws = state.selectedAncestryFlaws.filter((item) => item !== key);
       update({
-        selectedAncestryFlaws: [],
-        selectedAncestryBoosts: state.selectedAncestryBoosts.slice(0, 2),
+        selectedAncestryFlaws: flaws,
+        selectedAncestryBoosts: flaws.length >= 2
+          ? state.selectedAncestryBoosts
+          : state.selectedAncestryBoosts.slice(0, 2),
       });
-    } else if (!state.selectedAncestryBoosts.includes(key)) {
-      update({ selectedAncestryFlaws: [key] });
+    } else if (!state.selectedAncestryBoosts.includes(key) && state.selectedAncestryFlaws.length < 2) {
+      update({ selectedAncestryFlaws: [...state.selectedAncestryFlaws, key] });
     }
   }
 
@@ -144,13 +148,13 @@ export function AbilitiesStep({ state, update }: StepProps) {
         {state.ancestryBoostMode === "remaster" ? (
           <div>
             <p className="text-xs text-muted-foreground mb-2">
-              Choose any two different ancestry boosts. You can also take one voluntary flaw to
-              choose a third boost.
+              Choose any two different ancestry boosts. You can also take voluntary flaws; two
+              voluntary flaws unlock a third boost.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
               {ABILITIES.map(({ key, short }) => {
                 const active = state.selectedAncestryBoosts.includes(key);
-                const maxBoosts = state.selectedAncestryFlaws.length ? 3 : 2;
+                const maxBoosts = state.selectedAncestryFlaws.length >= 2 ? 3 : 2;
                 const disabled =
                   (!active && state.selectedAncestryBoosts.length >= maxBoosts) ||
                   state.selectedAncestryFlaws.includes(key);
@@ -174,12 +178,16 @@ export function AbilitiesStep({ state, update }: StepProps) {
               })}
             </div>
             <p className="text-xs text-muted-foreground mt-3 mb-2">
-              Optional voluntary flaw for one extra boost.
+              Optional voluntary flaws. Pick up to two different flaws; the second unlocks one
+              extra boost.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
               {ABILITIES.map(({ key, short }) => {
                 const active = state.selectedAncestryFlaws.includes(key);
-                const disabled = !active && state.selectedAncestryBoosts.includes(key);
+                const disabled =
+                  !active &&
+                  (state.selectedAncestryBoosts.includes(key) ||
+                    state.selectedAncestryFlaws.length >= 2);
                 return (
                   <button
                     key={key}
@@ -212,7 +220,8 @@ export function AbilitiesStep({ state, update }: StepProps) {
           onClick={applyAncestryBoosts}
           disabled={
             state.ancestryBoostMode === "remaster" &&
-            state.selectedAncestryBoosts.length !== (state.selectedAncestryFlaws.length ? 3 : 2)
+            state.selectedAncestryBoosts.length !==
+              (state.selectedAncestryFlaws.length >= 2 ? 3 : 2)
           }
           className="btn-outline text-sm disabled:opacity-50"
         >
