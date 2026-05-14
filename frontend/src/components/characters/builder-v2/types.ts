@@ -99,8 +99,10 @@ export type BuilderState = {
   ancestryHp: number;
   ancestrySpeed: number;
   ancestrySize: string;
+  ancestryBoostMode: "printed" | "remaster";
   ancestryBoostOptions: string[];
   ancestryFlawOptions: string[];
+  selectedAncestryFlaws: AbilityKey[];
   heritageId: string;
   heritageName: string;
   defaultLanguages: string[];
@@ -180,8 +182,10 @@ export const DEFAULT_STATE: BuilderState = {
   ancestryHp: 8,
   ancestrySpeed: 25,
   ancestrySize: "Medium",
+  ancestryBoostMode: "remaster",
   ancestryBoostOptions: [],
   ancestryFlawOptions: [],
+  selectedAncestryFlaws: [],
   heritageId: "",
   heritageName: "",
   defaultLanguages: [],

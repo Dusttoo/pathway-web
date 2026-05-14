@@ -60,12 +60,13 @@ function applyBoost(score: number): number {
 
 function calculateAbilities(state: BuilderState): Record<AbilityKey, number> {
   const next: Record<AbilityKey, number> = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+  const usePrintedAncestry = state.ancestryBoostMode === "printed";
   const fixedAncestryBoosts = abilityKeys(
-    state.ancestryBoostOptions.filter((boost) => !isFreeBoost(boost))
+    usePrintedAncestry ? state.ancestryBoostOptions.filter((boost) => !isFreeBoost(boost)) : []
   );
-  const fixedAncestryFlaws = abilityKeys(
-    state.ancestryFlawOptions.filter((flaw) => !isFreeBoost(flaw))
-  );
+  const fixedAncestryFlaws = usePrintedAncestry
+    ? abilityKeys(state.ancestryFlawOptions.filter((flaw) => !isFreeBoost(flaw)))
+    : state.selectedAncestryFlaws;
   const classBoost = abilityKey(state.keyability);
 
   for (const flaw of fixedAncestryFlaws) next[flaw] = Math.max(8, next[flaw] - 2);
@@ -107,16 +108,20 @@ export function AbilitiesStep({ state, update }: StepProps) {
   const { ancestryHp, classHp, level } = state;
   const conMod = modOf(calculated.con);
   const maxHp = ancestryHp + (classHp + conMod) * level;
+  const usePrintedAncestry = state.ancestryBoostMode === "printed";
   const fixedAncestryBoosts = abilityKeys(
-    state.ancestryBoostOptions.filter((boost) => !isFreeBoost(boost))
+    usePrintedAncestry ? state.ancestryBoostOptions.filter((boost) => !isFreeBoost(boost)) : []
   );
-  const ancestryFreeSlots =
-    state.ancestryBoostOptions.length > 0
+  const ancestryFreeSlots = usePrintedAncestry
+    ? state.ancestryBoostOptions.length > 0
       ? state.ancestryBoostOptions.filter(isFreeBoost).length
+      : 2
+    : state.selectedAncestryFlaws.length >= 2
+      ? 3
       : 2;
-  const fixedAncestryFlaws = abilityKeys(
-    state.ancestryFlawOptions.filter((flaw) => !isFreeBoost(flaw))
-  );
+  const fixedAncestryFlaws = usePrintedAncestry
+    ? abilityKeys(state.ancestryFlawOptions.filter((flaw) => !isFreeBoost(flaw)))
+    : state.selectedAncestryFlaws;
   const backgroundOptions = unique(abilityKeys(state.backgroundBoostOptions));
   const classBoost = abilityKey(state.keyability);
   const backgroundHasRequired =
@@ -146,6 +151,34 @@ export function AbilitiesStep({ state, update }: StepProps) {
     setChoices({
       ancestryFree: toggleChoice(state.abilityBoostChoices.ancestryFree, key, ancestryFreeSlots),
     });
+  }
+
+  function setAncestryMode(ancestryBoostMode: BuilderState["ancestryBoostMode"]) {
+    const abilityBoostChoices = { ...state.abilityBoostChoices, ancestryFree: [] };
+    const selectedAncestryFlaws: AbilityKey[] = [];
+    const nextState = { ...state, ancestryBoostMode, selectedAncestryFlaws, abilityBoostChoices };
+    update({
+      ancestryBoostMode,
+      selectedAncestryFlaws,
+      abilityBoostChoices,
+      abilities: calculateAbilities(nextState),
+    });
+  }
+
+  function toggleVoluntaryFlaw(key: AbilityKey) {
+    const active = state.selectedAncestryFlaws.includes(key);
+    const selectedAncestryFlaws = active
+      ? state.selectedAncestryFlaws.filter((flaw) => flaw !== key)
+      : state.selectedAncestryFlaws.length < 2 && !state.abilityBoostChoices.ancestryFree.includes(key)
+        ? [...state.selectedAncestryFlaws, key]
+        : state.selectedAncestryFlaws;
+    const ancestryFree =
+      selectedAncestryFlaws.length < 2 && state.abilityBoostChoices.ancestryFree.length > 2
+        ? state.abilityBoostChoices.ancestryFree.slice(0, 2)
+        : state.abilityBoostChoices.ancestryFree;
+    const abilityBoostChoices = { ...state.abilityBoostChoices, ancestryFree };
+    const nextState = { ...state, selectedAncestryFlaws, abilityBoostChoices };
+    update({ selectedAncestryFlaws, abilityBoostChoices, abilities: calculateAbilities(nextState) });
   }
 
   function toggleBackground(key: AbilityKey) {
@@ -211,23 +244,74 @@ export function AbilitiesStep({ state, update }: StepProps) {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <BoostPanel
-          title="Ancestry"
-          status={`${state.abilityBoostChoices.ancestryFree.length}/${ancestryFreeSlots} free boosts`}
-          note={
-            fixedAncestryBoosts.length || fixedAncestryFlaws.length
-              ? `Fixed: ${fixedAncestryBoosts.map((b) => b.toUpperCase()).join(", ") || "none"}${
-                  fixedAncestryFlaws.length
-                    ? ` · Flaw: ${fixedAncestryFlaws.map((b) => b.toUpperCase()).join(", ")}`
-                    : ""
-                }`
-              : "No fixed ancestry boosts found for this ancestry."
-          }
-          selected={state.abilityBoostChoices.ancestryFree}
-          limit={ancestryFreeSlots}
-          disabledKeys={fixedAncestryBoosts}
-          onToggle={toggleAncestry}
-        />
+        <div className="rounded-lg border border-border p-4 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-semibold">Ancestry</h3>
+              <p className="text-xs text-muted-foreground">
+                {usePrintedAncestry
+                  ? "Use printed ancestry boosts and flaws."
+                  : "Alternate ancestry boosts: pick two free boosts instead of printed boosts/flaws."}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setAncestryMode("remaster")}
+                className={`rounded-md px-2.5 py-1 text-xs ${
+                  !usePrintedAncestry
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                Remaster
+              </button>
+              <button
+                type="button"
+                onClick={() => setAncestryMode("printed")}
+                className={`rounded-md px-2.5 py-1 text-xs ${
+                  usePrintedAncestry
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                Printed
+              </button>
+            </div>
+          </div>
+          <BoostPanel
+            title="Ancestry Boosts"
+            status={`${state.abilityBoostChoices.ancestryFree.length}/${ancestryFreeSlots} free boosts`}
+            note={
+              fixedAncestryBoosts.length || fixedAncestryFlaws.length
+                ? `Fixed: ${fixedAncestryBoosts.map((b) => b.toUpperCase()).join(", ") || "none"}${
+                    fixedAncestryFlaws.length
+                      ? ` - Flaw: ${fixedAncestryFlaws.map((b) => b.toUpperCase()).join(", ")}`
+                      : ""
+                  }`
+                : usePrintedAncestry
+                  ? "No fixed ancestry boosts found for this ancestry."
+                  : state.selectedAncestryFlaws.length >= 2
+                    ? "Two voluntary flaws unlock a third boost."
+                    : "Choose two free ancestry boosts."
+            }
+            selected={state.abilityBoostChoices.ancestryFree}
+            limit={ancestryFreeSlots}
+            disabledKeys={[...fixedAncestryBoosts, ...state.selectedAncestryFlaws]}
+            onToggle={toggleAncestry}
+          />
+          {!usePrintedAncestry && (
+            <BoostPanel
+              title="Optional Voluntary Flaws"
+              status={`${state.selectedAncestryFlaws.length}/2 flaws`}
+              note="Optional. Pick up to two different flaws; the second unlocks one extra ancestry boost."
+              selected={state.selectedAncestryFlaws}
+              limit={2}
+              disabledKeys={state.abilityBoostChoices.ancestryFree}
+              onToggle={toggleVoluntaryFlaw}
+            />
+          )}
+        </div>
         <BoostPanel
           title="Background"
           status={`${state.abilityBoostChoices.background.length}/2 boosts`}

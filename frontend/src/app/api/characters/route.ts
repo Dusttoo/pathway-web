@@ -256,9 +256,9 @@ function synthesizeBuild(
       abilities: {
         ...input.abilities,
         breakdown: {
-          ancestryFree: [],
-          ancestryBoosts: [],
-          ancestryFlaws: [],
+          ancestryFree: input.ancestry_boost_mode === "remaster" ? input.ancestry_boosts ?? [] : [],
+          ancestryBoosts: input.ancestry_boosts ?? [],
+          ancestryFlaws: input.ancestry_flaws ?? [],
           backgroundBoosts: [],
           classBoosts: [],
           mapLevelledBoosts: {},
