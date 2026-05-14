@@ -1,208 +1,149 @@
 /**
  * Privacy Policy Page
- * Comprehensive privacy policy for Pathway
+ * Privacy policy for Pathway
  */
 
 import Link from "next/link";
-import { Shield, Mail } from "lucide-react";
+import { Mail, Shield } from "lucide-react";
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="w-full">
-      {/* Hero */}
       <section className="bg-gradient-to-b from-background to-muted py-12">
         <div className="container max-w-4xl mx-auto px-4 md:px-8">
           <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h1 className="text-4xl font-heading font-bold text-center mb-4">
-            Privacy Policy
-          </h1>
-          <p className="text-center text-muted-foreground">
-            Last Updated: January 1, 2025
-          </p>
+          <h1 className="text-4xl font-heading font-bold text-center mb-4">Privacy Policy</h1>
+          <p className="text-center text-muted-foreground">Last Updated: May 14, 2026</p>
         </div>
       </section>
 
-      {/* Content */}
       <section className="py-12 bg-background">
         <div className="container max-w-4xl mx-auto px-4 md:px-8">
           <div className="prose prose-slate dark:prose-invert max-w-none">
             <div className="card p-8 mb-6">
               <p className="text-lg text-muted-foreground">
-                This Privacy Policy describes how Pathway ("Pathway,
-                Inc.", "we", "us", or "our") collects, uses, and protects your
-                personal information when you use our AI-powered Dungeon Master
-                service for PF2e campaigns.
+                This Privacy Policy explains how Pathway ("Pathway", "we", "us", or "our") collects,
+                uses, stores, and protects information when you use the Pathway Discord bot, the
+                Pathway web app, and related closed beta services. Pathway does not use AI to run
+                the bot or generate bot responses.
               </p>
             </div>
 
             <div className="space-y-8">
-              {/* Information We Collect */}
               <section className="card p-6">
-                <h2 className="text-2xl font-heading font-bold mb-4">
-                  1. Information We Collect
-                </h2>
+                <h2 className="text-2xl font-heading font-bold mb-4">1. Information We Collect</h2>
 
                 <h3 className="text-xl font-heading font-semibold mb-3 mt-6">
-                  1.1 Information from Discord
+                  1.1 Discord Account and Server Data
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  When you authenticate with Discord, we collect:
+                  When you use the bot or sign in with Discord, we may collect:
                 </p>
                 <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-                  <li>Discord user ID and username</li>
-                  <li>Discord server (guild) ID you're accessing from</li>
-                  <li>Email address associated with your Discord account</li>
-                  <li>Profile avatar (if provided)</li>
-                  <li>Discord server membership information</li>
-                </ul>
-
-                <h3 className="text-xl font-heading font-semibold mb-3 mt-6">
-                  1.2 Campaign & Character Data
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  To provide our service, we store:
-                </p>
-                <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-                  <li>Campaign names, descriptions, and settings</li>
+                  <li>Discord user ID, username, display name, and avatar</li>
+                  <li>Discord server IDs, channel IDs, and bot permissions</li>
                   <li>
-                    Character sheets (stats, abilities, inventory, backstory)
+                    Command interaction data needed to respond to commands and troubleshoot errors
                   </li>
-                  <li>Session transcripts and summaries</li>
-                  <li>Homebrew content you create (classes, species, items)</li>
-                  <li>Quest logs, NPC data, and location information</li>
-                  <li>Dice rolls and game interactions</li>
+                  <li>
+                    Discord account information made available through Discord OAuth, such as your
+                    linked email if Discord provides it
+                  </li>
                 </ul>
 
                 <h3 className="text-xl font-heading font-semibold mb-3 mt-6">
-                  1.3 AI Interaction Data
+                  1.2 Character, Campaign, and Game Data
                 </h3>
+                <p className="text-muted-foreground mb-4">
+                  To provide character management, rules lookup, initiative, downtime, hunting,
+                  calendar, and campaign tools, we store data you submit or import, including:
+                </p>
                 <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
                   <li>
-                    Conversation history with the Pathway bot
+                    Character sheets, Pathway JSON IDs, Pathbuilder import IDs, ability scores,
+                    skills, saves, feats, spells, inventory, attacks, companions, notes, and
+                    portraits
                   </li>
-                  <li>AI hour usage and billing information</li>
-                  <li>Prompt inputs and AI-generated responses</li>
-                  <li>Session duration and activity timestamps</li>
+                  <li>
+                    Server and campaign settings, active character selections, initiative state,
+                    encounter data, calendars, weather state, downtime activities, and user-created
+                    snippets
+                  </li>
+                  <li>
+                    Homebrew records such as ancestries, heritages, classes, deities, houses, items,
+                    harvest rewards, and other campaign data you choose to add
+                  </li>
+                  <li>
+                    Bug reports, feedback, contact form submissions, and support messages you send
+                    to us
+                  </li>
                 </ul>
 
                 <h3 className="text-xl font-heading font-semibold mb-3 mt-6">
-                  1.4 Payment Information
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  We use third-party payment processors (Stripe) to handle
-                  payments. We do NOT store your full credit card information.
-                  We retain:
-                </p>
-                <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-                  <li>Subscription tier and billing cycle</li>
-                  <li>Payment history and invoices</li>
-                  <li>Last 4 digits of card (from payment processor)</li>
-                  <li>Billing email address</li>
-                </ul>
-
-                <h3 className="text-xl font-heading font-semibold mb-3 mt-6">
-                  1.5 Usage & Analytics Data
+                  1.3 Website and Security Data
                 </h3>
                 <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-                  <li>IP address and location data</li>
-                  <li>Device type and browser information</li>
-                  <li>Page views and navigation patterns</li>
-                  <li>Feature usage and engagement metrics</li>
-                  <li>Error logs and performance data</li>
+                  <li>Session cookies and authentication tokens</li>
+                  <li>IP address, browser, device, and basic request metadata</li>
+                  <li>Page usage, performance data, and error logs</li>
+                  <li>
+                    Security logs used to detect abuse, unauthorized access, or service problems
+                  </li>
                 </ul>
-
-                <h3 className="text-xl font-heading font-semibold mb-3 mt-6">
-                  1.6 Cookies & Tracking
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  We use cookies for authentication, analytics, and marketing.
+                <p className="text-muted-foreground mt-4">
                   See our{" "}
-                  <Link
-                    href="/legal/cookies"
-                    className="text-primary hover:underline"
-                  >
+                  <Link href="/legal/cookies" className="text-primary hover:underline">
                     Cookie Policy
                   </Link>{" "}
-                  for details.
+                  for more about cookies and similar technologies.
                 </p>
               </section>
 
-              {/* How We Use Information */}
               <section className="card p-6">
-                <h2 className="text-2xl font-heading font-bold mb-4">
-                  2. How We Use Your Information
-                </h2>
+                <h2 className="text-2xl font-heading font-bold mb-4">2. How We Use Information</h2>
                 <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
                   <li>
-                    <strong>Service Delivery:</strong> Run PF2e
-                    sessions, manage campaigns, track characters
+                    Provide the Discord bot, web character builder, character sheet sync, and PF2e
+                    campaign tools
                   </li>
                   <li>
-                    <strong>AI Processing:</strong> Send your game context to
-                    Anthropic's Claude API to generate AI Dungeon Master
-                    responses
+                    Import, update, display, and back up user-created or user-imported character and
+                    campaign data
                   </li>
+                  <li>Remember server settings, active characters, and user preferences</li>
+                  <li>Respond to commands, support requests, bug reports, and beta feedback</li>
                   <li>
-                    <strong>Billing:</strong> Process subscriptions, track AI
-                    hour usage, issue invoices
+                    Monitor reliability, debug errors, improve performance, and prevent abuse or
+                    unauthorized access
                   </li>
-                  <li>
-                    <strong>Analytics:</strong> Understand how users interact
-                    with our platform and improve features
-                  </li>
-                  <li>
-                    <strong>Communication:</strong> Send service updates,
-                    billing notifications, and marketing (if opted in)
-                  </li>
-                  <li>
-                    <strong>Security:</strong> Detect fraud, prevent abuse,
-                    enforce terms of service
-                  </li>
-                  <li>
-                    <strong>Legal Compliance:</strong> Comply with legal
-                    obligations and respond to legal requests
-                  </li>
+                  <li>Comply with legal obligations and enforce our terms and policies</li>
                 </ul>
               </section>
 
-              {/* Third-Party Services */}
               <section className="card p-6">
-                <h2 className="text-2xl font-heading font-bold mb-4">
-                  3. Third-Party Services We Use
-                </h2>
-                <p className="text-muted-foreground mb-4">
-                  We share data with the following third-party services:
+                <h2 className="text-2xl font-heading font-bold mb-4">3. Public Discord Output</h2>
+                <p className="text-muted-foreground">
+                  Many Pathway bot commands post results in Discord channels where other server
+                  members can see them. Some commands may be private or ephemeral, but you should
+                  treat anything entered into a public Discord channel as visible to that channel.
+                  Do not put private, sensitive, or real-world personal information in character
+                  notes, homebrew entries, command arguments, or support channels unless you are
+                  comfortable sharing it.
                 </p>
+              </section>
 
+              <section className="card p-6">
+                <h2 className="text-2xl font-heading font-bold mb-4">4. Third-Party Services</h2>
+                <p className="text-muted-foreground mb-4">
+                  We use third-party services to operate Pathway. Their handling of information is
+                  governed by their own policies.
+                </p>
                 <div className="space-y-4">
-                  <div className="border-l-4 border-primary pl-4">
-                    <h4 className="font-semibold mb-1">Anthropic Claude AI</h4>
-                    <p className="text-sm text-muted-foreground">
-                      <strong>Purpose:</strong> AI Dungeon Master responses
-                      <br />
-                      <strong>Data Shared:</strong> Campaign context, character
-                      data, player inputs
-                      <br />
-                      <strong>Policy:</strong>{" "}
-                      <a
-                        href="https://www.anthropic.com/legal/privacy"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        Anthropic Privacy Policy
-                      </a>
-                    </p>
-                  </div>
-
                   <div className="border-l-4 border-primary pl-4">
                     <h4 className="font-semibold mb-1">Discord</h4>
                     <p className="text-sm text-muted-foreground">
-                      <strong>Purpose:</strong> Authentication, bot
-                      functionality
-                      <br />
-                      <strong>Data Shared:</strong> User ID, server ID, Discord
-                      messages
+                      <strong>Purpose:</strong> Login, bot interactions, server integration, and
+                      support community.
                       <br />
                       <strong>Policy:</strong>{" "}
                       <a
@@ -217,279 +158,162 @@ export default function PrivacyPolicyPage() {
                   </div>
 
                   <div className="border-l-4 border-primary pl-4">
-                    <h4 className="font-semibold mb-1">
-                      Amazon Web Services (AWS)
-                    </h4>
+                    <h4 className="font-semibold mb-1">Supabase</h4>
                     <p className="text-sm text-muted-foreground">
-                      <strong>Purpose:</strong> Cloud hosting, database storage,
-                      file storage
-                      <br />
-                      <strong>Data Shared:</strong> All application data
-                      <br />
-                      <strong>Region:</strong> US-East-1 (Virginia)
+                      <strong>Purpose:</strong> Database, authentication support, and storage for
+                      Pathway web and bot data.
                       <br />
                       <strong>Policy:</strong>{" "}
                       <a
-                        href="https://aws.amazon.com/privacy/"
+                        href="https://supabase.com/privacy"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline"
                       >
-                        AWS Privacy Policy
+                        Supabase Privacy Policy
                       </a>
                     </p>
                   </div>
 
                   <div className="border-l-4 border-primary pl-4">
-                    <h4 className="font-semibold mb-1">Stripe</h4>
+                    <h4 className="font-semibold mb-1">Pathbuilder</h4>
                     <p className="text-sm text-muted-foreground">
-                      <strong>Purpose:</strong> Payment processing
-                      <br />
-                      <strong>Data Shared:</strong> Billing information, payment
-                      details
-                      <br />
-                      <strong>Policy:</strong>{" "}
-                      <a
-                        href="https://stripe.com/privacy"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        Stripe Privacy Policy
-                      </a>
+                      <strong>Purpose:</strong> Optional character imports when you provide a
+                      Pathbuilder JSON ID, URL, or export. Pathway reads the data you choose to
+                      import so your sheet can be created or updated.
                     </p>
                   </div>
 
                   <div className="border-l-4 border-primary pl-4">
-                    <h4 className="font-semibold mb-1">
-                      Google Analytics (if applicable)
-                    </h4>
+                    <h4 className="font-semibold mb-1">Analytics and Hosting</h4>
                     <p className="text-sm text-muted-foreground">
-                      <strong>Purpose:</strong> Website analytics
-                      <br />
-                      <strong>Data Shared:</strong> Anonymized usage data
-                      <br />
-                      <strong>Policy:</strong>{" "}
-                      <a
-                        href="https://policies.google.com/privacy"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        Google Privacy Policy
-                      </a>
+                      <strong>Purpose:</strong> Site hosting, performance monitoring, analytics,
+                      uptime, security, and error reporting.
                     </p>
                   </div>
                 </div>
               </section>
 
-              {/* Data Retention */}
               <section className="card p-6">
                 <h2 className="text-2xl font-heading font-bold mb-4">
-                  4. Data Retention
+                  5. How We Share Information
                 </h2>
+                <p className="text-muted-foreground mb-4">
+                  We do not sell your personal information. We may share information only in these
+                  limited situations:
+                </p>
                 <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
                   <li>
-                    <strong>Active Accounts:</strong> We retain your data as
-                    long as your account is active
+                    With service providers that help us host, store, secure, and operate Pathway
                   </li>
                   <li>
-                    <strong>Deleted Accounts:</strong> Data is deleted within 30
-                    days of account deletion, except as required by law
+                    With Discord users in the same server or channel when a bot command is public
                   </li>
                   <li>
-                    <strong>Backups:</strong> Backup copies may persist for up
-                    to 90 days for disaster recovery
+                    With server owners or moderators when needed to address abuse, support, or
+                    safety issues
                   </li>
                   <li>
-                    <strong>Legal Holds:</strong> We may retain data longer if
-                    required by law or legal proceedings
+                    If required by law, legal process, or to protect Pathway, our users, or the
+                    public
                   </li>
                   <li>
-                    <strong>Anonymized Analytics:</strong> Anonymized data may
-                    be retained indefinitely for research
+                    In connection with a merger, acquisition, or transfer of the service, subject to
+                    continued privacy protections
                   </li>
                 </ul>
               </section>
 
-              {/* Your Rights */}
               <section className="card p-6">
                 <h2 className="text-2xl font-heading font-bold mb-4">
-                  5. Your Privacy Rights
+                  6. Data Storage, Security, and Retention
                 </h2>
                 <p className="text-muted-foreground mb-4">
-                  Depending on your location, you may have the following rights:
+                  Pathway stores operational data in Supabase and related hosting infrastructure. We
+                  use access controls, server-side service keys, environment variables, and
+                  reasonable technical safeguards to protect stored data.
                 </p>
+                <p className="text-muted-foreground mb-4">
+                  No online service can guarantee perfect security. During closed beta, features and
+                  storage behavior may change as we improve the product.
+                </p>
+                <p className="text-muted-foreground">
+                  We retain information for as long as needed to provide the service, maintain
+                  backups, resolve disputes, prevent abuse, comply with legal obligations, and
+                  support beta testing. When you delete content through Pathway, we will remove it
+                  from active systems where technically feasible, though backups and logs may
+                  persist for a limited period.
+                </p>
+              </section>
+
+              <section className="card p-6">
+                <h2 className="text-2xl font-heading font-bold mb-4">7. Your Choices and Rights</h2>
                 <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
                   <li>
-                    <strong>Access:</strong> Request a copy of your personal
-                    data
+                    You can update or delete many characters, homebrew records, and settings through
+                    the web app or bot commands.
                   </li>
                   <li>
-                    <strong>Correction:</strong> Update or correct inaccurate
-                    information
+                    You can disconnect Pathway from Discord by removing the bot from a server or
+                    revoking OAuth access in Discord settings.
                   </li>
                   <li>
-                    <strong>Deletion:</strong> Request deletion of your account
-                    and data (right to be forgotten)
+                    You can request access, correction, export, or deletion of personal data by
+                    contacting us.
                   </li>
                   <li>
-                    <strong>Portability:</strong> Export your data in a
-                    machine-readable format
-                  </li>
-                  <li>
-                    <strong>Restriction:</strong> Limit how we process your data
-                  </li>
-                  <li>
-                    <strong>Objection:</strong> Object to processing for
-                    marketing purposes
-                  </li>
-                  <li>
-                    <strong>Withdraw Consent:</strong> Opt out of optional data
-                    processing
+                    Depending on where you live, you may have additional privacy rights under local
+                    law.
                   </li>
                 </ul>
-                <p className="text-muted-foreground mt-4">
-                  To exercise these rights, email us at{" "}
-                  <a
-                    href="mailto:privacy@pathway.gg"
-                    className="text-primary hover:underline"
-                  >
-                    privacy@pathway.gg
-                  </a>
-                  . See our{" "}
-                  <Link
-                    href="/legal/gdpr"
-                    className="text-primary hover:underline"
-                  >
-                    GDPR Compliance page
-                  </Link>{" "}
-                  for EU-specific rights.
+              </section>
+
+              <section className="card p-6">
+                <h2 className="text-2xl font-heading font-bold mb-4">8. Children</h2>
+                <p className="text-muted-foreground">
+                  Pathway is intended for users who are old enough to use Discord and participate in
+                  the closed beta under Discord's rules and applicable law. We do not knowingly
+                  collect personal information from children who are not permitted to use the
+                  service.
                 </p>
               </section>
 
-              {/* Data Security */}
               <section className="card p-6">
-                <h2 className="text-2xl font-heading font-bold mb-4">
-                  6. Data Security
+                <h2 className="text-2xl font-heading font-bold mb-4">9. Changes to This Policy</h2>
+                <p className="text-muted-foreground">
+                  We may update this Privacy Policy as Pathway changes. If we make material changes,
+                  we will update the date above and may provide notice through the website, Discord,
+                  or the support server.
+                </p>
+              </section>
+
+              <section className="card p-6">
+                <h2 className="text-2xl font-heading font-bold mb-4 flex items-center gap-2">
+                  <Mail className="h-6 w-6 text-primary" />
+                  10. Contact
                 </h2>
                 <p className="text-muted-foreground mb-4">
-                  We implement industry-standard security measures:
+                  For privacy questions or data requests, contact us at:
                 </p>
-                <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-                  <li>
-                    <strong>Encryption:</strong> All data in transit uses TLS
-                    1.3 encryption
-                  </li>
-                  <li>
-                    <strong>Database:</strong> Encrypted PostgreSQL database
-                    with access controls
-                  </li>
-                  <li>
-                    <strong>Authentication:</strong> OAuth2 via Discord with JWT
-                    token security
-                  </li>
-                  <li>
-                    <strong>Infrastructure:</strong> AWS security best
-                    practices, VPC isolation
-                  </li>
-                  <li>
-                    <strong>Backups:</strong> Automated daily backups with
-                    encryption
-                  </li>
-                  <li>
-                    <strong>Monitoring:</strong> Real-time security monitoring
-                    and error tracking
-                  </li>
-                </ul>
-                <p className="text-muted-foreground mt-4">
-                  However, no system is 100% secure. We cannot guarantee
-                  absolute security and are not liable for unauthorized access
-                  beyond our reasonable control.
-                </p>
-              </section>
-
-              {/* Children's Privacy */}
-              <section className="card p-6">
-                <h2 className="text-2xl font-heading font-bold mb-4">
-                  7. Children's Privacy (18+ Only)
-                </h2>
-                <p className="text-muted-foreground">
-                  Our service is intended for users 18 years and older. We do
-                  not knowingly collect information from individuals under 18.
-                  If you believe a minor has provided us with personal
-                  information, contact us immediately at{" "}
-                  <a
-                    href="mailto:privacy@pathway.gg"
-                    className="text-primary hover:underline"
-                  >
-                    privacy@pathway.gg
-                  </a>{" "}
-                  and we will delete it promptly.
-                </p>
-              </section>
-
-              {/* International Users */}
-              <section className="card p-6">
-                <h2 className="text-2xl font-heading font-bold mb-4">
-                  8. International Data Transfers
-                </h2>
-                <p className="text-muted-foreground mb-4">
-                  Our servers are located in the United States (AWS US-East-1).
-                  If you access our service from outside the US, your data will
-                  be transferred to and stored in the United States.
-                </p>
-                <p className="text-muted-foreground">
-                  For EU users: We rely on Standard Contractual Clauses (SCCs)
-                  and AWS's Data Processing Addendum for GDPR compliance. See
-                  our{" "}
-                  <Link
-                    href="/legal/gdpr"
-                    className="text-primary hover:underline"
-                  >
-                    GDPR page
-                  </Link>{" "}
-                  for details.
-                </p>
-              </section>
-
-              {/* Changes to Policy */}
-              <section className="card p-6">
-                <h2 className="text-2xl font-heading font-bold mb-4">
-                  9. Changes to This Policy
-                </h2>
-                <p className="text-muted-foreground">
-                  We may update this Privacy Policy from time to time. We will
-                  notify you of material changes via email or prominent notice
-                  on our website. Continued use of our service after changes
-                  constitutes acceptance of the updated policy.
-                </p>
-              </section>
-
-              {/* Contact */}
-              <section className="card p-6 bg-muted">
-                <h2 className="text-2xl font-heading font-bold mb-4">
-                  10. Contact Us
-                </h2>
-                <p className="text-muted-foreground mb-4">
-                  For privacy-related questions or to exercise your rights:
-                </p>
-                <div className="flex items-center gap-2 text-primary">
-                  <Mail className="h-5 w-5" />
-                  <a
-                    href="mailto:privacy@pathway.gg"
-                    className="hover:underline"
-                  >
-                    privacy@pathway.gg
-                  </a>
+                <div className="bg-muted p-4 rounded-lg">
+                  <p>
+                    <strong>Email:</strong>{" "}
+                    <a href="mailto:privacy@pathway.gg" className="text-primary hover:underline">
+                      privacy@pathway.gg
+                    </a>
+                  </p>
+                  <p>
+                    <strong>Support Server:</strong>{" "}
+                    <a
+                      href="https://discord.gg/PD7EsuzmpE"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      Join Pathway Support
+                    </a>
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground mt-4">
-                  Pathway
-                  <br />
-                  <em className="text-xs">
-                    Physical address to be added before public launch
-                  </em>
-                </p>
               </section>
             </div>
           </div>
