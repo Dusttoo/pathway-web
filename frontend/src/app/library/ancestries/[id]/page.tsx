@@ -1,146 +1,229 @@
 "use client";
 
-import { MainLayout } from "@/components/layout";
-import { useQuery } from "@tanstack/react-query";
-import type { Tables } from "@/lib/types/database.types";
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
+import { MainLayout } from "@/components/layout";
+import { AonLink, aonUrlFromMetadata } from "@/components/library/AonLink";
+import type { Tables } from "@/lib/types/database.types";
 
 type Ancestry = Tables<"ancestries">;
 type Heritage = Tables<"heritages">;
 
 interface AncestryDetail extends Ancestry {
   heritages?: Heritage[];
+  versatileHeritages?: Heritage[];
+}
+
+function asList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (typeof value === "string" && value.trim()) return [value.trim()];
+  return [];
+}
+
+function asAbilities(value: unknown): Array<{ name: string; description?: string }> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (typeof entry === "string") return { name: entry };
+      if (entry && typeof entry === "object") {
+        const obj = entry as Record<string, unknown>;
+        const name = typeof obj.name === "string" ? obj.name : "";
+        const description = typeof obj.description === "string" ? obj.description : undefined;
+        return name ? { name, description } : null;
+      }
+      return null;
+    })
+    .filter((entry): entry is { name: string; description?: string } => !!entry);
+}
+
+function HeritageList({ title, heritages }: { title: string; heritages?: Heritage[] }) {
+  if (!heritages?.length) return null;
+
+  return (
+    <div className="card p-6">
+      <h2 className="mb-4 text-xl font-semibold">{title}</h2>
+      <div className="grid gap-4 md:grid-cols-2">
+        {heritages.map((heritage) => (
+          <div key={heritage.id} className="rounded-lg border border-border bg-card/60 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h3 className="font-semibold">{heritage.name}</h3>
+              <AonLink
+                name={heritage.name}
+                url={aonUrlFromMetadata(heritage.benefits)}
+                isOfficial={heritage.is_official}
+              />
+            </div>
+            {heritage.benefits && (
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {typeof heritage.benefits === "string"
+                  ? heritage.benefits
+                  : JSON.stringify(heritage.benefits)}
+              </p>
+            )}
+            {heritage.source && (
+              <p className="mt-3 text-xs text-muted-foreground">{heritage.source}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function AncestryDetailPage() {
   const { id } = useParams<{ id: string }>();
 
-  const { data, isLoading, error } = useQuery<AncestryDetail, Error>({
-    queryKey: ["ancestries", "detail", id],
+  const { data, isLoading, error } = useQuery<AncestryDetail>({
+    queryKey: ["ancestry", id],
     queryFn: async () => {
-      const res = await fetch(`/api/content/ancestries/${id}`);
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
+      const response = await fetch(`/api/content/ancestries/${id}`);
+      if (!response.ok) throw new Error("Failed to load ancestry");
+      return response.json();
     },
     enabled: !!id,
   });
 
-  if (isLoading) return <MainLayout><div className="flex justify-center py-12"><div className="spinner" /></div></MainLayout>;
-  if (error || !data) return (
-    <MainLayout>
-      <div className="card p-6 bg-destructive/10 border-destructive mb-4">
-        <p className="text-destructive">Ancestry not found.</p>
-      </div>
-      <Link href="/library" className="inline-flex items-center gap-2 text-primary text-sm">
-        <ArrowLeft size={14} /> Back to Library
-      </Link>
-    </MainLayout>
-  );
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex justify-center py-12">
+          <div className="spinner" />
+        </div>
+      </MainLayout>
+    );
+  }
 
-  const boosts = Array.isArray(data.attribute_boosts) ? (data.attribute_boosts as string[]) : [];
-  const flaws = Array.isArray(data.attribute_flaws) ? (data.attribute_flaws as string[]) : [];
-  const languages = Array.isArray(data.languages) ? (data.languages as string[]) : [];
-  const traits = Array.isArray(data.traits) ? (data.traits as string[]) : [];
-  const specials = Array.isArray(data.special_abilities) ? (data.special_abilities as Array<{ name?: string; description?: string } | string>) : [];
+  if (error || !data) {
+    return (
+      <MainLayout>
+        <div className="card mb-4 border-destructive bg-destructive/10 p-6">
+          <p className="text-destructive">Ancestry not found.</p>
+        </div>
+        <Link
+          href="/library?tab=ancestries"
+          className="inline-flex items-center gap-2 text-sm text-primary"
+        >
+          <ArrowLeft size={14} /> Back to Ancestries
+        </Link>
+      </MainLayout>
+    );
+  }
+
+  const boosts = asList(data.attribute_boosts);
+  const flaws = asList(data.attribute_flaws);
+  const languages = asList(data.languages);
+  const traits = asList(data.traits);
+  const abilities = asAbilities(data.special_abilities);
 
   return (
     <MainLayout>
       <div className="space-y-6">
         <div>
-          <Link href="/library" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 text-sm mb-4">
-            <ArrowLeft size={14} /> Back to Library
+          <Link
+            href="/library?tab=ancestries"
+            className="mb-4 inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80"
+          >
+            <ArrowLeft size={14} /> Back to Ancestries
           </Link>
-          <div className="flex items-start justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="font-heading text-4xl font-bold mb-1">{data.name}</h1>
+              <h1 className="mb-1 font-heading text-4xl font-bold">{data.name}</h1>
               <p className="text-muted-foreground">
-                {data.size} · {data.speed} ft. · {data.ancestry_hp} HP
+                {data.size} size - {data.speed} ft. speed - {data.ancestry_hp} HP
               </p>
             </div>
-            {data.rarity !== "Common" && (
-              <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{data.rarity}</span>
-            )}
+            <AonLink name={data.name} isOfficial={data.is_official} />
           </div>
         </div>
 
-        {/* Traits */}
+        <div className="card p-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Rarity</p>
+              <p className="font-medium capitalize">{data.rarity}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Hit Points</p>
+              <p className="font-medium">{data.ancestry_hp}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Size</p>
+              <p className="font-medium">{data.size}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Speed</p>
+              <p className="font-medium">{data.speed} ft.</p>
+            </div>
+          </div>
+        </div>
+
         {traits.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {traits.map((t) => (
-              <span key={t} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">{t}</span>
-            ))}
+          <div className="card p-6">
+            <h2 className="mb-3 text-xl font-semibold">Traits</h2>
+            <div className="flex flex-wrap gap-2">
+              {traits.map((trait) => (
+                <span key={trait} className="badge badge-primary">
+                  {trait}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Stats card */}
-        <div className="card p-5">
-          <dl className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-            {boosts.length > 0 && (
-              <>
-                <dt className="text-muted-foreground">Attribute Boosts</dt>
-                <dd className="md:col-span-2">{boosts.join(", ")}</dd>
-              </>
-            )}
-            {flaws.length > 0 && (
-              <>
-                <dt className="text-muted-foreground">Attribute Flaw</dt>
-                <dd className="md:col-span-2">{flaws.join(", ")}</dd>
-              </>
-            )}
-            {languages.length > 0 && (
-              <>
-                <dt className="text-muted-foreground">Languages</dt>
-                <dd className="md:col-span-2">{languages.join(", ")}</dd>
-              </>
-            )}
-          </dl>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="card p-6">
+            <h2 className="mb-4 text-xl font-semibold">Ability Boosts and Flaws</h2>
+            <dl className="space-y-3">
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Boosts</dt>
+                <dd>{boosts.length ? boosts.join(", ") : "None listed"}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Flaws</dt>
+                <dd>{flaws.length ? flaws.join(", ") : "None listed"}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="card p-6">
+            <h2 className="mb-4 text-xl font-semibold">Languages</h2>
+            <p>{languages.length ? languages.join(", ") : "None listed"}</p>
+          </div>
         </div>
 
         {data.description && (
           <div className="card p-6">
-            <h2 className="font-semibold text-xl mb-3">Description</h2>
-            <p className="text-foreground whitespace-pre-wrap leading-relaxed">{data.description}</p>
+            <h2 className="mb-3 text-xl font-semibold">Description</h2>
+            <p className="whitespace-pre-wrap leading-relaxed text-foreground">
+              {data.description}
+            </p>
           </div>
         )}
 
-        {/* Special Abilities */}
-        {specials.length > 0 && (
+        {abilities.length > 0 && (
           <div className="card p-6">
-            <h2 className="font-semibold text-xl mb-3">Special Abilities</h2>
-            <ul className="space-y-3">
-              {specials.map((s, i) => {
-                if (typeof s === "string") return <li key={i} className="text-sm">• {s}</li>;
-                return (
-                  <li key={i} className="text-sm">
-                    {s.name && <span className="font-medium">{s.name}: </span>}
-                    {s.description}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-
-        {/* Heritages */}
-        {data.heritages && data.heritages.length > 0 && (
-          <div className="card p-6">
-            <h2 className="font-semibold text-xl mb-3">Heritages</h2>
+            <h2 className="mb-4 text-xl font-semibold">Special Abilities</h2>
             <div className="space-y-4">
-              {data.heritages.map((h) => (
-                <div key={h.id} className="border-l-2 border-primary/30 pl-4">
-                  <p className="font-medium text-sm">{h.name}</p>
-                  {h.description && <p className="text-sm text-muted-foreground mt-1">{h.description}</p>}
+              {abilities.map((ability) => (
+                <div key={ability.name}>
+                  <h3 className="font-semibold">{ability.name}</h3>
+                  {ability.description && (
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      {ability.description}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {data.source && (
-          <p className="text-xs text-muted-foreground">Source: {data.source}</p>
-        )}
+        <HeritageList title="Heritages" heritages={data.heritages} />
+        <HeritageList title="Versatile Heritages" heritages={data.versatileHeritages} />
+
+        {data.source && <p className="text-sm text-muted-foreground">Source: {data.source}</p>}
       </div>
     </MainLayout>
   );

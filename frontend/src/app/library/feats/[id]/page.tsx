@@ -1,6 +1,7 @@
 "use client";
 
 import { MainLayout } from "@/components/layout";
+import { AonLink, aonUrlFromMetadata } from "@/components/library/AonLink";
 import { useQuery } from "@tanstack/react-query";
 import type { Tables } from "@/lib/types/database.types";
 import { ArrowLeft } from "lucide-react";
@@ -12,7 +13,11 @@ type Feat = Tables<"feats">;
 export default function FeatDetailPage() {
   const { id } = useParams<{ id: string }>();
 
-  const { data: feat, isLoading, error } = useQuery<Feat, Error>({
+  const {
+    data: feat,
+    isLoading,
+    error,
+  } = useQuery<Feat, Error>({
     queryKey: ["feats", "detail", id],
     queryFn: async () => {
       const res = await fetch(`/api/content/feats/${id}`);
@@ -22,17 +27,25 @@ export default function FeatDetailPage() {
     enabled: !!id,
   });
 
-  if (isLoading) return <MainLayout><div className="flex justify-center py-12"><div className="spinner" /></div></MainLayout>;
-  if (error || !feat) return (
-    <MainLayout>
-      <div className="card p-6 bg-destructive/10 border-destructive mb-4">
-        <p className="text-destructive">Feat not found.</p>
-      </div>
-      <Link href="/library" className="inline-flex items-center gap-2 text-primary text-sm">
-        <ArrowLeft size={14} /> Back to Library
-      </Link>
-    </MainLayout>
-  );
+  if (isLoading)
+    return (
+      <MainLayout>
+        <div className="flex justify-center py-12">
+          <div className="spinner" />
+        </div>
+      </MainLayout>
+    );
+  if (error || !feat)
+    return (
+      <MainLayout>
+        <div className="card p-6 bg-destructive/10 border-destructive mb-4">
+          <p className="text-destructive">Feat not found.</p>
+        </div>
+        <Link href="/library" className="inline-flex items-center gap-2 text-primary text-sm">
+          <ArrowLeft size={14} /> Back to Library
+        </Link>
+      </MainLayout>
+    );
 
   const traits = Array.isArray(feat.traits) ? (feat.traits as string[]) : [];
 
@@ -40,7 +53,10 @@ export default function FeatDetailPage() {
     <MainLayout>
       <div className="space-y-6">
         <div>
-          <Link href="/library" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 text-sm mb-4">
+          <Link
+            href="/library"
+            className="inline-flex items-center gap-2 text-primary hover:text-primary/80 text-sm mb-4"
+          >
             <ArrowLeft size={14} /> Back to Library
           </Link>
           <div className="flex items-start justify-between">
@@ -50,6 +66,12 @@ export default function FeatDetailPage() {
                 Level {feat.level} feat
                 {feat.feat_type ? ` · ${feat.feat_type.replace(/_/g, " ")}` : ""}
               </p>
+              <AonLink
+                name={feat.name}
+                url={aonUrlFromMetadata(feat.feat_metadata)}
+                isOfficial={feat.is_official}
+                className="mt-2"
+              />
             </div>
             {feat.rarity !== "Common" && (
               <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{feat.rarity}</span>
@@ -61,7 +83,9 @@ export default function FeatDetailPage() {
         {traits.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {traits.map((t) => (
-              <span key={t} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">{t}</span>
+              <span key={t} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                {t}
+              </span>
             ))}
           </div>
         )}
@@ -71,10 +95,16 @@ export default function FeatDetailPage() {
           <div className="card p-5">
             <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               {feat.action_cost && (
-                <><dt className="text-muted-foreground">Actions</dt><dd>{feat.action_cost}</dd></>
+                <>
+                  <dt className="text-muted-foreground">Actions</dt>
+                  <dd>{feat.action_cost}</dd>
+                </>
               )}
               {feat.trigger && (
-                <><dt className="text-muted-foreground">Trigger</dt><dd>{feat.trigger}</dd></>
+                <>
+                  <dt className="text-muted-foreground">Trigger</dt>
+                  <dd>{feat.trigger}</dd>
+                </>
               )}
               {feat.prerequisites && (
                 <>
@@ -91,9 +121,7 @@ export default function FeatDetailPage() {
           <p className="text-foreground whitespace-pre-wrap leading-relaxed">{feat.description}</p>
         </div>
 
-        {feat.source && (
-          <p className="text-xs text-muted-foreground">Source: {feat.source}</p>
-        )}
+        {feat.source && <p className="text-xs text-muted-foreground">Source: {feat.source}</p>}
       </div>
     </MainLayout>
   );

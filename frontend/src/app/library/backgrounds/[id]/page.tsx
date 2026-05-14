@@ -1,6 +1,7 @@
 "use client";
 
 import { MainLayout } from "@/components/layout";
+import { AonLink, aonUrlFromMetadata } from "@/components/library/AonLink";
 import { useBackground } from "@/lib/hooks/use-backgrounds";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -10,17 +11,25 @@ export default function BackgroundDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: bg, isLoading, error } = useBackground(id);
 
-  if (isLoading) return <MainLayout><div className="flex justify-center py-12"><div className="spinner" /></div></MainLayout>;
-  if (error || !bg) return (
-    <MainLayout>
-      <div className="card p-6 bg-destructive/10 border-destructive mb-4">
-        <p className="text-destructive">Background not found.</p>
-      </div>
-      <Link href="/library" className="inline-flex items-center gap-2 text-primary text-sm">
-        <ArrowLeft size={14} /> Back to Library
-      </Link>
-    </MainLayout>
-  );
+  if (isLoading)
+    return (
+      <MainLayout>
+        <div className="flex justify-center py-12">
+          <div className="spinner" />
+        </div>
+      </MainLayout>
+    );
+  if (error || !bg)
+    return (
+      <MainLayout>
+        <div className="card p-6 bg-destructive/10 border-destructive mb-4">
+          <p className="text-destructive">Background not found.</p>
+        </div>
+        <Link href="/library" className="inline-flex items-center gap-2 text-primary text-sm">
+          <ArrowLeft size={14} /> Back to Library
+        </Link>
+      </MainLayout>
+    );
 
   const boosts = Array.isArray(bg.attribute_boosts) ? (bg.attribute_boosts as string[]) : [];
   const skills = Array.isArray(bg.skill_proficiencies) ? (bg.skill_proficiencies as string[]) : [];
@@ -30,11 +39,22 @@ export default function BackgroundDetailPage() {
     <MainLayout>
       <div className="space-y-6">
         <div>
-          <Link href="/library" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 text-sm mb-4">
+          <Link
+            href="/library"
+            className="inline-flex items-center gap-2 text-primary hover:text-primary/80 text-sm mb-4"
+          >
             <ArrowLeft size={14} /> Back to Library
           </Link>
           <div className="flex items-start justify-between">
-            <h1 className="font-heading text-4xl font-bold mb-1">{bg.name}</h1>
+            <div>
+              <h1 className="font-heading text-4xl font-bold mb-1">{bg.name}</h1>
+              <AonLink
+                name={bg.name}
+                url={aonUrlFromMetadata(bg.background_metadata)}
+                isOfficial={bg.is_official}
+                className="mt-2"
+              />
+            </div>
             {bg.rarity !== "Common" && (
               <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{bg.rarity}</span>
             )}
@@ -71,9 +91,7 @@ export default function BackgroundDetailPage() {
           </div>
         )}
 
-        {bg.source && (
-          <p className="text-xs text-muted-foreground">Source: {bg.source}</p>
-        )}
+        {bg.source && <p className="text-xs text-muted-foreground">Source: {bg.source}</p>}
       </div>
     </MainLayout>
   );

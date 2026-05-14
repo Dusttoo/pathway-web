@@ -1,36 +1,187 @@
 "use client";
 
-import { MainLayout } from "@/components/layout";
-import { BookOpen, Search } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
-import { useMonsters } from "@/lib/hooks/use-monsters";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { BookOpen, Search } from "lucide-react";
+import { MainLayout } from "@/components/layout";
+import { AonLink, aonUrlFromMetadata } from "@/components/library/AonLink";
 import { useItems } from "@/lib/hooks/use-items";
+import { useMonsters } from "@/lib/hooks/use-monsters";
+import type { GamedataCategory } from "@/lib/hooks/use-gamedata";
 import type { Tables } from "@/lib/types/database.types";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 type Row = Record<string, unknown>;
 type LegacyTab = "ancestries" | "classes" | "spells" | "feats" | "backgrounds";
-type Tab = LegacyTab | "monsters" | "items";
+type DirectTab = LegacyTab | "monsters" | "items";
+type Tab = DirectTab | GamedataCategory;
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "ancestries",  label: "Ancestries"  },
-  { id: "classes",     label: "Classes"     },
-  { id: "spells",      label: "Spells"      },
-  { id: "feats",       label: "Feats"       },
-  { id: "backgrounds", label: "Backgrounds" },
-  { id: "monsters",    label: "Monsters"    },
-  { id: "items",       label: "Items"       },
+type GamedataRow = Tables<"gamedata">;
+type MonsterRow = Tables<"monsters">;
+type ItemRow = Tables<"items">;
+
+const DIRECT_TABS: { id: DirectTab; label: string; description: string }[] = [
+  { id: "ancestries", label: "Ancestries", description: "Ancestries and core ancestry stats" },
+  { id: "classes", label: "Classes", description: "Classes and class chassis" },
+  { id: "spells", label: "Spells", description: "Spells, focus spells, and rituals where stored" },
+  {
+    id: "feats",
+    label: "Feats",
+    description: "Class, skill, ancestry, general, and archetype feats",
+  },
+  {
+    id: "backgrounds",
+    label: "Backgrounds",
+    description: "Backgrounds and trained skill packages",
+  },
+  {
+    id: "monsters",
+    label: "Monsters",
+    description: "Bestiary creatures, companions, and stat blocks",
+  },
+  {
+    id: "items",
+    label: "Items",
+    description: "Equipment, treasure, weapons, armor, and consumables",
+  },
 ];
 
-const LEGACY_TABS = new Set<Tab>(["ancestries", "classes", "spells", "feats", "backgrounds"]);
+const GAMEDATA_TABS: { id: GamedataCategory; label: string; description: string }[] = [
+  { id: "actions", label: "Actions", description: "General actions, activities, and reactions" },
+  {
+    id: "afflictions",
+    label: "Afflictions",
+    description: "Diseases, curses, poisons, and other afflictions",
+  },
+  {
+    id: "class_features",
+    label: "Class Features",
+    description: "Named class features and class options",
+  },
+  {
+    id: "companions",
+    label: "Companions",
+    description: "Animal companions, familiars, eidolons, and pet options",
+  },
+  { id: "conditions", label: "Conditions", description: "PF2e conditions and rules text" },
+  {
+    id: "creature_extras",
+    label: "Creature Extras",
+    description: "Creature abilities and related references",
+  },
+  { id: "deities", label: "Deities", description: "Gods, faiths, domains, edicts, and anathema" },
+  { id: "domains", label: "Domains", description: "Cleric domains and focus references" },
+  { id: "familiars", label: "Familiars", description: "Familiar abilities and familiar options" },
+  {
+    id: "hazards",
+    label: "Hazards",
+    description: "Hazards, traps, and complex encounter obstacles",
+  },
+  {
+    id: "heritages",
+    label: "Heritages",
+    description: "Ancestry heritages and versatile heritages",
+  },
+  {
+    id: "kingdom",
+    label: "Kingdom",
+    description: "Kingdom building and campaign rules references",
+  },
+  { id: "languages", label: "Languages", description: "Languages and language traits" },
+  { id: "planes", label: "Planes", description: "Planes and planar reference entries" },
+  { id: "relics", label: "Relics", description: "Relic gifts and relic-related content" },
+  { id: "rituals", label: "Rituals", description: "Rituals and ritual casting references" },
+  { id: "rules", label: "Rules", description: "Rules pages and general reference entries" },
+  {
+    id: "siege_weapons",
+    label: "Siege Weapons",
+    description: "Siege engines and large-scale weapons",
+  },
+  { id: "skills", label: "Skills", description: "Skills, skill uses, and skill action references" },
+  { id: "sources", label: "Sources", description: "Book and source references" },
+  { id: "traits", label: "Traits", description: "Trait glossary and trait rules" },
+  { id: "vehicles", label: "Vehicles", description: "Vehicles and vehicle rules" },
+];
 
-// ── Hooks ─────────────────────────────────────────────────────────────────────
+const ALL_TABS = [...DIRECT_TABS, ...GAMEDATA_TABS] as const;
+const DIRECT_TAB_IDS = new Set<string>(DIRECT_TABS.map((tab) => tab.id));
+const LEGACY_TABS = new Set<string>(["ancestries", "classes", "spells", "feats", "backgrounds"]);
 
-/** Fetch legacy content tabs (ancestries, classes, spells, feats, backgrounds) */
+const CREATURE_TYPES = [
+  "Aberration",
+  "Animal",
+  "Astral",
+  "Beast",
+  "Celestial",
+  "Construct",
+  "Dragon",
+  "Dream",
+  "Elemental",
+  "Fey",
+  "Fiend",
+  "Fungus",
+  "Giant",
+  "Humanoid",
+  "Monitor",
+  "Ooze",
+  "Plant",
+  "Undead",
+];
+
+const ITEM_TYPES = [
+  "armor",
+  "weapon",
+  "shield",
+  "consumable",
+  "equipment",
+  "held_item",
+  "rune",
+  "snare",
+  "staff",
+  "wand",
+  "worn_item",
+];
+
+function str(value: unknown): string {
+  return typeof value === "string" ? value : value == null ? "" : String(value);
+}
+
+function num(value: unknown): number {
+  return typeof value === "number" ? value : Number(value) || 0;
+}
+
+function bool(value: unknown): boolean {
+  return Boolean(value);
+}
+
+function list(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+}
+
+function dataObject(data: unknown): Record<string, unknown> {
+  return data && typeof data === "object" && !Array.isArray(data)
+    ? (data as Record<string, unknown>)
+    : {};
+}
+
+function contentDescription(data: unknown): string {
+  const obj = dataObject(data);
+  const candidates = [obj.description, obj.text, obj.summary, obj.effect, obj.details, obj.flavor];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  return "";
+}
+
+function contentMeta(data: unknown): string {
+  const obj = dataObject(data);
+  const parts = [obj.level != null ? `Level ${obj.level}` : "", str(obj.rarity), str(obj.source)]
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.join(" · ");
+}
+
 function useContent(tab: LegacyTab, q: string, page: number, enabled = true) {
   return useQuery({
     queryKey: ["library", tab, q, page],
@@ -45,100 +196,25 @@ function useContent(tab: LegacyTab, q: string, page: number, enabled = true) {
   });
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function str(v: unknown): string { return (v as string) ?? ""; }
-function num(v: unknown): number { return (v as number) ?? 0; }
-function bool(v: unknown): boolean { return Boolean(v); }
-
-// ── Card components ───────────────────────────────────────────────────────────
-
-function LegacyCard({ item, tab }: { item: Row; tab: LegacyTab }) {
-  const href = `/library/${tab}/${str(item.id)}`;
-  const rarity = str(item.rarity);
-  const traditions = Array.isArray(item.traditions) ? (item.traditions as string[]) : [];
-  return (
-    <Link href={href} className="card p-5 hover:shadow-md transition-all block">
-      <div className="flex items-start justify-between mb-2">
-        <p className="font-semibold">{str(item.name)}</p>
-        {rarity && rarity !== "Common" && (
-          <span className="text-xs bg-muted px-2 py-0.5 rounded-full ml-2 shrink-0">{rarity}</span>
-        )}
-      </div>
-      {tab === "spells" && (
-        <p className="text-xs text-muted-foreground mb-2">
-          Level {num(item.level)}
-          {bool(item.is_focus_spell) ? " · Focus" : ""}
-          {bool(item.is_ritual) ? " · Ritual" : ""}
-          {traditions.length > 0 ? ` · ${traditions.join(", ")}` : ""}
-        </p>
-      )}
-      {tab === "feats" && (
-        <p className="text-xs text-muted-foreground mb-2">
-          Level {num(item.level)}
-          {item.feat_type ? ` · ${str(item.feat_type).replace(/_/g, " ")}` : ""}
-        </p>
-      )}
-      {tab === "classes" && (
-        <p className="text-xs text-muted-foreground mb-2">
-          {num(item.class_hp)} HP · {bool(item.is_spellcaster) ? "Spellcaster" : "Martial"}
-        </p>
-      )}
-      <p className="text-sm text-muted-foreground line-clamp-2">
-        {str(item.description) || "—"}
-      </p>
-    </Link>
-  );
+function useGamedataContent(category: GamedataCategory, q: string, page: number, enabled = true) {
+  return useQuery({
+    queryKey: ["library", "gamedata", category, q, page],
+    queryFn: async () => {
+      const qs = new URLSearchParams({ category, limit: "24", page: String(page) });
+      if (q) qs.set("q", q);
+      const res = await fetch(`/api/content/gamedata?${qs}`);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json() as Promise<{
+        data: GamedataRow[];
+        total: number;
+        page: number;
+        limit: number;
+        category: string;
+      }>;
+    },
+    enabled,
+  });
 }
-
-type MonsterRow = Tables<"monsters">;
-
-function MonsterCard({ monster }: { monster: MonsterRow }) {
-  // NOTE: the API select() does NOT include monster_metadata — read from columns directly
-  const rarity       = str(monster.rarity ?? "");
-  const creatureType = str(monster.creature_type ?? "");
-  return (
-    <div className="card p-5">
-      <div className="flex items-start justify-between mb-2">
-        <p className="font-semibold">{monster.name}</p>
-        {rarity && rarity !== "Common" && (
-          <span className="text-xs bg-muted px-2 py-0.5 rounded-full ml-2 shrink-0">{rarity}</span>
-        )}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Level {monster.level ?? "?"}
-        {creatureType ? ` · ${creatureType}` : ""}
-        {monster.is_companion ? " · Companion" : ""}
-      </p>
-    </div>
-  );
-}
-
-type ItemRow = Tables<"items">;
-
-function ItemCard({ item }: { item: ItemRow }) {
-  const rarity = str(item.rarity);
-  return (
-    <Link href={`/library/items/${item.id}`} className="card p-5 hover:shadow-md transition-all block">
-      <div className="flex items-start justify-between mb-2">
-        <p className="font-semibold">{item.name}</p>
-        {rarity && rarity !== "Common" && (
-          <span className="text-xs bg-muted px-2 py-0.5 rounded-full ml-2 shrink-0">{rarity}</span>
-        )}
-      </div>
-      <p className="text-xs text-muted-foreground mb-2">
-        Level {item.level ?? 0}
-        {item.item_type ? ` · ${str(item.item_type).replace(/_/g, " ")}` : ""}
-        {item.bulk ? ` · ${item.bulk} bulk` : ""}
-      </p>
-      <p className="text-sm text-muted-foreground line-clamp-2">
-        {str(item.description) || "—"}
-      </p>
-    </Link>
-  );
-}
-
-// ── Pagination ────────────────────────────────────────────────────────────────
 
 function Pager({
   page,
@@ -153,7 +229,7 @@ function Pager({
 }) {
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-center gap-3 mt-8">
+    <div className="mt-8 flex items-center justify-center gap-3">
       <button
         onClick={() => onPage(Math.max(1, page - 1))}
         disabled={page === 1}
@@ -175,233 +251,397 @@ function Pager({
   );
 }
 
-// ── Tab-specific filter UI ────────────────────────────────────────────────────
+function LegacyCard({ item, tab }: { item: Row; tab: LegacyTab }) {
+  const rarity = str(item.rarity);
+  const traditions = list(item.traditions);
+  const href = `/library/${tab}/${str(item.id)}`;
+  const metadata =
+    item.spell_metadata ?? item.feat_metadata ?? item.background_metadata ?? item.class_metadata;
 
-const CREATURE_TYPES = [
-  "Aberration", "Animal", "Astral", "Beast", "Celestial", "Construct",
-  "Dragon", "Dream", "Elemental", "Fey", "Fiend", "Fungus", "Giant",
-  "Humanoid", "Monitor", "Ooze", "Plant", "Undead",
-];
+  return (
+    <div className="card block p-5 transition-all hover:shadow-md">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <Link href={href} className="font-semibold hover:text-primary">
+          {str(item.name)}
+        </Link>
+        {rarity && rarity !== "Common" && (
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">{rarity}</span>
+        )}
+      </div>
 
-const ITEM_TYPES = [
-  "armor", "weapon", "shield", "consumable", "equipment", "held_item",
-  "rune", "snare", "staff", "wand", "worn_item",
-];
+      {tab === "spells" && (
+        <p className="mb-2 text-xs text-muted-foreground">
+          Level {num(item.level)}
+          {bool(item.is_focus_spell) ? " · Focus" : ""}
+          {bool(item.is_ritual) ? " · Ritual" : ""}
+          {traditions.length > 0 ? ` · ${traditions.join(", ")}` : ""}
+        </p>
+      )}
+      {tab === "feats" && (
+        <p className="mb-2 text-xs text-muted-foreground">
+          Level {num(item.level)}
+          {item.feat_type ? ` · ${str(item.feat_type).replace(/_/g, " ")}` : ""}
+        </p>
+      )}
+      {tab === "classes" && (
+        <p className="mb-2 text-xs text-muted-foreground">
+          {num(item.class_hp)} HP · {bool(item.is_spellcaster) ? "Spellcaster" : "Martial"}
+        </p>
+      )}
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+      <p className="line-clamp-2 text-sm text-muted-foreground">{str(item.description) || "—"}</p>
+      <AonLink
+        name={str(item.name)}
+        url={aonUrlFromMetadata(metadata)}
+        isOfficial={item.is_official as boolean | null}
+        className="mt-3"
+      />
+    </div>
+  );
+}
+
+function MonsterCard({ monster }: { monster: MonsterRow }) {
+  const rarity = str(monster.rarity);
+  const creatureType = str(monster.creature_type);
+  const metadata = (monster as MonsterRow & { monster_metadata?: unknown }).monster_metadata;
+
+  return (
+    <div className="card p-5">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <Link href={`/library/monsters/${monster.id}`} className="font-semibold hover:text-primary">
+          {monster.name}
+        </Link>
+        {rarity && rarity !== "Common" && (
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">{rarity}</span>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Level {monster.level ?? "?"}
+        {creatureType ? ` · ${creatureType}` : ""}
+        {monster.is_companion ? " · Companion" : ""}
+      </p>
+      <AonLink
+        name={monster.name}
+        url={aonUrlFromMetadata(metadata)}
+        isOfficial={monster.is_official}
+        className="mt-3"
+      />
+    </div>
+  );
+}
+
+function ItemCard({ item }: { item: ItemRow }) {
+  const rarity = str(item.rarity);
+  const metadata = (item as ItemRow & { item_metadata?: unknown }).item_metadata;
+
+  return (
+    <div className="card p-5 transition-all hover:shadow-md">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <Link href={`/library/items/${item.id}`} className="font-semibold hover:text-primary">
+          {item.name}
+        </Link>
+        {rarity && rarity !== "Common" && (
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">{rarity}</span>
+        )}
+      </div>
+      <p className="mb-2 text-xs text-muted-foreground">
+        Level {item.level ?? 0}
+        {item.item_type ? ` · ${str(item.item_type).replace(/_/g, " ")}` : ""}
+        {item.bulk ? ` · ${item.bulk} bulk` : ""}
+      </p>
+      <p className="line-clamp-2 text-sm text-muted-foreground">{str(item.description) || "—"}</p>
+      <AonLink
+        name={item.name}
+        url={aonUrlFromMetadata(metadata)}
+        isOfficial={item.is_official}
+        className="mt-3"
+      />
+    </div>
+  );
+}
+
+function GamedataCard({ row, category }: { row: GamedataRow; category: GamedataCategory }) {
+  const description = contentDescription(row.data);
+  const meta = contentMeta(row.data);
+  const data = dataObject(row.data);
+  const name = row.name ?? row.slug;
+
+  return (
+    <div className="card p-5 transition-all hover:shadow-md">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <Link
+          href={`/library/reference/${category}/${row.slug}`}
+          className="font-semibold hover:text-primary"
+        >
+          {name}
+        </Link>
+        {str(data.rarity) && str(data.rarity) !== "Common" && (
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">
+            {str(data.rarity)}
+          </span>
+        )}
+      </div>
+      {meta && <p className="mb-2 text-xs text-muted-foreground">{meta}</p>}
+      <p className="line-clamp-2 text-sm text-muted-foreground">{description || "—"}</p>
+      <AonLink name={name} url={aonUrlFromMetadata(row.data)} className="mt-3" />
+    </div>
+  );
+}
 
 function LibraryContent() {
   const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as Tab | null) ?? "ancestries";
+  const initialTabParam = searchParams.get("tab") as Tab | null;
+  const initialTab = ALL_TABS.some((item) => item.id === initialTabParam)
+    ? initialTabParam!
+    : "ancestries";
 
-  const [tab, setTab]                 = useState<Tab>(initialTab);
-  const [q, setQ]                     = useState("");
-  const [search, setSearch]           = useState("");
-  const [page, setPage]               = useState(1);
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const [q, setQ] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [creatureType, setCreatureType] = useState("");
-  const [itemType, setItemType]       = useState("");
+  const [itemType, setItemType] = useState("");
 
-  // Debounce search input
+  const selectedTab = useMemo(() => ALL_TABS.find((item) => item.id === tab), [tab]);
+  const isLegacy = LEGACY_TABS.has(tab);
+  const isDirect = DIRECT_TAB_IDS.has(tab);
+  const isGamedata = !isDirect;
+
   useEffect(() => {
-    const t = setTimeout(() => { setSearch(q); setPage(1); }, 300);
-    return () => clearTimeout(t);
+    const timeout = setTimeout(() => {
+      setSearch(q);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timeout);
   }, [q]);
 
-  // Reset page + filters when tab changes
   useEffect(() => {
     setPage(1);
     setCreatureType("");
     setItemType("");
   }, [tab]);
 
-  // ── Data fetching ───────────────────────────────────────────────────────────
-
-  const isLegacy = LEGACY_TABS.has(tab);
-
-  const legacyResult = useContent(
-    tab as LegacyTab,
-    search,
-    page,
-    isLegacy, // don't fire for monsters/items tabs
-  );
-
+  const legacyResult = useContent(tab as LegacyTab, search, page, isLegacy);
   const monstersResult = useMonsters(
     { q: search, creature_type: creatureType || undefined, is_companion: false, page, limit: 24 },
-    { enabled: tab === "monsters" },
+    { enabled: tab === "monsters" }
   );
-
   const itemsResult = useItems(
     { q: search, item_type: itemType || undefined, page, limit: 24 },
-    { enabled: tab === "items" },
+    { enabled: tab === "items" }
   );
+  const gamedataResult = useGamedataContent(tab as GamedataCategory, search, page, isGamedata);
 
-  // Unify loading / data across tabs
   const isLoading = isLegacy
     ? legacyResult.isLoading
     : tab === "monsters"
-    ? monstersResult.isLoading
-    : itemsResult.isLoading;
+      ? monstersResult.isLoading
+      : tab === "items"
+        ? itemsResult.isLoading
+        : gamedataResult.isLoading;
 
   const total = isLegacy
     ? (legacyResult.data?.total ?? 0)
     : tab === "monsters"
-    ? (monstersResult.data?.total ?? 0)
-    : (itemsResult.data?.total ?? 0);
+      ? (monstersResult.data?.total ?? 0)
+      : tab === "items"
+        ? (itemsResult.data?.total ?? 0)
+        : (gamedataResult.data?.total ?? 0);
 
   const totalPages = Math.max(1, Math.ceil(total / 24));
 
   return (
     <MainLayout>
-      <div className="flex items-center gap-4 mb-8">
-        <div className="p-3 rounded-lg bg-primary/10">
+      <div className="mb-8 flex items-center gap-4">
+        <div className="rounded-lg bg-primary/10 p-3">
           <BookOpen className="h-8 w-8 text-primary" />
         </div>
         <div>
-          <h1 className="font-heading text-4xl font-bold mb-1">Content Library</h1>
+          <h1 className="mb-1 font-heading text-4xl font-bold">Content Library</h1>
           <p className="text-muted-foreground">
-            Pathfinder 2e rules — ancestries, classes, spells, feats, backgrounds, monsters, items
+            Pathfinder 2e content for characters, rules, creatures, equipment, and campaign play.
           </p>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="card p-4 mb-4 flex items-center gap-3">
-        <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+      <div className="card mb-4 flex items-center gap-3 p-4">
+        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
         <input
           type="text"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={`Search ${tab}…`}
+          onChange={(event) => setQ(event.target.value)}
+          placeholder={`Search ${selectedTab?.label ?? "library"}...`}
           className="input flex-1 border-0 bg-transparent p-0 focus:ring-0"
         />
       </div>
 
-      {/* Tab-specific filters */}
+      <div className="mb-4 rounded-lg border border-border bg-muted/30 p-4">
+        <p className="text-sm font-medium text-foreground">{selectedTab?.label}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{selectedTab?.description}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Official entries include Archives of Nethys links. When a precise AoN URL is not stored,
+          Pathway links to the matching AoN search result.
+        </p>
+      </div>
+
       {tab === "monsters" && (
-        <div className="flex gap-3 mb-4">
+        <div className="mb-4 flex gap-3">
           <select
             value={creatureType}
-            onChange={(e) => { setCreatureType(e.target.value); setPage(1); }}
+            onChange={(event) => {
+              setCreatureType(event.target.value);
+              setPage(1);
+            }}
             className="input text-sm"
           >
             <option value="">All creature types</option>
-            {CREATURE_TYPES.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-      )}
-      {tab === "items" && (
-        <div className="flex gap-3 mb-4">
-          <select
-            value={itemType}
-            onChange={(e) => { setItemType(e.target.value); setPage(1); }}
-            className="input text-sm"
-          >
-            <option value="">All item types</option>
-            {ITEM_TYPES.map((t) => (
-              <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+            {CREATURE_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
             ))}
           </select>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="border-b border-border mb-6">
-        <nav className="flex space-x-1 overflow-x-auto">
-          {TABS.map((t) => (
+      {tab === "items" && (
+        <div className="mb-4 flex gap-3">
+          <select
+            value={itemType}
+            onChange={(event) => {
+              setItemType(event.target.value);
+              setPage(1);
+            }}
+            className="input text-sm"
+          >
+            <option value="">All item types</option>
+            {ITEM_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <div className="mb-6 border-b border-border">
+        <nav className="flex gap-1 overflow-x-auto">
+          {ALL_TABS.map((item) => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`py-3 px-3 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
-                tab === t.id
+              key={item.id}
+              onClick={() => setTab(item.id)}
+              className={`whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
+                tab === item.id
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              {t.label}
+              {item.label}
             </button>
           ))}
         </nav>
       </div>
 
-      {/* Results */}
       {isLoading ? (
-        <div className="text-center py-12"><div className="spinner mx-auto" /></div>
+        <div className="py-12 text-center">
+          <div className="spinner mx-auto" />
+        </div>
       ) : (
         <>
-          {/* Legacy tabs */}
-          {isLegacy && (() => {
-            const items = legacyResult.data?.data ?? [];
-            return items.length === 0 ? (
-              <div className="card text-center py-12">
-                <p className="text-muted-foreground">
-                  No {tab} found{search ? ` matching "${search}"` : ""}.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {items.map((item) => (
-                  <LegacyCard key={str(item.id)} item={item} tab={tab as LegacyTab} />
-                ))}
-              </div>
-            );
-          })()}
+          {isLegacy &&
+            (() => {
+              const items = legacyResult.data?.data ?? [];
+              return items.length === 0 ? (
+                <EmptyState tab={selectedTab?.label ?? String(tab)} search={search} />
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {items.map((item) => (
+                    <LegacyCard key={str(item.id)} item={item} tab={tab as LegacyTab} />
+                  ))}
+                </div>
+              );
+            })()}
 
-          {/* Monsters tab */}
-          {tab === "monsters" && (() => {
-            if (monstersResult.error) return (
-              <div className="card text-center py-12">
-                <p className="text-destructive text-sm font-medium mb-1">Failed to load monsters</p>
-                <p className="text-muted-foreground text-xs">{monstersResult.error.message}</p>
-              </div>
-            );
-            const monsters = monstersResult.data?.data ?? [];
-            return monsters.length === 0 ? (
-              <div className="card text-center py-12">
-                <p className="text-muted-foreground">
-                  No monsters found{search ? ` matching "${search}"` : ""}
-                  {creatureType ? ` of type "${creatureType}"` : ""}.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {monsters.map((m) => (
-                  <MonsterCard key={m.id} monster={m} />
-                ))}
-              </div>
-            );
-          })()}
+          {tab === "monsters" &&
+            (() => {
+              if (monstersResult.error)
+                return <ErrorState label="monsters" error={monstersResult.error} />;
+              const monsters = monstersResult.data?.data ?? [];
+              return monsters.length === 0 ? (
+                <EmptyState tab="monsters" search={search} />
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {monsters.map((monster) => (
+                    <MonsterCard key={monster.id} monster={monster} />
+                  ))}
+                </div>
+              );
+            })()}
 
-          {/* Items tab */}
-          {tab === "items" && (() => {
-            if (itemsResult.error) return (
-              <div className="card text-center py-12">
-                <p className="text-destructive text-sm font-medium mb-1">Failed to load items</p>
-                <p className="text-muted-foreground text-xs">{itemsResult.error.message}</p>
-              </div>
-            );
-            const items = itemsResult.data?.data ?? [];
-            return items.length === 0 ? (
-              <div className="card text-center py-12">
-                <p className="text-muted-foreground">
-                  No items found{search ? ` matching "${search}"` : ""}
-                  {itemType ? ` of type "${itemType}"` : ""}.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {items.map((item) => (
-                  <ItemCard key={item.id} item={item} />
-                ))}
-              </div>
-            );
-          })()}
+          {tab === "items" &&
+            (() => {
+              if (itemsResult.error) return <ErrorState label="items" error={itemsResult.error} />;
+              const items = itemsResult.data?.data ?? [];
+              return items.length === 0 ? (
+                <EmptyState tab="items" search={search} />
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {items.map((item) => (
+                    <ItemCard key={item.id} item={item} />
+                  ))}
+                </div>
+              );
+            })()}
+
+          {isGamedata &&
+            (() => {
+              if (gamedataResult.error) {
+                return (
+                  <ErrorState
+                    label={selectedTab?.label ?? String(tab)}
+                    error={gamedataResult.error}
+                  />
+                );
+              }
+              const rows = gamedataResult.data?.data ?? [];
+              return rows.length === 0 ? (
+                <EmptyState tab={selectedTab?.label ?? String(tab)} search={search} />
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {rows.map((row) => (
+                    <GamedataCard
+                      key={`${row.category}-${row.slug}`}
+                      row={row}
+                      category={tab as GamedataCategory}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
 
           <Pager page={page} totalPages={totalPages} total={total} onPage={setPage} />
         </>
       )}
     </MainLayout>
+  );
+}
+
+function EmptyState({ tab, search }: { tab: string; search: string }) {
+  return (
+    <div className="card py-12 text-center">
+      <p className="text-muted-foreground">
+        No {tab} found{search ? ` matching "${search}"` : ""}.
+      </p>
+    </div>
+  );
+}
+
+function ErrorState({ label, error }: { label: string; error: Error }) {
+  return (
+    <div className="card py-12 text-center">
+      <p className="mb-1 text-sm font-medium text-destructive">Failed to load {label}</p>
+      <p className="text-xs text-muted-foreground">{error.message}</p>
+    </div>
   );
 }
 
