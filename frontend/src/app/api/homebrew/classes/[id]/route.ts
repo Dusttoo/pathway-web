@@ -28,6 +28,51 @@ function objectRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+const CLASS_PROFICIENCY_KEYS = [
+  "classDC",
+  "perception",
+  "fortitude",
+  "reflex",
+  "will",
+  "heavy",
+  "medium",
+  "light",
+  "unarmored",
+  "advanced",
+  "martial",
+  "simple",
+  "unarmed",
+  "castingArcane",
+  "castingDivine",
+  "castingOccult",
+  "castingPrimal",
+];
+
+const DEFAULT_CLASS_PROFICIENCIES: Record<string, number> = {
+  classDC: 2, perception: 2,
+  fortitude: 2, reflex: 2, will: 2,
+  heavy: 0, medium: 0, light: 2, unarmored: 2,
+  advanced: 0, martial: 0, simple: 2, unarmed: 2,
+  castingArcane: 0, castingDivine: 0, castingOccult: 0, castingPrimal: 0,
+};
+
+function proficiencyRank(value: unknown, fallback: number): number {
+  const n = typeof value === "number" ? value : parseInt(String(value ?? ""), 10);
+  return [0, 2, 4, 6, 8].includes(n) ? n : fallback;
+}
+
+function cleanClassProficiencies(value: unknown): Record<string, number> {
+  const input = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+  return Object.fromEntries(
+    CLASS_PROFICIENCY_KEYS.map((key) => [
+      key,
+      proficiencyRank(input[key], DEFAULT_CLASS_PROFICIENCIES[key] ?? 0),
+    ])
+  );
+}
+
 async function resolveOwnership(id: string) {
   const supabase = await createClient();
   const {
@@ -84,6 +129,7 @@ export async function PATCH(
     trained_skill_count?: number;
     class_trained_skills?: string[];
     class_lore_skills?: string[];
+    class_proficiencies?: Record<string, number>;
     description?: string;
   };
   try {
@@ -101,6 +147,7 @@ export async function PATCH(
     trained_skill_count,
     class_trained_skills,
     class_lore_skills,
+    class_proficiencies,
     description,
   } = body;
 
@@ -115,12 +162,9 @@ export async function PATCH(
   const loreSkills = Array.isArray(class_lore_skills)
     ? class_lore_skills.map(cleanLoreSkill).filter((skill): skill is string => !!skill)
     : undefined;
+  const grantedProficiencies = cleanClassProficiencies(class_proficiencies);
   const proficiencies: Record<string, number> = {
-    classDC: 2, perception: 2,
-    fortitude: 2, reflex: 2, will: 2,
-    heavy: 0, medium: 0, light: 2, unarmored: 2,
-    advanced: 0, martial: 0, simple: 2, unarmed: 2,
-    castingArcane: 0, castingDivine: 0, castingOccult: 0, castingPrimal: 0,
+    ...grantedProficiencies,
     ...Object.fromEntries(ALL_SKILLS.map((s) => [s, 0])),
     ...Object.fromEntries(trainedSkills.map((s) => [s, 2])),
     ...(loreSkills ? Object.fromEntries(loreSkills.map((s) => [loreKey(s), 2])) : {}),
@@ -152,7 +196,11 @@ export async function PATCH(
     updates.spellcasting_ability = is_spellcaster ? (spellcasting_ability ?? null) : null;
   }
   if (description !== undefined) updates.description = description || null;
-  if (class_trained_skills !== undefined || class_lore_skills !== undefined) {
+  if (
+    class_trained_skills !== undefined ||
+    class_lore_skills !== undefined ||
+    class_proficiencies !== undefined
+  ) {
     updates.initial_proficiencies = proficiencies as Json;
   }
   if (trained_skill_count !== undefined || loreSkills !== undefined) {

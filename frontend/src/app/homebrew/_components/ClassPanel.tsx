@@ -20,6 +20,79 @@ const SKILLS = [
   "society", "stealth", "survival", "thievery",
 ] as const;
 
+const PROFICIENCY_RANKS = [
+  { value: 0, label: "Untrained" },
+  { value: 2, label: "Trained" },
+  { value: 4, label: "Expert" },
+  { value: 6, label: "Master" },
+  { value: 8, label: "Legendary" },
+] as const;
+
+const DEFAULT_CLASS_PROFICIENCIES: Record<string, number> = {
+  classDC: 2,
+  perception: 2,
+  fortitude: 2,
+  reflex: 2,
+  will: 2,
+  unarmored: 2,
+  light: 2,
+  medium: 0,
+  heavy: 0,
+  unarmed: 2,
+  simple: 2,
+  martial: 0,
+  advanced: 0,
+  castingArcane: 0,
+  castingDivine: 0,
+  castingOccult: 0,
+  castingPrimal: 0,
+};
+
+const PROFICIENCY_GROUPS = [
+  {
+    title: "Core",
+    items: [
+      ["classDC", "Class DC"],
+      ["perception", "Perception"],
+    ],
+  },
+  {
+    title: "Saving Throws",
+    items: [
+      ["fortitude", "Fortitude"],
+      ["reflex", "Reflex"],
+      ["will", "Will"],
+    ],
+  },
+  {
+    title: "Armor",
+    items: [
+      ["unarmored", "Unarmored"],
+      ["light", "Light Armor"],
+      ["medium", "Medium Armor"],
+      ["heavy", "Heavy Armor"],
+    ],
+  },
+  {
+    title: "Attacks",
+    items: [
+      ["unarmed", "Unarmed Attacks"],
+      ["simple", "Simple Weapons"],
+      ["martial", "Martial Weapons"],
+      ["advanced", "Advanced Weapons"],
+    ],
+  },
+  {
+    title: "Spellcasting",
+    items: [
+      ["castingArcane", "Arcane"],
+      ["castingDivine", "Divine"],
+      ["castingOccult", "Occult"],
+      ["castingPrimal", "Primal"],
+    ],
+  },
+] as const;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type ClassItem = {
@@ -32,6 +105,7 @@ type ClassItem = {
   description?: string;
   class_trained_skills: string[];
   class_lore_skills: string[];
+  class_proficiencies: Record<string, number>;
   trained_skill_count: number;
 };
 
@@ -61,6 +135,12 @@ function toItem(raw: Record<string, unknown>): ClassItem {
         .filter(([key, rank]) => key.startsWith("lore:") && rank === 2)
         .map(([key]) => cleanLoreSkill(key.slice("lore:".length).replace(/[_-]+/g, " ")))
         .filter(Boolean);
+  const class_proficiencies = Object.fromEntries(
+    Object.entries(DEFAULT_CLASS_PROFICIENCIES).map(([key, fallback]) => [
+      key,
+      typeof profs[key] === "number" ? Number(profs[key]) : fallback,
+    ])
+  );
 
   return {
     id: String(raw.id ?? ""),
@@ -78,6 +158,7 @@ function toItem(raw: Record<string, unknown>): ClassItem {
     description: raw.description ? String(raw.description) : undefined,
     class_trained_skills,
     class_lore_skills,
+    class_proficiencies,
     trained_skill_count: typeof meta.trained_skill_count === "number"
       ? meta.trained_skill_count
       : 3,
@@ -115,6 +196,9 @@ function ClassForm({
   const [classLoreSkills, setClassLoreSkills] = useState<string[]>(
     initialValues?.class_lore_skills ?? []
   );
+  const [classProficiencies, setClassProficiencies] = useState<Record<string, number>>(
+    initialValues?.class_proficiencies ?? DEFAULT_CLASS_PROFICIENCIES
+  );
   const [loreInput, setLoreInput] = useState("");
   const [description, setDesc] = useState(initialValues?.description ?? "");
   const [formError, setFormError] = useState<string | null>(null);
@@ -144,6 +228,9 @@ function ClassForm({
     const key = loreKey(skill);
     setClassLoreSkills((prev) => prev.filter((existing) => loreKey(existing) !== key));
   }
+  function setProficiency(key: string, rank: number) {
+    setClassProficiencies((prev) => ({ ...prev, [key]: rank }));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -161,6 +248,7 @@ function ClassForm({
       trained_skill_count: trainedCount,
       class_trained_skills: classSkills,
       class_lore_skills: classLoreSkills,
+      class_proficiencies: classProficiencies,
       description: description || undefined,
     };
     try {
@@ -268,6 +356,50 @@ function ClassForm({
             />
           </div>
         )}
+      </div>
+
+      {/* Starting proficiencies */}
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          Starting Proficiencies
+        </label>
+        <p className="text-xs text-muted-foreground mb-3">
+          Set the proficiencies this class grants for saves, perception, armor, attacks, class DC,
+          and spellcasting traditions.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {PROFICIENCY_GROUPS.map((group) => (
+            <section key={group.title} className="rounded-md border border-border bg-muted/20 p-3">
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                {group.title}
+              </h4>
+              <div className="space-y-2">
+                {group.items.map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between gap-3">
+                    <span className="text-sm">{label}</span>
+                    <div className="relative">
+                      <select
+                        className="input appearance-none py-1 pl-2 pr-7 text-xs"
+                        value={classProficiencies[key] ?? 0}
+                        onChange={(e) => setProficiency(key, parseInt(e.target.value, 10))}
+                      >
+                        {PROFICIENCY_RANKS.map((rank) => (
+                          <option key={rank.value} value={rank.value}>
+                            {rank.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={12}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       </div>
 
       {/* Class-trained skills */}
