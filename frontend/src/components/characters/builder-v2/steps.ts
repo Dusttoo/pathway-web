@@ -9,10 +9,10 @@ import {
   Shield,
   PawPrint,
   BookOpen,
+  Languages,
   Hexagon,
   CheckCircle2,
   Award,
-  User,
   Heart,
   Backpack,
   Wand2,
@@ -25,6 +25,7 @@ export type StepKey =
   | "start"
   | "ancestry"
   | "heritage"
+  | "languages"
   | "class"
   | "companion"
   | "background"
@@ -32,7 +33,6 @@ export type StepKey =
   | "skills"
   | "feats"
   | "description"
-  | "personality"
   | "equipment"
   | "spells"
   | "review";
@@ -79,6 +79,7 @@ export const STEPS: StepDef[] = [
   { key: "start", label: "Start", icon: PlayCircle, shouldShow: () => true },
   { key: "ancestry", label: "Ancestry", icon: Users, shouldShow: () => true },
   { key: "heritage", label: "Heritage", icon: GitBranch, shouldShow: () => true },
+  { key: "languages", label: "Languages", icon: Languages, shouldShow: () => true },
   { key: "class", label: "Class", icon: Shield, shouldShow: () => true },
   {
     key: "companion",
@@ -90,8 +91,7 @@ export const STEPS: StepDef[] = [
   { key: "abilities", label: "Abilities", icon: Hexagon, shouldShow: () => true },
   { key: "skills", label: "Skills", icon: CheckCircle2, shouldShow: () => true },
   { key: "feats", label: "Feats", icon: Award, shouldShow: () => true },
-  { key: "description", label: "Description", icon: User, shouldShow: () => true },
-  { key: "personality", label: "Personality", icon: Heart, shouldShow: () => true },
+  { key: "description", label: "Description & Personality", icon: Heart, shouldShow: () => true },
   { key: "equipment", label: "Equipment", icon: Backpack, shouldShow: () => true },
   {
     key: "spells",

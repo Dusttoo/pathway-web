@@ -9,6 +9,7 @@ import { DEFAULT_STATE, type BuilderState, type StepProps } from "./types";
 import { StartStep } from "./steps/StartStep";
 import { AncestryStep } from "./steps/AncestryStep";
 import { HeritageStep } from "./steps/HeritageStep";
+import { LanguagesStep } from "./steps/LanguagesStep";
 import { ClassStep } from "./steps/ClassStep";
 import { CompanionStep } from "./steps/CompanionStep";
 import { BackgroundStep } from "./steps/BackgroundStep";
@@ -16,7 +17,6 @@ import { AbilitiesStep } from "./steps/AbilitiesStep";
 import { SkillsStep } from "./steps/SkillsStep";
 import { FeatsStep } from "./steps/FeatsStep";
 import { DescriptionStep } from "./steps/DescriptionStep";
-import { PersonalityStep } from "./steps/PersonalityStep";
 import { EquipmentStep } from "./steps/EquipmentStep";
 import { SpellsStep } from "./steps/SpellsStep";
 import { ReviewStep } from "./steps/ReviewStep";
@@ -28,6 +28,7 @@ const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepPr
   start: StartStep,
   ancestry: AncestryStep,
   heritage: HeritageStep,
+  languages: LanguagesStep,
   class: ClassStep,
   companion: CompanionStep,
   background: BackgroundStep,
@@ -35,7 +36,6 @@ const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepPr
   skills: SkillsStep,
   feats: FeatsStep,
   description: DescriptionStep,
-  personality: PersonalityStep,
   equipment: EquipmentStep,
   spells: SpellsStep,
   review: ReviewStep,

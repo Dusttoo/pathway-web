@@ -26,6 +26,7 @@ export function AncestryStep({ state, update }: StepProps) {
       ancestryFlawOptions: flaws,
       selectedAncestryFlaws: [],
       defaultLanguages: langs,
+      ancestryBonusLanguages: row.bonus_languages ?? 0,
       languages: langs,
       heritageId: "",
       heritageName: "",

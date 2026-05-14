@@ -106,6 +106,7 @@ export type BuilderState = {
   heritageId: string;
   heritageName: string;
   defaultLanguages: string[];
+  ancestryBonusLanguages: number;
   languages: string[];
 
   // Class
@@ -189,6 +190,7 @@ export const DEFAULT_STATE: BuilderState = {
   heritageId: "",
   heritageName: "",
   defaultLanguages: [],
+  ancestryBonusLanguages: 0,
   languages: [],
 
   classId: "",
