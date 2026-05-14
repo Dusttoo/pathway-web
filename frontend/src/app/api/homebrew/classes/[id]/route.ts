@@ -73,6 +73,35 @@ function cleanClassProficiencies(value: unknown): Record<string, number> {
   );
 }
 
+const SPELL_TRADITIONS = new Set(["arcane", "divine", "occult", "primal"]);
+const SPELLCASTING_TYPES = new Set(["prepared", "spontaneous"]);
+
+function cleanSlotRow(value: unknown): number[] {
+  const row = Array.isArray(value) ? value : [];
+  return Array.from({ length: 10 }, (_, i) => {
+    const raw = row[i];
+    const n = typeof raw === "number" ? raw : parseInt(String(raw ?? "0"), 10);
+    return Number.isFinite(n) ? Math.max(0, Math.min(9, n)) : 0;
+  });
+}
+
+function cleanSlotProgression(value: unknown): Record<string, number[]> {
+  const input = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+  return Object.fromEntries(
+    Array.from({ length: 20 }, (_, i) => {
+      const level = String(i + 1);
+      return [level, cleanSlotRow(input[level])];
+    })
+  );
+}
+
+function cleanSmallNumber(value: unknown, fallback: number, max: number): number {
+  const n = typeof value === "number" ? value : parseInt(String(value ?? ""), 10);
+  return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : fallback;
+}
+
 async function resolveOwnership(id: string) {
   const supabase = await createClient();
   const {
@@ -126,6 +155,11 @@ export async function PATCH(
     key_attribute?: string | string[];
     is_spellcaster?: boolean;
     spellcasting_ability?: string;
+    spellcasting_type?: string;
+    spellcasting_tradition?: string;
+    cantrips_known?: number;
+    focus_points?: number;
+    spell_slot_progression?: Record<string, number[]>;
     trained_skill_count?: number;
     class_trained_skills?: string[];
     class_lore_skills?: string[];
@@ -144,6 +178,11 @@ export async function PATCH(
     key_attribute,
     is_spellcaster,
     spellcasting_ability,
+    spellcasting_type,
+    spellcasting_tradition,
+    cantrips_known,
+    focus_points,
+    spell_slot_progression,
     trained_skill_count,
     class_trained_skills,
     class_lore_skills,
@@ -163,6 +202,15 @@ export async function PATCH(
     ? class_lore_skills.map(cleanLoreSkill).filter((skill): skill is string => !!skill)
     : undefined;
   const grantedProficiencies = cleanClassProficiencies(class_proficiencies);
+  const spellType = SPELLCASTING_TYPES.has(spellcasting_type ?? "")
+    ? spellcasting_type
+    : "prepared";
+  const spellTradition = SPELL_TRADITIONS.has(spellcasting_tradition ?? "")
+    ? spellcasting_tradition
+    : "arcane";
+  const cantripsKnown = cleanSmallNumber(cantrips_known, 5, 10);
+  const focusPoints = cleanSmallNumber(focus_points, 0, 3);
+  const slotProgression = cleanSlotProgression(spell_slot_progression);
   const proficiencies: Record<string, number> = {
     ...grantedProficiencies,
     ...Object.fromEntries(ALL_SKILLS.map((s) => [s, 0])),
@@ -203,11 +251,26 @@ export async function PATCH(
   ) {
     updates.initial_proficiencies = proficiencies as Json;
   }
-  if (trained_skill_count !== undefined || loreSkills !== undefined) {
+  if (
+    trained_skill_count !== undefined ||
+    loreSkills !== undefined ||
+    spellcasting_type !== undefined ||
+    spellcasting_tradition !== undefined ||
+    cantrips_known !== undefined ||
+    focus_points !== undefined ||
+    spell_slot_progression !== undefined ||
+    is_spellcaster !== undefined
+  ) {
+    const spellcaster = is_spellcaster ?? Boolean(objectRecord(resolved.classMetadata).spellcasting_type);
     updates.class_metadata = {
       ...objectRecord(resolved.classMetadata),
       ...(trained_skill_count !== undefined ? { trained_skill_count } : {}),
       ...(loreSkills !== undefined ? { class_lore_skills: loreSkills } : {}),
+      spellcasting_type: spellcaster ? spellType : null,
+      spellcasting_tradition: spellcaster ? spellTradition : null,
+      cantrips_known: spellcaster ? cantripsKnown : 0,
+      focus_points: spellcaster ? focusPoints : 0,
+      spell_slot_progression: spellcaster ? slotProgression : {},
     } as Json;
   }
 

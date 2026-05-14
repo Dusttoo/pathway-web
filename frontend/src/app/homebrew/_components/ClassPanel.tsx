@@ -14,6 +14,11 @@ import {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const ABILITIES = ["str", "dex", "con", "int", "wis", "cha"] as const;
+const SPELL_TRADITIONS = ["arcane", "divine", "occult", "primal"] as const;
+const SPELLCASTING_TYPES = [
+  { value: "prepared", label: "Prepared Spellbook" },
+  { value: "spontaneous", label: "Spontaneous Repertoire" },
+] as const;
 const SKILLS = [
   "acrobatics", "arcana", "athletics", "crafting", "deception", "diplomacy",
   "intimidation", "medicine", "nature", "occultism", "performance", "religion",
@@ -106,6 +111,11 @@ type ClassItem = {
   class_trained_skills: string[];
   class_lore_skills: string[];
   class_proficiencies: Record<string, number>;
+  spellcasting_type?: "prepared" | "spontaneous";
+  spellcasting_tradition?: "arcane" | "divine" | "occult" | "primal";
+  cantrips_known: number;
+  focus_points: number;
+  spell_slot_progression: Record<string, number[]>;
   trained_skill_count: number;
 };
 
@@ -120,6 +130,34 @@ function loreKey(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "");
+}
+
+function slotRow(value: unknown): number[] {
+  const row = Array.isArray(value) ? value : [];
+  return Array.from({ length: 10 }, (_, i) => {
+    const raw = row[i];
+    const n = typeof raw === "number" ? raw : parseInt(String(raw ?? "0"), 10);
+    return Number.isFinite(n) ? Math.max(0, Math.min(9, n)) : 0;
+  });
+}
+
+function slotProgression(value: unknown): Record<string, number[]> {
+  const input = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+  return Object.fromEntries(
+    Array.from({ length: 20 }, (_, i) => {
+      const level = String(i + 1);
+      return [level, slotRow(input[level])];
+    })
+  );
+}
+
+function progressionSummary(progression: Record<string, number[]>): string {
+  const rows = Object.entries(progression)
+    .filter(([, slots]) => slots.some((slot) => slot > 0))
+    .map(([level, slots]) => `L${level}: ${slots.map((slot) => slot || "-").join("/")}`);
+  return rows.slice(0, 2).join("; ") + (rows.length > 2 ? " ..." : "");
 }
 
 function toItem(raw: Record<string, unknown>): ClassItem {
@@ -141,6 +179,11 @@ function toItem(raw: Record<string, unknown>): ClassItem {
       typeof profs[key] === "number" ? Number(profs[key]) : fallback,
     ])
   );
+  const spellcasting_type =
+    meta.spellcasting_type === "spontaneous" ? "spontaneous" : "prepared";
+  const spellcasting_tradition = SPELL_TRADITIONS.includes(meta.spellcasting_tradition as never)
+    ? (meta.spellcasting_tradition as ClassItem["spellcasting_tradition"])
+    : undefined;
 
   return {
     id: String(raw.id ?? ""),
@@ -159,6 +202,11 @@ function toItem(raw: Record<string, unknown>): ClassItem {
     class_trained_skills,
     class_lore_skills,
     class_proficiencies,
+    spellcasting_type,
+    spellcasting_tradition,
+    cantrips_known: typeof meta.cantrips_known === "number" ? meta.cantrips_known : 5,
+    focus_points: typeof meta.focus_points === "number" ? meta.focus_points : 0,
+    spell_slot_progression: slotProgression(meta.spell_slot_progression),
     trained_skill_count: typeof meta.trained_skill_count === "number"
       ? meta.trained_skill_count
       : 3,
@@ -187,6 +235,14 @@ function ClassForm({
   const [spellAbility, setSpellAbility] = useState(
     initialValues?.spellcasting_ability ?? ""
   );
+  const [spellcastingType, setSpellcastingType] = useState<"prepared" | "spontaneous">(
+    initialValues?.spellcasting_type ?? "prepared"
+  );
+  const [spellTradition, setSpellTradition] = useState<"arcane" | "divine" | "occult" | "primal">(
+    initialValues?.spellcasting_tradition ?? "arcane"
+  );
+  const [cantripsKnown, setCantripsKnown] = useState(initialValues?.cantrips_known ?? 5);
+  const [focusPoints, setFocusPoints] = useState(initialValues?.focus_points ?? 0);
   const [trainedCount, setTrainedCount] = useState(
     initialValues?.trained_skill_count ?? 3
   );
@@ -198,6 +254,9 @@ function ClassForm({
   );
   const [classProficiencies, setClassProficiencies] = useState<Record<string, number>>(
     initialValues?.class_proficiencies ?? DEFAULT_CLASS_PROFICIENCIES
+  );
+  const [spellSlotProgression, setSpellSlotProgression] = useState<Record<string, number[]>>(
+    initialValues?.spell_slot_progression ?? slotProgression({})
   );
   const [loreInput, setLoreInput] = useState("");
   const [description, setDesc] = useState(initialValues?.description ?? "");
@@ -231,6 +290,24 @@ function ClassForm({
   function setProficiency(key: string, rank: number) {
     setClassProficiencies((prev) => ({ ...prev, [key]: rank }));
   }
+  function setSlot(level: number, rank: number, value: number) {
+    setSpellSlotProgression((prev) => {
+      const key = String(level);
+      const row = slotRow(prev[key]);
+      row[rank - 1] = Math.max(0, Math.min(9, value));
+      return { ...prev, [key]: row };
+    });
+  }
+  function applySlotPreset(kind: "full" | "bounded" | "clear") {
+    const next: Record<string, number[]> = {};
+    for (let level = 1; level <= 20; level += 1) {
+      const maxRank = Math.min(10, Math.max(1, Math.ceil(level / 2)));
+      next[String(level)] = Array.from({ length: 10 }, (_, i) =>
+        kind === "clear" || i + 1 > maxRank || (kind === "bounded" && i + 1 > 6) ? 0 : 2
+      );
+    }
+    setSpellSlotProgression(next);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -245,6 +322,11 @@ function ClassForm({
       key_attribute: keyAttrs,
       is_spellcaster: isSpell,
       spellcasting_ability: isSpell ? spellAbility || undefined : undefined,
+      spellcasting_type: isSpell ? spellcastingType : undefined,
+      spellcasting_tradition: isSpell ? spellTradition : undefined,
+      cantrips_known: isSpell ? cantripsKnown : 0,
+      focus_points: isSpell ? focusPoints : 0,
+      spell_slot_progression: isSpell ? spellSlotProgression : {},
       trained_skill_count: trainedCount,
       class_trained_skills: classSkills,
       class_lore_skills: classLoreSkills,
@@ -357,6 +439,112 @@ function ClassForm({
           </div>
         )}
       </div>
+
+      {isSpell && (
+        <div className="rounded-md border border-border bg-muted/20 p-3 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Spell List Type</label>
+              <div className="relative">
+                <select
+                  className="input w-full appearance-none pr-8 text-sm"
+                  value={spellcastingType}
+                  onChange={(e) => setSpellcastingType(e.target.value as typeof spellcastingType)}
+                >
+                  {SPELLCASTING_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Tradition</label>
+              <div className="relative">
+                <select
+                  className="input w-full appearance-none pr-8 text-sm capitalize"
+                  value={spellTradition}
+                  onChange={(e) => setSpellTradition(e.target.value as typeof spellTradition)}
+                >
+                  {SPELL_TRADITIONS.map((tradition) => (
+                    <option key={tradition} value={tradition}>{tradition}</option>
+                  ))}
+                </select>
+                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Cantrips</label>
+              <input
+                className="input w-full text-sm"
+                type="number"
+                min={0}
+                max={10}
+                value={cantripsKnown}
+                onChange={(e) => setCantripsKnown(parseInt(e.target.value, 10) || 0)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Focus Points</label>
+              <input
+                className="input w-full text-sm"
+                type="number"
+                min={0}
+                max={3}
+                value={focusPoints}
+                onChange={(e) => setFocusPoints(parseInt(e.target.value, 10) || 0)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div>
+                <label className="block text-sm font-medium">Spell Slot Progression</label>
+                <p className="text-xs text-muted-foreground">
+                  Enter slots per day by character level and spell rank.
+                </p>
+              </div>
+              <div className="flex gap-1">
+                <button type="button" onClick={() => applySlotPreset("full")} className="btn-outline px-2 py-1 text-xs">Full</button>
+                <button type="button" onClick={() => applySlotPreset("bounded")} className="btn-outline px-2 py-1 text-xs">Bounded</button>
+                <button type="button" onClick={() => applySlotPreset("clear")} className="btn-outline px-2 py-1 text-xs">Clear</button>
+              </div>
+            </div>
+            <div className="max-h-72 overflow-auto rounded-md border border-border">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-background">
+                  <tr>
+                    <th className="px-2 py-1 text-left">Lvl</th>
+                    {Array.from({ length: 10 }, (_, i) => i + 1).map((rank) => (
+                      <th key={rank} className="px-1 py-1 text-center">R{rank}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 20 }, (_, i) => i + 1).map((level) => (
+                    <tr key={level} className="border-t border-border">
+                      <td className="px-2 py-1 font-mono text-muted-foreground">{level}</td>
+                      {Array.from({ length: 10 }, (_, rankIndex) => rankIndex + 1).map((rank) => (
+                        <td key={rank} className="px-1 py-1">
+                          <input
+                            className="input h-7 w-10 px-1 text-center text-xs"
+                            type="number"
+                            min={0}
+                            max={9}
+                            value={spellSlotProgression[String(level)]?.[rank - 1] ?? 0}
+                            onChange={(e) => setSlot(level, rank, parseInt(e.target.value, 10) || 0)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Starting proficiencies */}
       <div>
@@ -578,6 +766,14 @@ function ClassCard({
       {item.class_lore_skills.length > 0 && (
         <p className="text-xs text-muted-foreground">
           Class lore: {item.class_lore_skills.join(", ")}
+        </p>
+      )}
+      {item.is_spellcaster && (
+        <p className="text-xs text-muted-foreground capitalize">
+          {item.spellcasting_type} {item.spellcasting_tradition ?? "arcane"} caster
+          {progressionSummary(item.spell_slot_progression)
+            ? ` · Slots ${progressionSummary(item.spell_slot_progression)}`
+            : ""}
         </p>
       )}
       {item.description && (
