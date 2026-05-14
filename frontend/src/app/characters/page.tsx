@@ -23,9 +23,9 @@ const PATHWAY_AVATAR = "/images/pathway-avatar.png";
 
 type CustomAttack = {
   name: string;
-  bonus: string;
+  bonus: string | number;
   damage: string;
-  traits: string;
+  traits: string | string[];
   action?: string;
   category?: string;
   range?: string;
@@ -49,6 +49,7 @@ type CharacterBuild = {
   shield?: unknown;
   speed?: unknown;
   senses?: unknown;
+  acTotal?: unknown;
   class_dc?: unknown;
   spell_dc?: unknown;
   feats?: unknown;
@@ -56,6 +57,8 @@ type CharacterBuild = {
   proficiencies?: unknown;
   specials?: unknown;
   custom_attacks?: unknown;
+  lores?: unknown;
+  weapons?: unknown;
   build?: CharacterBuild;
 };
 
@@ -131,6 +134,36 @@ const SAVE_ABILITY: Record<(typeof SAVE_KEYS)[number][0], keyof AbilityScores> =
   reflex: "dex",
   will: "wis",
 };
+const COMBAT_PROF_KEYS = new Set([
+  "advanced",
+  "advanced_weapons",
+  "armor",
+  "castingarcane",
+  "castingdivine",
+  "castingoccult",
+  "castingprimal",
+  "classdc",
+  "class_dc",
+  "heavy",
+  "heavy_armor",
+  "light",
+  "light_armor",
+  "martial",
+  "martial_weapons",
+  "medium",
+  "medium_armor",
+  "simple",
+  "simple_weapons",
+  "spell_dc",
+  "unarmed",
+  "unarmored",
+]);
+const NON_SKILL_PROF_KEYS = new Set([
+  ...SKILL_ORDER,
+  ...SAVE_KEYS.map(([key]) => key),
+  ...COMBAT_PROF_KEYS,
+  "perception",
+]);
 
 function isRecord(value: Json | unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -244,10 +277,16 @@ function getHpAttributes(character: Character): HpAttributes {
 function getDefenseDetails(character: Character): DefenseDetails {
   const build = getCharacterBuild(character);
   const ac =
-    getNestedNumber(build, [["ac"], ["armorClass"], ["armor_class"], ["stats", "ac"]]) ??
-    deriveAc(character);
+    getNestedNumber(build, [
+      ["acTotal", "acTotal"],
+      ["ac"],
+      ["armorClass"],
+      ["armor_class"],
+      ["stats", "ac"],
+    ]) ?? deriveAc(character);
   const speed =
     getNestedNumber(build, [["speed"], ["speed_ft"], ["stats", "speed"]]) ??
+    getNestedNumber(build, [["attributes", "speed"]]) ??
     getNestedNumber(character.pathbuilder_data, [["speed"], ["build", "speed"]]);
   const classDc =
     getNestedNumber(build, [["class_dc"], ["classDC"], ["stats", "class_dc"]]) ??
@@ -395,8 +434,24 @@ function signed(value: number) {
   return value >= 0 ? `+${value}` : `${value}`;
 }
 
-function proficiencyBonus(rank: number, level: number) {
-  return rank === 0 ? 0 : rank * 2 + level;
+function usesPf2eProficiencyBonus(character: Character, proficiencies: Record<string, number>) {
+  if (character.source === "pathbuilder" || character.pathbuilder_id) return true;
+  const build = getCharacterBuild(character);
+  if (isRecord(build.acTotal) || Array.isArray(build.lores) || Array.isArray(build.weapons)) {
+    return true;
+  }
+  return Object.values(proficiencies).some((value) => value > 4);
+}
+
+function proficiencyValueToBonus(value: number, level: number, usesRawBonus: boolean) {
+  if (!value) return 0;
+  return level + (usesRawBonus ? value : value * 2);
+}
+
+function proficiencyValueToRank(value: number, usesRawBonus: boolean) {
+  if (!value) return 0;
+  const rank = usesRawBonus ? value / 2 : value;
+  return Math.max(0, Math.min(4, Math.round(rank)));
 }
 
 function proficiencyLabel(rank: number) {
@@ -423,6 +478,7 @@ function deriveMaxHp(character: Character) {
 function deriveAc(character: Character) {
   const build = getCharacterBuild(character);
   const directAc = getNestedNumber(build, [
+    ["acTotal", "acTotal"],
     ["ac"],
     ["armorClass"],
     ["armor_class"],
@@ -432,13 +488,17 @@ function deriveAc(character: Character) {
   const abilities = getAbilityScores(character);
   const proficiencies = getProficiencies(character);
   const level = character.level ?? getBuildNumber(build, "level", 1);
+  const usesRawBonus = usesPf2eProficiencyBonus(character, proficiencies);
   const armorRank =
     proficiencies.unarmored ??
+    proficiencies.light ??
     proficiencies.light_armor ??
+    proficiencies.medium ??
     proficiencies.medium_armor ??
+    proficiencies.heavy ??
     proficiencies.heavy_armor ??
     0;
-  return 10 + abilityMod(abilities.dex) + proficiencyBonus(armorRank, level);
+  return 10 + abilityMod(abilities.dex) + proficiencyValueToBonus(armorRank, level, usesRawBonus);
 }
 
 function getSpecialAbilities(character: Character) {
@@ -496,9 +556,9 @@ function isCustomAttack(value: unknown): value is CustomAttack {
   return (
     isRecord(value) &&
     typeof value.name === "string" &&
-    typeof value.bonus === "string" &&
+    (typeof value.bonus === "string" || typeof value.bonus === "number") &&
     typeof value.damage === "string" &&
-    typeof value.traits === "string" &&
+    (typeof value.traits === "string" || Array.isArray(value.traits)) &&
     (value.action === undefined || typeof value.action === "string") &&
     (value.category === undefined || typeof value.category === "string") &&
     (value.range === undefined || typeof value.range === "string") &&
@@ -509,6 +569,119 @@ function isCustomAttack(value: unknown): value is CustomAttack {
 function getCustomAttacks(character: Character) {
   const build = getCharacterBuild(character);
   return Array.isArray(build.custom_attacks) ? build.custom_attacks.filter(isCustomAttack) : [];
+}
+
+function formatAttackBonus(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) return signed(value);
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return "";
+}
+
+function formatAttackTraits(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value
+      .map((trait) => (typeof trait === "string" ? trait.trim() : ""))
+      .filter(Boolean)
+      .join(", ");
+  }
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function damageTypeLabel(value: unknown): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  const labels: Record<string, string> = {
+    B: "Bludgeoning",
+    P: "Piercing",
+    S: "Slashing",
+  };
+  return labels[raw] ?? raw;
+}
+
+function normalizeWeaponAttack(value: unknown): CustomAttack | null {
+  if (!isRecord(value)) return null;
+  const name =
+    (typeof value.display === "string" && value.display.trim()) ||
+    (typeof value.name === "string" && value.name.trim());
+  if (!name) return null;
+  const die =
+    (typeof value.die === "string" && value.die.trim()) ||
+    (typeof value.damage === "string" && value.damage.trim());
+  const damageBonus =
+    typeof value.damageBonus === "number" && value.damageBonus !== 0
+      ? signed(value.damageBonus)
+      : "";
+  const damageType = damageTypeLabel(value.damageType);
+  return {
+    name,
+    bonus: formatAttackBonus(value.attack ?? value.attackBonus),
+    damage: [die ? `${die}${damageBonus}` : "", damageType].filter(Boolean).join(" "),
+    traits: formatAttackTraits(value.traits),
+    category: typeof value.type === "string" ? value.type : undefined,
+    range: typeof value.range === "string" ? value.range : undefined,
+  };
+}
+
+function getCharacterAttacks(character: Character) {
+  const build = getCharacterBuild(character);
+  const attacks = new Map<string, CustomAttack>();
+
+  if (Array.isArray(build.weapons)) {
+    for (const attack of build.weapons
+      .map(normalizeWeaponAttack)
+      .filter((attack): attack is CustomAttack => !!attack)) {
+      attacks.set(attack.name.toLowerCase(), attack);
+    }
+  }
+
+  for (const attack of getCustomAttacks(character)) {
+    attacks.set(attack.name.toLowerCase(), {
+      ...attack,
+      bonus: formatAttackBonus(attack.bonus),
+      traits: formatAttackTraits(attack.traits),
+    });
+  }
+
+  return [...attacks.values()];
+}
+
+function getLoreSkills(character: Character, usesRawBonus: boolean) {
+  const build = getCharacterBuild(character);
+  const level = character.level ?? getBuildNumber(build, "level", 1);
+  const intMod = abilityMod(getAbilityScores(character).int);
+  if (!Array.isArray(build.lores)) return [];
+
+  return build.lores
+    .map((lore): { skill: string; rank: number; total: number } | null => {
+      let name = "";
+      let rawRank = 0;
+      let totalOverride: number | null = null;
+
+      if (Array.isArray(lore) && typeof lore[0] === "string") {
+        name = lore[0];
+        rawRank = typeof lore[1] === "number" ? lore[1] : 0;
+        totalOverride = typeof lore[2] === "number" ? lore[2] : null;
+      } else if (isRecord(lore)) {
+        name =
+          (typeof lore.name === "string" && lore.name) ||
+          (typeof lore.topic === "string" && lore.topic) ||
+          "";
+        rawRank =
+          typeof lore.rank === "number"
+            ? lore.rank
+            : typeof lore.proficiency === "number"
+              ? lore.proficiency
+              : 0;
+        totalOverride = typeof lore.total === "number" ? lore.total : null;
+      }
+
+      if (!name.trim()) return null;
+      return {
+        skill: `Lore: ${name.trim()}`,
+        rank: proficiencyValueToRank(rawRank, usesRawBonus),
+        total: totalOverride ?? intMod + proficiencyValueToBonus(rawRank, level, usesRawBonus),
+      };
+    })
+    .filter((lore): lore is { skill: string; rank: number; total: number } => !!lore);
 }
 
 function FullSheetEditor({ character, onClose }: { character: Character; onClose: () => void }) {
@@ -622,9 +795,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
           custom_attacks: attacks
             .map((attack) => ({
               name: attack.name.trim(),
-              bonus: attack.bonus.trim(),
+              bonus: formatAttackBonus(attack.bonus),
               damage: attack.damage.trim(),
-              traits: attack.traits.trim(),
+              traits: formatAttackTraits(attack.traits),
               action: attack.action?.trim() ?? "",
               category: attack.category?.trim() ?? "",
               range: attack.range?.trim() ?? "",
@@ -1443,30 +1616,33 @@ function MiniCharacterSheet({
   const feats = getFeats(character);
   const equipment = getEquipment(character);
   const specials = getSpecialAbilityEntries(character);
-  const attacks = getCustomAttacks(character);
+  const attacks = getCharacterAttacks(character);
   const languages = getLanguages(character);
   const defenses = getDefenseDetails(character);
   const level = character.level ?? getBuildNumber(build, "level", 1);
+  const usesRawBonus = usesPf2eProficiencyBonus(character, proficiencies);
   const maxHp = deriveMaxHp(character);
   const ac = Number(defenses.ac) || deriveAc(character);
   const perceptionRank = proficiencies.perception ?? 0;
-  const perception = proficiencyBonus(perceptionRank, level) + abilityMod(abilities.wis);
+  const perception =
+    proficiencyValueToBonus(perceptionRank, level, usesRawBonus) + abilityMod(abilities.wis);
+  const perceptionLabel = proficiencyLabel(proficiencyValueToRank(perceptionRank, usesRawBonus));
   const visibleSkills = SKILL_ORDER.map((skill) => ({
     skill,
-    rank: proficiencies[skill] ?? 0,
+    rank: proficiencyValueToRank(proficiencies[skill] ?? 0, usesRawBonus),
     total:
-      proficiencyBonus(proficiencies[skill] ?? 0, level) +
+      proficiencyValueToBonus(proficiencies[skill] ?? 0, level, usesRawBonus) +
       abilityMod(abilities[SKILL_ABILITY_MAP[skill]]),
-  })).filter(({ rank }) => rank > 0);
+    rawRank: proficiencies[skill] ?? 0,
+  })).filter(({ rawRank }) => rawRank > 0);
   const extraSkills = Object.entries(proficiencies)
-    .filter(
-      ([key, rank]) =>
-        !SKILL_ORDER.includes(key) &&
-        !SAVE_KEYS.some(([save]) => save === key) &&
-        key !== "perception" &&
-        rank > 0
-    )
-    .map(([skill, rank]) => ({ skill, rank, total: proficiencyBonus(rank, level) }));
+    .filter(([key, rank]) => !NON_SKILL_PROF_KEYS.has(key.toLowerCase()) && rank > 0)
+    .map(([skill, rank]) => ({
+      skill,
+      rank: proficiencyValueToRank(rank, usesRawBonus),
+      total: proficiencyValueToBonus(rank, level, usesRawBonus),
+    }));
+  const loreSkills = getLoreSkills(character, usesRawBonus);
 
   return (
     <>
@@ -1539,15 +1715,13 @@ function MiniCharacterSheet({
                 value={defenses.speed || "—"}
                 sub={defenses.speed ? "feet" : undefined}
               />
-              <MiniStat
-                label="Perception"
-                value={signed(perception)}
-                sub={proficiencyLabel(perceptionRank)}
-              />
+              <MiniStat label="Perception" value={signed(perception)} sub={perceptionLabel} />
               {SAVE_KEYS.map(([key, label]) => {
-                const rank = proficiencies[key] ?? 0;
+                const rawRank = proficiencies[key] ?? 0;
+                const rank = proficiencyValueToRank(rawRank, usesRawBonus);
                 const total =
-                  proficiencyBonus(rank, level) + abilityMod(abilities[SAVE_ABILITY[key]]);
+                  proficiencyValueToBonus(rawRank, level, usesRawBonus) +
+                  abilityMod(abilities[SAVE_ABILITY[key]]);
                 return (
                   <MiniStat
                     key={key}
@@ -1586,9 +1760,9 @@ function MiniCharacterSheet({
 
             <div className="grid gap-4 xl:grid-cols-2">
               <MiniSection title="Skills">
-                {visibleSkills.length > 0 || extraSkills.length > 0 ? (
+                {visibleSkills.length > 0 || extraSkills.length > 0 || loreSkills.length > 0 ? (
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-                    {[...visibleSkills, ...extraSkills]
+                    {[...visibleSkills, ...extraSkills, ...loreSkills]
                       .slice(0, 18)
                       .map(({ skill, rank, total }) => (
                         <div key={skill} className="flex items-center justify-between gap-2">
