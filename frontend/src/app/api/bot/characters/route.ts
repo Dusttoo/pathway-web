@@ -1,9 +1,27 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
+
+function hasValidBotKey(request: Request) {
+  const botKey = request.headers.get("x-bot-key");
+  const expected = process.env.BOT_API_KEY;
+  if (!botKey || !expected) return false;
+
+  const actualBuffer = Buffer.from(botKey);
+  const expectedBuffer = Buffer.from(expected);
+  if (actualBuffer.length !== expectedBuffer.length) return false;
+
+  return timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+function jsonNoStore(body: unknown, init?: ResponseInit) {
+  const headers = new Headers(init?.headers);
+  headers.set("Cache-Control", "no-store");
+  return NextResponse.json(body, { ...init, headers });
+}
 
 export async function GET(request: Request) {
-  const botKey = request.headers.get("x-bot-key");
-  if (!botKey || botKey !== process.env.BOT_API_KEY) {
+  if (!hasValidBotKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -33,7 +51,7 @@ export async function GET(request: Request) {
       ? (pathbuilderData as { build?: unknown }).build
       : pathbuilderData;
 
-  return NextResponse.json({
+  return jsonNoStore({
     pathway_id: data.id,
     char_key: data.char_key,
     discord_guild_id: data.discord_guild_id,
@@ -44,8 +62,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const botKey = request.headers.get("x-bot-key");
-  if (!botKey || botKey !== process.env.BOT_API_KEY) {
+  if (!hasValidBotKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -94,7 +111,7 @@ export async function POST(request: Request) {
 
   if (!userRow) {
     // User hasn't logged into the web app yet — still return the build so bot can store it locally
-    return NextResponse.json({ build, stored: false });
+    return jsonNoStore({ build, stored: false });
   }
 
   // Upsert to Supabase (same contract as web /api/characters POST)
@@ -115,5 +132,5 @@ export async function POST(request: Request) {
     { onConflict: "user_id,char_key" }
   );
 
-  return NextResponse.json({ build, stored: true });
+  return jsonNoStore({ build, stored: true });
 }
