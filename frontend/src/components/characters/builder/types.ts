@@ -15,6 +15,11 @@ export type BuilderState = {
   ancestryHp: number;
   ancestrySpeed: number;
   ancestrySize: string;
+  ancestryBoostMode: "printed" | "remaster";
+  printedAncestryBoosts: Array<"str" | "dex" | "con" | "int" | "wis" | "cha">;
+  printedAncestryFlaws: Array<"str" | "dex" | "con" | "int" | "wis" | "cha">;
+  selectedAncestryBoosts: Array<"str" | "dex" | "con" | "int" | "wis" | "cha">;
+  selectedAncestryFlaws: Array<"str" | "dex" | "con" | "int" | "wis" | "cha">;
   heritageName: string;
   defaultLanguages: string[];
   // Step 3 — Class & Background
@@ -72,6 +77,11 @@ export const DEFAULT_STATE: BuilderState = {
   ancestryHp: 8,
   ancestrySpeed: 25,
   ancestrySize: "Medium",
+  ancestryBoostMode: "remaster",
+  printedAncestryBoosts: [],
+  printedAncestryFlaws: [],
+  selectedAncestryBoosts: [],
+  selectedAncestryFlaws: [],
   heritageName: "",
   defaultLanguages: [],
   classId: "",

@@ -14,6 +14,7 @@ export type FeatSlot =
 
 export type Tradition = "arcane" | "divine" | "occult" | "primal";
 export type SpellSource = "spellbook" | "repertoire" | "innate" | "focus";
+export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 
 export type SelectedFeat = {
   feat_id: string;
@@ -92,6 +93,11 @@ export type BuilderState = {
   ancestryHp: number;
   ancestrySpeed: number;
   ancestrySize: string;
+  ancestryBoostMode: "printed" | "remaster";
+  printedAncestryBoosts: AbilityKey[];
+  printedAncestryFlaws: AbilityKey[];
+  selectedAncestryBoosts: AbilityKey[];
+  selectedAncestryFlaws: AbilityKey[];
   heritageId: string;
   heritageName: string;
   defaultLanguages: string[];
@@ -169,6 +175,11 @@ export const DEFAULT_STATE: BuilderState = {
   ancestryHp: 8,
   ancestrySpeed: 25,
   ancestrySize: "Medium",
+  ancestryBoostMode: "remaster",
+  printedAncestryBoosts: [],
+  printedAncestryFlaws: [],
+  selectedAncestryBoosts: [],
+  selectedAncestryFlaws: [],
   heritageId: "",
   heritageName: "",
   defaultLanguages: [],

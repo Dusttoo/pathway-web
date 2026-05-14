@@ -38,6 +38,10 @@ function abilityMod(score: number) {
   return mod >= 0 ? `+${mod}` : `${mod}`;
 }
 
+function abilityName(key: Ability): string {
+  return ABILITIES.find((ability) => ability.key === key)?.label ?? key.toUpperCase();
+}
+
 export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
   const {
     classInitialProfs,
@@ -85,6 +89,27 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
     update({ abilities: { ...abilities, [key]: val } });
   }
 
+  function toggleAncestryBoost(key: Ability) {
+    const selected = state.selectedAncestryBoosts.includes(key);
+    if (selected) {
+      update({ selectedAncestryBoosts: state.selectedAncestryBoosts.filter((item) => item !== key) });
+    } else if (state.selectedAncestryBoosts.length < 2) {
+      update({ selectedAncestryBoosts: [...state.selectedAncestryBoosts, key] });
+    }
+  }
+
+  function applyAncestryBoosts() {
+    const boosts =
+      state.ancestryBoostMode === "printed"
+        ? [...state.printedAncestryBoosts, ...state.selectedAncestryBoosts]
+        : state.selectedAncestryBoosts;
+    const flaws = state.ancestryBoostMode === "printed" ? state.selectedAncestryFlaws : [];
+    const next = { ...abilities };
+    for (const boost of boosts) next[boost] = Math.min(20, next[boost] + 2);
+    for (const flaw of flaws) next[flaw] = Math.max(8, next[flaw] - 2);
+    update({ abilities: next });
+  }
+
   function updateAdditionalSkill(index: number, patch: Partial<{ name: string; rank: number }>) {
     update({
       additionalSkills: additionalSkills.map((skill, i) =>
@@ -121,6 +146,66 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
       {/* Ability scores */}
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Ability Scores</h3>
+        <div className="mb-3 rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-sm font-semibold">Ancestry Ability Boosts</p>
+              <p className="text-xs text-muted-foreground">
+                Printed boosts: {state.printedAncestryBoosts.length ? state.printedAncestryBoosts.map(abilityName).join(", ") : "None recorded"}.
+                {" "}Printed flaws: {state.printedAncestryFlaws.length ? state.printedAncestryFlaws.map(abilityName).join(", ") : "None"}.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => update({ ancestryBoostMode: "remaster", selectedAncestryBoosts: [], selectedAncestryFlaws: [] })}
+                className={`px-3 py-1 rounded-md text-xs ${state.ancestryBoostMode === "remaster" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+              >
+                Remaster 2 Free
+              </button>
+              <button
+                type="button"
+                onClick={() => update({ ancestryBoostMode: "printed", selectedAncestryBoosts: [], selectedAncestryFlaws: state.printedAncestryFlaws })}
+                className={`px-3 py-1 rounded-md text-xs ${state.ancestryBoostMode === "printed" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+              >
+                Printed
+              </button>
+            </div>
+          </div>
+          {state.ancestryBoostMode === "remaster" && (
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              {ABILITIES.map(({ key, label }) => {
+                const active = state.selectedAncestryBoosts.includes(key);
+                const disabled = !active && state.selectedAncestryBoosts.length >= 2;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => toggleAncestryBoost(key)}
+                    className={`rounded-md px-3 py-2 text-sm font-mono ${
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : disabled
+                          ? "bg-muted text-muted-foreground/40"
+                          : "bg-muted text-muted-foreground hover:bg-muted/70"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={applyAncestryBoosts}
+            disabled={state.ancestryBoostMode === "remaster" && state.selectedAncestryBoosts.length !== 2}
+            className="btn-outline text-sm disabled:opacity-50"
+          >
+            Apply ancestry boosts to current scores
+          </button>
+        </div>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
           {ABILITIES.map(({ key, label }) => (
             <div key={key} className="flex flex-col items-center gap-1">

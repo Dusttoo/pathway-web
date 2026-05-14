@@ -13,6 +13,9 @@ export type NativeBuildInput = {
   ancestry_hp?: number;
   ancestry_speed?: number;
   ancestry_size?: string;
+  ancestry_boost_mode?: "printed" | "remaster";
+  ancestry_boosts?: string[];
+  ancestry_flaws?: string[];
   heritage: string;
   class: string;
   class_id: string;

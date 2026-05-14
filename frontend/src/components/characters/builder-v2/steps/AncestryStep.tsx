@@ -3,7 +3,29 @@
 import { useState } from "react";
 import { Search, Loader2, Heart, Footprints, Ruler } from "lucide-react";
 import { useAncestries } from "@/lib/hooks/use-builder-data";
-import type { StepProps } from "../types";
+import type { AbilityKey, StepProps } from "../types";
+
+const ABILITY_MAP: Record<string, AbilityKey> = {
+  strength: "str",
+  str: "str",
+  dexterity: "dex",
+  dex: "dex",
+  constitution: "con",
+  con: "con",
+  intelligence: "int",
+  int: "int",
+  wisdom: "wis",
+  wis: "wis",
+  charisma: "cha",
+  cha: "cha",
+};
+
+function ancestryAbilities(value: unknown): AbilityKey[] {
+  const list = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+  return list
+    .map((item) => ABILITY_MAP[String(item).trim().toLowerCase()])
+    .filter((item): item is AbilityKey => !!item);
+}
 
 export function AncestryStep({ state, update }: StepProps) {
   const [searchQ, setSearchQ] = useState("");
@@ -12,12 +34,19 @@ export function AncestryStep({ state, update }: StepProps) {
 
   function selectAncestry(row: (typeof ancestries)[number]) {
     const langs = Array.isArray(row.languages) ? (row.languages as string[]) : [];
+    const printedBoosts = ancestryAbilities(row.attribute_boosts);
+    const printedFlaws = ancestryAbilities(row.attribute_flaws);
     update({
       ancestryId: row.id,
       ancestryName: row.name,
       ancestryHp: row.ancestry_hp ?? 8,
       ancestrySpeed: row.speed ?? 25,
       ancestrySize: row.size ?? "Medium",
+      printedAncestryBoosts: printedBoosts,
+      printedAncestryFlaws: printedFlaws,
+      selectedAncestryBoosts: [],
+      selectedAncestryFlaws: [],
+      ancestryBoostMode: "remaster",
       defaultLanguages: langs,
       languages: langs,
       heritageId: "",

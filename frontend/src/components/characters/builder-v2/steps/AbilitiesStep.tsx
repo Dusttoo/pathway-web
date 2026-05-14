@@ -1,9 +1,9 @@
 "use client";
 
 import { Heart, Info, Minus, Plus } from "lucide-react";
-import type { StepProps } from "../types";
+import type { AbilityKey, StepProps } from "../types";
 
-type Ability = "str" | "dex" | "con" | "int" | "wis" | "cha";
+type Ability = AbilityKey;
 
 const ABILITIES: { key: Ability; short: string; label: string }[] = [
   { key: "str", short: "STR", label: "Strength" },
@@ -23,6 +23,10 @@ function fmtMod(score: number): string {
   return m >= 0 ? `+${m}` : `${m}`;
 }
 
+function abilityName(key: Ability): string {
+  return ABILITIES.find((ability) => ability.key === key)?.label ?? key.toUpperCase();
+}
+
 export function AbilitiesStep({ state, update }: StepProps) {
   const { abilities, ancestryHp, classHp, level } = state;
   const conMod = modOf(abilities.con);
@@ -37,6 +41,34 @@ export function AbilitiesStep({ state, update }: StepProps) {
     setAbility(key, abilities[key] + delta);
   }
 
+  function toggleAncestryBoost(key: Ability) {
+    const selected = state.selectedAncestryBoosts.includes(key);
+    if (selected) {
+      update({ selectedAncestryBoosts: state.selectedAncestryBoosts.filter((item) => item !== key) });
+    } else if (state.selectedAncestryBoosts.length < 2) {
+      update({ selectedAncestryBoosts: [...state.selectedAncestryBoosts, key] });
+    }
+  }
+
+  function applyAncestryBoosts() {
+    const boosts =
+      state.ancestryBoostMode === "printed"
+        ? [...state.printedAncestryBoosts, ...state.selectedAncestryBoosts]
+        : state.selectedAncestryBoosts;
+    const flaws = state.ancestryBoostMode === "printed" ? state.selectedAncestryFlaws : [];
+    const next = { ...abilities };
+    for (const boost of boosts) next[boost] = Math.min(20, next[boost] + 2);
+    for (const flaw of flaws) next[flaw] = Math.max(8, next[flaw] - 2);
+    update({ abilities: next });
+  }
+
+  const printedBoostText = state.printedAncestryBoosts.length
+    ? state.printedAncestryBoosts.map(abilityName).join(", ")
+    : "None recorded";
+  const printedFlawText = state.printedAncestryFlaws.length
+    ? state.printedAncestryFlaws.map(abilityName).join(", ")
+    : "None";
+
   return (
     <div className="space-y-5">
       <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2 text-sm text-muted-foreground">
@@ -47,6 +79,100 @@ export function AbilitiesStep({ state, update }: StepProps) {
           free boosts. The full PF2e boost UI lands in a follow-up — for now the math is on you.
           Scores clamp to 8&ndash;20 (the cap at character creation, before mid-campaign boosts).
         </p>
+      </div>
+
+      <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold">Ancestry Ability Boosts</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Printed boosts: {printedBoostText}. Printed flaws: {printedFlawText}.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                update({
+                  ancestryBoostMode: "remaster",
+                  selectedAncestryBoosts: [],
+                  selectedAncestryFlaws: [],
+                })
+              }
+              className={`px-3 py-1 rounded-md text-xs ${
+                state.ancestryBoostMode === "remaster"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              Remaster 2 Free
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                update({
+                  ancestryBoostMode: "printed",
+                  selectedAncestryBoosts: [],
+                  selectedAncestryFlaws: state.printedAncestryFlaws,
+                })
+              }
+              className={`px-3 py-1 rounded-md text-xs ${
+                state.ancestryBoostMode === "printed"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              Printed
+            </button>
+          </div>
+        </div>
+
+        {state.ancestryBoostMode === "remaster" ? (
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Choose any two different ancestry boosts.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              {ABILITIES.map(({ key, short }) => {
+                const active = state.selectedAncestryBoosts.includes(key);
+                const disabled = !active && state.selectedAncestryBoosts.length >= 2;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => toggleAncestryBoost(key)}
+                    className={`rounded-md px-3 py-2 text-sm font-mono ${
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : disabled
+                          ? "bg-muted text-muted-foreground/40"
+                          : "bg-muted text-muted-foreground hover:bg-muted/70"
+                    }`}
+                  >
+                    {short}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">
+            Printed ancestry boosts/flaws are selected. If an ancestry has a printed free boost,
+            choose that by manually raising the final score below.
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={applyAncestryBoosts}
+          disabled={
+            state.ancestryBoostMode === "remaster" && state.selectedAncestryBoosts.length !== 2
+          }
+          className="btn-outline text-sm disabled:opacity-50"
+        >
+          Apply ancestry boosts to current scores
+        </button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

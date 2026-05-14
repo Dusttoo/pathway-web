@@ -5,6 +5,30 @@ import { ChevronDown } from "lucide-react";
 import { useAncestries, useAncestryDetail } from "@/lib/hooks/use-builder-data";
 import type { StepProps } from "./types";
 
+type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
+
+const ABILITY_MAP: Record<string, AbilityKey> = {
+  strength: "str",
+  str: "str",
+  dexterity: "dex",
+  dex: "dex",
+  constitution: "con",
+  con: "con",
+  intelligence: "int",
+  int: "int",
+  wisdom: "wis",
+  wis: "wis",
+  charisma: "cha",
+  cha: "cha",
+};
+
+function ancestryAbilities(value: unknown): AbilityKey[] {
+  const list = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+  return list
+    .map((item) => ABILITY_MAP[String(item).trim().toLowerCase()])
+    .filter((item): item is AbilityKey => !!item);
+}
+
 function numberFromBenefit(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -65,12 +89,19 @@ export function AncestryStep({ state, update, onNext, onBack }: StepProps) {
       return;
     }
     const langs = Array.isArray(row.languages) ? (row.languages as string[]) : [];
+    const printedBoosts = ancestryAbilities(row.attribute_boosts);
+    const printedFlaws = ancestryAbilities(row.attribute_flaws);
     update({
       ancestryId: row.id,
       ancestryName: row.name,
       ancestryHp: row.ancestry_hp ?? 8,
       ancestrySpeed: row.speed ?? 25,
       ancestrySize: row.size ?? "Medium",
+      printedAncestryBoosts: printedBoosts,
+      printedAncestryFlaws: printedFlaws,
+      selectedAncestryBoosts: [],
+      selectedAncestryFlaws: [],
+      ancestryBoostMode: "remaster",
       heritageName: "", // reset when ancestry changes
       defaultLanguages: langs,
       languages: langs, // pre-populate languages for step 5
