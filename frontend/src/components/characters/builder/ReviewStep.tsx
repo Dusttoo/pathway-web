@@ -52,8 +52,7 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
         state.ancestryBoostMode === "printed"
           ? [...state.printedAncestryBoosts, ...state.selectedAncestryBoosts]
           : state.selectedAncestryBoosts,
-      ancestry_flaws:
-        state.ancestryBoostMode === "printed" ? state.selectedAncestryFlaws : [],
+      ancestry_flaws: state.selectedAncestryFlaws,
       heritage: state.heritageName,
       class: state.className,
       class_id: state.classId,

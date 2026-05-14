@@ -91,10 +91,24 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
 
   function toggleAncestryBoost(key: Ability) {
     const selected = state.selectedAncestryBoosts.includes(key);
+    const maxBoosts = state.ancestryBoostMode === "remaster" && state.selectedAncestryFlaws.length ? 3 : 2;
     if (selected) {
       update({ selectedAncestryBoosts: state.selectedAncestryBoosts.filter((item) => item !== key) });
-    } else if (state.selectedAncestryBoosts.length < 2) {
+    } else if (state.selectedAncestryBoosts.length < maxBoosts) {
       update({ selectedAncestryBoosts: [...state.selectedAncestryBoosts, key] });
+    }
+  }
+
+  function toggleAncestryFlaw(key: Ability) {
+    if (state.ancestryBoostMode !== "remaster") return;
+    const selected = state.selectedAncestryFlaws.includes(key);
+    if (selected) {
+      update({
+        selectedAncestryFlaws: [],
+        selectedAncestryBoosts: state.selectedAncestryBoosts.slice(0, 2),
+      });
+    } else if (!state.selectedAncestryBoosts.includes(key)) {
+      update({ selectedAncestryFlaws: [key] });
     }
   }
 
@@ -103,7 +117,7 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
       state.ancestryBoostMode === "printed"
         ? [...state.printedAncestryBoosts, ...state.selectedAncestryBoosts]
         : state.selectedAncestryBoosts;
-    const flaws = state.ancestryBoostMode === "printed" ? state.selectedAncestryFlaws : [];
+    const flaws = state.selectedAncestryFlaws;
     const next = { ...abilities };
     for (const boost of boosts) next[boost] = Math.min(20, next[boost] + 2);
     for (const flaw of flaws) next[flaw] = Math.max(8, next[flaw] - 2);
@@ -173,34 +187,71 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
             </div>
           </div>
           {state.ancestryBoostMode === "remaster" && (
-            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
-              {ABILITIES.map(({ key, label }) => {
-                const active = state.selectedAncestryBoosts.includes(key);
-                const disabled = !active && state.selectedAncestryBoosts.length >= 2;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => toggleAncestryBoost(key)}
-                    className={`rounded-md px-3 py-2 text-sm font-mono ${
-                      active
-                        ? "bg-primary text-primary-foreground"
-                        : disabled
-                          ? "bg-muted text-muted-foreground/40"
-                          : "bg-muted text-muted-foreground hover:bg-muted/70"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Choose any two different ancestry boosts. You can also take one voluntary flaw to choose a third boost.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+                {ABILITIES.map(({ key, label }) => {
+                  const active = state.selectedAncestryBoosts.includes(key);
+                  const maxBoosts = state.selectedAncestryFlaws.length ? 3 : 2;
+                  const disabled =
+                    (!active && state.selectedAncestryBoosts.length >= maxBoosts) ||
+                    state.selectedAncestryFlaws.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => toggleAncestryBoost(key)}
+                      className={`rounded-md px-3 py-2 text-sm font-mono ${
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : disabled
+                            ? "bg-muted text-muted-foreground/40"
+                            : "bg-muted text-muted-foreground hover:bg-muted/70"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3 mb-2">
+                Optional voluntary flaw for one extra boost.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+                {ABILITIES.map(({ key, label }) => {
+                  const active = state.selectedAncestryFlaws.includes(key);
+                  const disabled = !active && state.selectedAncestryBoosts.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => toggleAncestryFlaw(key)}
+                      className={`rounded-md px-3 py-2 text-sm font-mono ${
+                        active
+                          ? "bg-destructive text-destructive-foreground"
+                          : disabled
+                            ? "bg-muted text-muted-foreground/40"
+                            : "bg-muted text-muted-foreground hover:bg-muted/70"
+                      }`}
+                    >
+                      - {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
           <button
             type="button"
             onClick={applyAncestryBoosts}
-            disabled={state.ancestryBoostMode === "remaster" && state.selectedAncestryBoosts.length !== 2}
+            disabled={
+              state.ancestryBoostMode === "remaster" &&
+              state.selectedAncestryBoosts.length !== (state.selectedAncestryFlaws.length ? 3 : 2)
+            }
             className="btn-outline text-sm disabled:opacity-50"
           >
             Apply ancestry boosts to current scores
