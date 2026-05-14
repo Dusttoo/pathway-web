@@ -2,18 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import {
-  ArrowRight,
-  BookOpen,
-  Dice6,
-  Library,
-  ScrollText,
-  Shield,
-  Swords,
-  Users,
-} from "lucide-react";
+import { ArrowRight, Dice6, Library, ScrollText, Shield, Swords, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { DISCORD_BOT_INVITE_URL, DISCORD_SUPPORT_SERVER_URL } from "@/lib/external-links";
+import { DISCORD_SUPPORT_SERVER_URL } from "@/lib/external-links";
 
 type Feature = {
   icon: LucideIcon;
@@ -99,23 +90,24 @@ const botScreenshots: BotScreenshot[] = [
 ];
 
 const botStats = [
-  ["PF2e", "System"],
-  ["Discord", "Native"],
-  ["Sheets", "Synced"],
+  ["Invite", "Access"],
+  ["Discord", "Feedback"],
+  ["Web App", "Testing"],
 ];
 
 export default function LandingPage() {
   return (
     <div className="w-full bg-[#101421] text-white">
       <section className="relative isolate overflow-hidden">
-        <div className="absolute inset-0 -z-20 bg-[url('/images/pathway-banner.png')] bg-cover bg-center" />
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(8,10,18,0.98),rgba(10,14,25,0.91)_42%,rgba(10,14,25,0.34)_100%)]" />
+        <div className="absolute inset-0 -z-30 bg-[url('/images/closed-beta-invite.png')] bg-cover bg-center opacity-35 blur-sm scale-105" />
+        <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_72%_42%,rgba(213,166,58,0.24),transparent_32%),linear-gradient(90deg,rgba(5,8,14,0.98),rgba(10,14,25,0.94)_48%,rgba(10,14,25,0.62)_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 h-36 bg-gradient-to-t from-[#101421] to-transparent" />
 
-        <div className="container mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-4 py-16 md:px-8 lg:grid-cols-[0.92fr_1.08fr] lg:py-20">
+        <div className="container mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-4 py-14 md:px-8 lg:grid-cols-[0.88fr_1.12fr] lg:py-16">
           <div className="max-w-2xl">
             <div className="mb-7 inline-flex items-center gap-2 rounded-md border border-white/18 bg-white/10 px-3 py-2 text-sm font-semibold text-white/86 backdrop-blur">
               <Shield className="h-4 w-4 text-[#d5a63a]" />
-              Pathfinder 2e Discord companion
+              Invite only closed beta
             </div>
 
             <div className="flex items-center gap-4">
@@ -128,41 +120,38 @@ export default function LandingPage() {
                 className="h-16 w-16 rounded-lg border border-[#d5a63a]/35 object-cover shadow-xl md:h-[78px] md:w-[78px]"
               />
               <h1 className="font-heading text-5xl font-bold leading-[1.03] text-white md:text-7xl">
-                Pathway
+                Pathway Closed Beta
               </h1>
             </div>
             <p className="mt-5 max-w-xl text-xl leading-8 text-white/78">
-              A Discord bot and web command center for Pathfinder 2e groups that want fast rolls,
-              clean character references, and searchable rules at the table.
+              Pathway is opening to invited testers. Use the web app, run real PF2e sessions, and
+              report anything that feels broken, confusing, or missing so the public release lands
+              stronger.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
-                href={DISCORD_BOT_INVITE_URL}
+                href={DISCORD_SUPPORT_SERVER_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-primary px-6 py-3 text-base"
               >
-                Invite Bot
-                <ArrowRight className="h-5 w-5" />
-              </a>
-              <a
-                href={DISCORD_SUPPORT_SERVER_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-outline border-white/25 bg-white/[0.08] px-6 py-3 text-base text-white hover:bg-white/[0.14] hover:text-white"
-              >
-                Support Server
+                Join Support Server
                 <Users className="h-5 w-5" />
               </a>
               <Link
-                href="/docs"
+                href="/dashboard"
                 className="btn-outline border-white/25 bg-white/[0.08] px-6 py-3 text-base text-white hover:bg-white/[0.14] hover:text-white"
               >
-                Read commands
-                <BookOpen className="h-5 w-5" />
+                Open Web App
+                <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
+
+            <p className="mt-5 max-w-xl text-sm leading-6 text-white/54">
+              By participating, testers agree to provide honest feedback and use the web app
+              thoroughly during the closed beta period.
+            </p>
 
             <div className="mt-10 grid max-w-xl grid-cols-3 border-y border-white/12 py-5">
               {botStats.map(([value, label]) => (
@@ -175,52 +164,15 @@ export default function LandingPage() {
           </div>
 
           <div className="relative min-w-0 self-end pb-2">
-            <div className="absolute -left-6 top-8 hidden h-28 w-28 rounded-lg border border-[#4dbfb0]/30 bg-[#4dbfb0]/12 blur-sm lg:block" />
-            <div className="relative overflow-hidden rounded-lg border border-white/16 bg-[#141928]/88 shadow-2xl backdrop-blur-md">
-              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <Image
-                    src="/images/pathway-avatar.png"
-                    alt=""
-                    width={40}
-                    height={40}
-                    className="h-10 w-10 rounded-lg border border-[#d5a63a]/35 object-cover"
-                  />
-                  <div>
-                    <p className="font-semibold text-white">Pathway bot preview</p>
-                    <p className="text-sm text-white/52">Live Discord output</p>
-                  </div>
-                </div>
-                <span className="rounded-md bg-[#4dbfb0]/16 px-3 py-1 text-sm font-semibold text-[#79ded1]">
-                  Online
-                </span>
-              </div>
-
-              <div className="p-5">
-                <Image
-                  src="/images/bot-screenshots/dice-roller.png"
-                  alt="Pathway dice roller Discord output showing a 2d20 plus 15 advantage roll."
-                  width={386}
-                  height={203}
-                  priority
-                  className="mx-auto w-full max-w-[386px] rounded-lg border border-white/10 object-contain shadow-2xl"
-                />
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <Link
-                    href="/characters"
-                    className="btn-outline border-white/14 bg-white/5 text-white"
-                  >
-                    Characters
-                  </Link>
-                  <Link
-                    href="/library"
-                    className="btn-outline border-white/14 bg-white/5 text-white"
-                  >
-                    Library
-                  </Link>
-                </div>
-              </div>
-            </div>
+            <div className="absolute -inset-4 rounded-lg border border-[#d5a63a]/18 bg-[#d5a63a]/8 blur-2xl" />
+            <Image
+              src="/images/closed-beta-invite.png"
+              alt="Pathway invite only closed beta announcement."
+              width={1254}
+              height={1254}
+              priority
+              className="relative mx-auto w-full max-w-[680px] rounded-lg border border-[#d5a63a]/28 object-contain shadow-2xl shadow-black/55"
+            />
           </div>
         </div>
       </section>
@@ -318,21 +270,31 @@ export default function LandingPage() {
         <div className="container mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 px-4 md:flex-row md:items-center md:px-8">
           <div className="max-w-2xl">
             <h2 className="font-heading text-3xl font-bold text-white md:text-4xl">
-              Bring the bot to your next PF2e session.
+              Ready to help shape the closed beta?
             </h2>
             <p className="mt-3 text-base leading-7 text-white/68">
-              Invite Pathway, import your table, and keep the rules conversation in Discord.
+              Join the support server to report bugs, then open the web app and put Pathway through
+              real table use.
             </p>
           </div>
-          <a
-            href={DISCORD_BOT_INVITE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary shrink-0 px-6 py-3 text-base"
-          >
-            Invite Bot
-            <ArrowRight className="h-5 w-5" />
-          </a>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <a
+              href={DISCORD_SUPPORT_SERVER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary shrink-0 px-6 py-3 text-base"
+            >
+              Join Support Server
+              <Users className="h-5 w-5" />
+            </a>
+            <Link
+              href="/dashboard"
+              className="btn-outline border-white/25 bg-white/[0.08] px-6 py-3 text-base text-white hover:bg-white/[0.14] hover:text-white"
+            >
+              Open Web App
+              <ArrowRight className="h-5 w-5" />
+            </Link>
+          </div>
         </div>
       </section>
     </div>
