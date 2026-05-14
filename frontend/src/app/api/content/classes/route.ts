@@ -48,6 +48,46 @@ function normalizeCasterFlags(rows: ClassRow[]): ClassRow[] {
   });
 }
 
+function normalizedName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function hasStructuredJson(value: unknown): boolean {
+  return Array.isArray(value) ? value.length > 0 : !!value && typeof value === "object";
+}
+
+function completenessScore(row: ClassRow): number {
+  const descriptionLength = row.description?.trim().length ?? 0;
+
+  return (
+    (row.is_official ? 1000 : 0) +
+    (row.source ? 250 : 0) +
+    (row.class_hp ? 100 : 0) +
+    (row.is_spellcaster ? 75 : 0) +
+    (row.spellcasting_ability ? 75 : 0) +
+    (hasStructuredJson(row.key_attribute) ? 75 : 0) +
+    (hasStructuredJson(row.initial_proficiencies) ? 75 : 0) +
+    (hasStructuredJson(row.class_features) ? 75 : 0) +
+    (hasStructuredJson(row.class_metadata) ? 50 : 0) +
+    Math.min(descriptionLength, 750)
+  );
+}
+
+function dedupeClasses(rows: ClassRow[]): ClassRow[] {
+  const byClass = new Map<string, ClassRow>();
+
+  for (const row of rows) {
+    const key = normalizedName(row.name);
+    const existing = byClass.get(key);
+
+    if (!existing || completenessScore(row) > completenessScore(existing)) {
+      byClass.set(key, row);
+    }
+  }
+
+  return [...byClass.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") ?? "";
@@ -58,11 +98,7 @@ export async function GET(request: Request) {
   const includeHomebrew = searchParams.get("include_homebrew") === "true";
 
   const supabase = createServiceClient();
-  let query = supabase
-    .from("character_classes")
-    .select("*", { count: "exact" })
-    .order("name", { ascending: true })
-    .range(offset, offset + limit - 1);
+  let query = supabase.from("character_classes").select("*").order("name", { ascending: true });
 
   if (!includeHomebrew) {
     query = query.eq("is_official", true);
@@ -70,15 +106,18 @@ export async function GET(request: Request) {
 
   if (q) query = query.ilike("name", `%${q}%`);
 
-  const { data, count, error } = await query;
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const deduped = dedupeClasses(normalizeCasterFlags((data ?? []) as ClassRow[]));
+  const paged = deduped.slice(offset, offset + limit);
+
   return NextResponse.json({
-    data: normalizeCasterFlags((data ?? []) as ClassRow[]),
-    total: count,
+    data: paged,
+    total: deduped.length,
     page,
     limit,
   });
