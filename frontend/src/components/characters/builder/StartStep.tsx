@@ -148,7 +148,9 @@ export function StartStep({ state, update, onNext }: StepProps) {
           <label className="block text-sm font-medium mb-1">Level</label>
           <input
             className="input w-full"
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9+-]*"
             min={1}
             max={20}
             value={state.level}

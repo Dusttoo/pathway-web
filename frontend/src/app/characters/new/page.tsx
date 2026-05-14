@@ -180,7 +180,9 @@ function PathbuilderImportForm() {
             </label>
             <input
               id="pathbuilder-id"
-              type="number"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9+-]*"
               value={pathbuilderId}
               onChange={(e) => setPathbuilderId(e.target.value)}
               placeholder="e.g. 123456"

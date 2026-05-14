@@ -877,7 +877,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 <label className="space-y-1 text-sm">
                   <span>Level</span>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9+-]*"
                     min={1}
                     max={20}
                     value={identity.level}
@@ -984,7 +986,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 <label className="space-y-1 text-sm">
                   <span>Armor Class</span>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9+-]*"
                     value={defenses.ac}
                     onChange={(e) => setDefenses((current) => ({ ...current, ac: e.target.value }))}
                     className="input w-full"
@@ -994,7 +998,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 <label className="space-y-1 text-sm">
                   <span>Speed (ft)</span>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9+-]*"
                     value={defenses.speed}
                     onChange={(e) =>
                       setDefenses((current) => ({ ...current, speed: e.target.value }))
@@ -1017,7 +1023,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 <label className="space-y-1 text-sm">
                   <span>Class DC</span>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9+-]*"
                     value={defenses.classDc}
                     onChange={(e) =>
                       setDefenses((current) => ({ ...current, classDc: e.target.value }))
@@ -1029,7 +1037,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 <label className="space-y-1 text-sm">
                   <span>Spell DC</span>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9+-]*"
                     value={defenses.spellDc}
                     onChange={(e) =>
                       setDefenses((current) => ({ ...current, spellDc: e.target.value }))
@@ -1110,7 +1120,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                   <label key={key} className="space-y-1 text-sm uppercase">
                     <span>{key}</span>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9+-]*"
                       value={abilities[key]}
                       onChange={(e) =>
                         setAbilities((draft) => ({
@@ -1133,7 +1145,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                   <label key={key} className="space-y-1 text-sm">
                     <span>{label}</span>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9+-]*"
                       value={attributes[key as keyof HpAttributes]}
                       onChange={(e) =>
                         setAttributes((draft) => ({
@@ -1305,7 +1319,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                         className="w-full"
                       />
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9+-]*"
                         min={1}
                         value={equipmentQuantity}
                         onChange={(e) => setEquipmentQuantity(e.target.value)}

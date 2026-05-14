@@ -35,9 +35,7 @@ export function DiceRoller({ onRoll, className = "" }: DiceRollerProps) {
   const [diceCount, setDiceCount] = useState(1);
   const [diceType, setDiceType] = useState<DiceType>(20);
   const [modifier, setModifier] = useState(0);
-  const [rollType, setRollType] = useState<
-    "normal" | "advantage" | "disadvantage"
-  >("normal");
+  const [rollType, setRollType] = useState<"normal" | "advantage" | "disadvantage">("normal");
   const [history, setHistory] = useState<DiceRoll[]>([]);
   const [isRolling, setIsRolling] = useState(false);
 
@@ -108,9 +106,7 @@ export function DiceRoller({ onRoll, className = "" }: DiceRollerProps) {
       <div className="flex items-center justify-between pb-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Dices className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-heading font-bold text-foreground">
-            Dice Roller
-          </h3>
+          <h3 className="text-lg font-heading font-bold text-foreground">Dice Roller</h3>
         </div>
         {history.length > 0 && (
           <button
@@ -127,9 +123,7 @@ export function DiceRoller({ onRoll, className = "" }: DiceRollerProps) {
       <div className="card p-4 space-y-4">
         {/* Dice Type Selector */}
         <div>
-          <label className="text-sm font-medium text-muted-foreground mb-2 block">
-            Dice Type
-          </label>
+          <label className="text-sm font-medium text-muted-foreground mb-2 block">Dice Type</label>
           <div className="flex gap-2 flex-wrap">
             {diceTypes.map((type) => (
               <button
@@ -164,11 +158,11 @@ export function DiceRoller({ onRoll, className = "" }: DiceRollerProps) {
               <Minus className="w-4 h-4" />
             </button>
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9+-]*"
               value={diceCount}
-              onChange={(e) =>
-                setDiceCount(Math.max(1, parseInt(e.target.value) || 1))
-              }
+              onChange={(e) => setDiceCount(Math.max(1, parseInt(e.target.value) || 1))}
               className="w-20 text-center bg-background border border-border rounded-md px-3 py-2 font-medium"
               min="1"
               max="99"
@@ -185,26 +179,20 @@ export function DiceRoller({ onRoll, className = "" }: DiceRollerProps) {
 
         {/* Modifier */}
         <div>
-          <label className="text-sm font-medium text-muted-foreground mb-2 block">
-            Modifier
-          </label>
+          <label className="text-sm font-medium text-muted-foreground mb-2 block">Modifier</label>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setModifier(modifier - 1)}
-              className="btn-outline w-10 h-10 p-0"
-            >
+            <button onClick={() => setModifier(modifier - 1)} className="btn-outline w-10 h-10 p-0">
               <Minus className="w-4 h-4" />
             </button>
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9+-]*"
               value={modifier}
               onChange={(e) => setModifier(parseInt(e.target.value) || 0)}
               className="w-20 text-center bg-background border border-border rounded-md px-3 py-2 font-medium"
             />
-            <button
-              onClick={() => setModifier(modifier + 1)}
-              className="btn-outline w-10 h-10 p-0"
-            >
+            <button onClick={() => setModifier(modifier + 1)} className="btn-outline w-10 h-10 p-0">
               <Plus className="w-4 h-4" />
             </button>
           </div>
@@ -217,12 +205,11 @@ export function DiceRoller({ onRoll, className = "" }: DiceRollerProps) {
               Roll Type
             </label>
             <div className="flex gap-2">
-              {(["normal", "advantage", "disadvantage"] as const).map(
-                (type) => (
-                  <button
-                    key={type}
-                    onClick={() => setRollType(type)}
-                    className={`
+              {(["normal", "advantage", "disadvantage"] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setRollType(type)}
+                  className={`
                     flex-1 px-3 py-2 rounded-md font-medium text-sm capitalize transition-colors
                     ${
                       rollType === type
@@ -230,11 +217,10 @@ export function DiceRoller({ onRoll, className = "" }: DiceRollerProps) {
                         : "bg-muted hover:bg-muted/80 text-foreground"
                     }
                   `}
-                  >
-                    {type}
-                  </button>
-                ),
-              )}
+                >
+                  {type}
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -250,9 +236,7 @@ export function DiceRoller({ onRoll, className = "" }: DiceRollerProps) {
             )}
           </div>
           {rollType !== "normal" && (
-            <div className="text-sm text-muted-foreground capitalize">
-              with {rollType}
-            </div>
+            <div className="text-sm text-muted-foreground capitalize">with {rollType}</div>
           )}
         </div>
 
@@ -281,9 +265,7 @@ export function DiceRoller({ onRoll, className = "" }: DiceRollerProps) {
 
       {/* Quick Presets */}
       <div>
-        <h4 className="text-sm font-medium text-muted-foreground mb-2">
-          Quick Rolls
-        </h4>
+        <h4 className="text-sm font-medium text-muted-foreground mb-2">Quick Rolls</h4>
         <div className="flex gap-2 flex-wrap">
           {presetRolls.map((preset) => (
             <button
@@ -306,35 +288,25 @@ export function DiceRoller({ onRoll, className = "" }: DiceRollerProps) {
       {/* Roll History */}
       {history.length > 0 && (
         <div>
-          <h4 className="text-sm font-medium text-muted-foreground mb-2">
-            Roll History
-          </h4>
+          <h4 className="text-sm font-medium text-muted-foreground mb-2">Roll History</h4>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {history.map((roll) => (
-              <div
-                key={roll.id}
-                className="card p-3 flex items-center justify-between gap-3"
-              >
+              <div key={roll.id} className="card p-3 flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-heading font-semibold text-sm">
                       {roll.label || roll.dice}
                     </span>
                     {roll.type !== "normal" && (
-                      <span className="text-xs badge badge-secondary capitalize">
-                        {roll.type}
-                      </span>
+                      <span className="text-xs badge badge-secondary capitalize">{roll.type}</span>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {roll.results.join(", ")}
-                    {roll.modifier !== 0 &&
-                      ` ${roll.modifier > 0 ? "+" : ""}${roll.modifier}`}
+                    {roll.modifier !== 0 && ` ${roll.modifier > 0 ? "+" : ""}${roll.modifier}`}
                   </div>
                 </div>
-                <div className="text-2xl font-heading font-bold text-primary">
-                  {roll.total}
-                </div>
+                <div className="text-2xl font-heading font-bold text-primary">{roll.total}</div>
               </div>
             ))}
           </div>
@@ -360,11 +332,7 @@ interface CompactDiceRollerProps {
   className?: string;
 }
 
-export function CompactDiceRoller({
-  preset,
-  onRoll,
-  className = "",
-}: CompactDiceRollerProps) {
+export function CompactDiceRoller({ preset, onRoll, className = "" }: CompactDiceRollerProps) {
   const [lastRoll, setLastRoll] = useState<number | null>(null);
   const [isRolling, setIsRolling] = useState(false);
 
@@ -379,8 +347,7 @@ export function CompactDiceRoller({
         results.push(Math.floor(Math.random() * preset.type) + 1);
       }
 
-      const total =
-        results.reduce((sum, val) => sum + val, 0) + preset.modifier;
+      const total = results.reduce((sum, val) => sum + val, 0) + preset.modifier;
 
       const roll: DiceRoll = {
         id: Date.now().toString(),
@@ -410,13 +377,9 @@ export function CompactDiceRoller({
       `}
     >
       <Dices className={`w-4 h-4 ${isRolling ? "animate-spin" : ""}`} />
-      <span className="text-sm font-medium">
-        {preset ? preset.label : "Roll"}
-      </span>
+      <span className="text-sm font-medium">{preset ? preset.label : "Roll"}</span>
       {lastRoll !== null && (
-        <span className="ml-auto text-lg font-heading font-bold text-primary">
-          {lastRoll}
-        </span>
+        <span className="ml-auto text-lg font-heading font-bold text-primary">{lastRoll}</span>
       )}
     </button>
   );

@@ -135,7 +135,9 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
               </label>
               <input
                 className="input w-full text-center font-mono text-lg py-2"
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9+-]*"
                 min={8}
                 max={20}
                 value={abilities[key]}
@@ -320,7 +322,9 @@ export function AbilitySkillStep({ state, update, onNext, onBack }: StepProps) {
                   </select>
                   <input
                     className="input text-sm"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9+-]*"
                     min={1}
                     value={feat.level}
                     onChange={(e) =>

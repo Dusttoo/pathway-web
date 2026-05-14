@@ -2,7 +2,15 @@
 
 import React, { useState } from "react";
 import {
-  Plus, Pencil, Trash2, Search, ChevronDown, Loader2, Wand2, AlertTriangle, X,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  ChevronDown,
+  Loader2,
+  Wand2,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import {
   useHomebrewClasses,
@@ -10,6 +18,7 @@ import {
   useUpdateHomebrewClass,
   useDeleteHomebrewClass,
 } from "@/lib/hooks/use-homebrew-content";
+import { NumberStepper } from "@/components/characters/NumberStepper";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -20,9 +29,22 @@ const SPELLCASTING_TYPES = [
   { value: "spontaneous", label: "Spontaneous Repertoire" },
 ] as const;
 const SKILLS = [
-  "acrobatics", "arcana", "athletics", "crafting", "deception", "diplomacy",
-  "intimidation", "medicine", "nature", "occultism", "performance", "religion",
-  "society", "stealth", "survival", "thievery",
+  "acrobatics",
+  "arcana",
+  "athletics",
+  "crafting",
+  "deception",
+  "diplomacy",
+  "intimidation",
+  "medicine",
+  "nature",
+  "occultism",
+  "performance",
+  "religion",
+  "society",
+  "stealth",
+  "survival",
+  "thievery",
 ] as const;
 
 const PROFICIENCY_RANKS = [
@@ -120,7 +142,10 @@ type ClassItem = {
 };
 
 function cleanLoreSkill(value: string): string {
-  const topic = value.trim().replace(/\s+lore$/i, "").replace(/\s+/g, " ");
+  const topic = value
+    .trim()
+    .replace(/\s+lore$/i, "")
+    .replace(/\s+/g, " ");
   return topic ? `${topic} Lore` : "";
 }
 
@@ -142,9 +167,10 @@ function slotRow(value: unknown): number[] {
 }
 
 function slotProgression(value: unknown): Record<string, number[]> {
-  const input = value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  const input =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   return Object.fromEntries(
     Array.from({ length: 20 }, (_, i) => {
       const level = String(i + 1);
@@ -179,8 +205,7 @@ function toItem(raw: Record<string, unknown>): ClassItem {
       typeof profs[key] === "number" ? Number(profs[key]) : fallback,
     ])
   );
-  const spellcasting_type =
-    meta.spellcasting_type === "spontaneous" ? "spontaneous" : "prepared";
+  const spellcasting_type = meta.spellcasting_type === "spontaneous" ? "spontaneous" : "prepared";
   const spellcasting_tradition = SPELL_TRADITIONS.includes(meta.spellcasting_tradition as never)
     ? (meta.spellcasting_tradition as ClassItem["spellcasting_tradition"])
     : undefined;
@@ -195,9 +220,7 @@ function toItem(raw: Record<string, unknown>): ClassItem {
         ? [String(raw.key_attribute)]
         : [],
     is_spellcaster: !!raw.is_spellcaster,
-    spellcasting_ability: raw.spellcasting_ability
-      ? String(raw.spellcasting_ability)
-      : undefined,
+    spellcasting_ability: raw.spellcasting_ability ? String(raw.spellcasting_ability) : undefined,
     description: raw.description ? String(raw.description) : undefined,
     class_trained_skills,
     class_lore_skills,
@@ -207,21 +230,14 @@ function toItem(raw: Record<string, unknown>): ClassItem {
     cantrips_known: typeof meta.cantrips_known === "number" ? meta.cantrips_known : 5,
     focus_points: typeof meta.focus_points === "number" ? meta.focus_points : 0,
     spell_slot_progression: slotProgression(meta.spell_slot_progression),
-    trained_skill_count: typeof meta.trained_skill_count === "number"
-      ? meta.trained_skill_count
-      : 3,
+    trained_skill_count:
+      typeof meta.trained_skill_count === "number" ? meta.trained_skill_count : 3,
   };
 }
 
 // ── Class Form ────────────────────────────────────────────────────────────────
 
-function ClassForm({
-  initialValues,
-  onDone,
-}: {
-  initialValues?: ClassItem;
-  onDone: () => void;
-}) {
+function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDone: () => void }) {
   const isEditing = !!initialValues?.id;
   const create = useCreateHomebrewClass();
   const update = useUpdateHomebrewClass();
@@ -232,9 +248,7 @@ function ClassForm({
     initialValues?.key_attribute?.length ? initialValues.key_attribute : ["str"]
   );
   const [isSpell, setIsSpell] = useState(initialValues?.is_spellcaster ?? false);
-  const [spellAbility, setSpellAbility] = useState(
-    initialValues?.spellcasting_ability ?? ""
-  );
+  const [spellAbility, setSpellAbility] = useState(initialValues?.spellcasting_ability ?? "");
   const [spellcastingType, setSpellcastingType] = useState<"prepared" | "spontaneous">(
     initialValues?.spellcasting_type ?? "prepared"
   );
@@ -243,9 +257,7 @@ function ClassForm({
   );
   const [cantripsKnown, setCantripsKnown] = useState(initialValues?.cantrips_known ?? 5);
   const [focusPoints, setFocusPoints] = useState(initialValues?.focus_points ?? 0);
-  const [trainedCount, setTrainedCount] = useState(
-    initialValues?.trained_skill_count ?? 3
-  );
+  const [trainedCount, setTrainedCount] = useState(initialValues?.trained_skill_count ?? 3);
   const [classSkills, setClassSkills] = useState<string[]>(
     initialValues?.class_trained_skills ?? []
   );
@@ -265,14 +277,10 @@ function ClassForm({
   const isPending = create.isPending || update.isPending;
 
   function toggleAttr(a: string) {
-    setKeyAttrs((prev) =>
-      prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]
-    );
+    setKeyAttrs((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
   }
   function toggleSkill(s: string) {
-    setClassSkills((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
-    );
+    setClassSkills((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   }
   function addLoreSkill() {
     const skill = cleanLoreSkill(loreInput);
@@ -362,25 +370,23 @@ function ClassForm({
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">HP per Level</label>
-          <input
-            className="input w-full"
-            type="number"
+          <NumberStepper
+            className="w-full"
             min={4}
             max={12}
             step={2}
             value={classHp}
-            onChange={(e) => setClassHp(parseInt(e.target.value) || 8)}
+            onCommit={setClassHp}
           />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Free Skill Picks</label>
-          <input
-            className="input w-full"
-            type="number"
+          <NumberStepper
+            className="w-full"
             min={1}
             max={10}
             value={trainedCount}
-            onChange={(e) => setTrainedCount(parseInt(e.target.value) || 3)}
+            onCommit={setTrainedCount}
           />
         </div>
       </div>
@@ -429,7 +435,9 @@ function ClassForm({
             >
               <option value="">Select spellcasting ability…</option>
               {ABILITIES.map((a) => (
-                <option key={a} value={a}>{a.toUpperCase()}</option>
+                <option key={a} value={a}>
+                  {a.toUpperCase()}
+                </option>
               ))}
             </select>
             <ChevronDown
@@ -452,10 +460,15 @@ function ClassForm({
                   onChange={(e) => setSpellcastingType(e.target.value as typeof spellcastingType)}
                 >
                   {SPELLCASTING_TYPES.map((type) => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
                   ))}
                 </select>
-                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <ChevronDown
+                  size={12}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                />
               </div>
             </div>
             <div>
@@ -467,32 +480,35 @@ function ClassForm({
                   onChange={(e) => setSpellTradition(e.target.value as typeof spellTradition)}
                 >
                   {SPELL_TRADITIONS.map((tradition) => (
-                    <option key={tradition} value={tradition}>{tradition}</option>
+                    <option key={tradition} value={tradition}>
+                      {tradition}
+                    </option>
                   ))}
                 </select>
-                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <ChevronDown
+                  size={12}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                />
               </div>
             </div>
             <div>
               <label className="block text-xs text-muted-foreground mb-1">Cantrips</label>
-              <input
-                className="input w-full text-sm"
-                type="number"
+              <NumberStepper
+                className="w-full"
                 min={0}
                 max={10}
                 value={cantripsKnown}
-                onChange={(e) => setCantripsKnown(parseInt(e.target.value, 10) || 0)}
+                onCommit={setCantripsKnown}
               />
             </div>
             <div>
               <label className="block text-xs text-muted-foreground mb-1">Focus Points</label>
-              <input
-                className="input w-full text-sm"
-                type="number"
+              <NumberStepper
+                className="w-full"
                 min={0}
                 max={3}
                 value={focusPoints}
-                onChange={(e) => setFocusPoints(parseInt(e.target.value, 10) || 0)}
+                onCommit={setFocusPoints}
               />
             </div>
           </div>
@@ -506,9 +522,27 @@ function ClassForm({
                 </p>
               </div>
               <div className="flex gap-1">
-                <button type="button" onClick={() => applySlotPreset("full")} className="btn-outline px-2 py-1 text-xs">Full</button>
-                <button type="button" onClick={() => applySlotPreset("bounded")} className="btn-outline px-2 py-1 text-xs">Bounded</button>
-                <button type="button" onClick={() => applySlotPreset("clear")} className="btn-outline px-2 py-1 text-xs">Clear</button>
+                <button
+                  type="button"
+                  onClick={() => applySlotPreset("full")}
+                  className="btn-outline px-2 py-1 text-xs"
+                >
+                  Full
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applySlotPreset("bounded")}
+                  className="btn-outline px-2 py-1 text-xs"
+                >
+                  Bounded
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applySlotPreset("clear")}
+                  className="btn-outline px-2 py-1 text-xs"
+                >
+                  Clear
+                </button>
               </div>
             </div>
             <div className="max-h-72 overflow-auto rounded-md border border-border">
@@ -517,7 +551,9 @@ function ClassForm({
                   <tr>
                     <th className="px-2 py-1 text-left">Lvl</th>
                     {Array.from({ length: 10 }, (_, i) => i + 1).map((rank) => (
-                      <th key={rank} className="px-1 py-1 text-center">R{rank}</th>
+                      <th key={rank} className="px-1 py-1 text-center">
+                        R{rank}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -526,14 +562,13 @@ function ClassForm({
                     <tr key={level} className="border-t border-border">
                       <td className="px-2 py-1 font-mono text-muted-foreground">{level}</td>
                       {Array.from({ length: 10 }, (_, rankIndex) => rankIndex + 1).map((rank) => (
-                        <td key={rank} className="px-1 py-1">
-                          <input
-                            className="input h-7 w-10 px-1 text-center text-xs"
-                            type="number"
+                        <td key={rank} className="min-w-36 px-1 py-1">
+                          <NumberStepper
+                            className="w-full"
                             min={0}
                             max={9}
                             value={spellSlotProgression[String(level)]?.[rank - 1] ?? 0}
-                            onChange={(e) => setSlot(level, rank, parseInt(e.target.value, 10) || 0)}
+                            onCommit={(value) => setSlot(level, rank, value)}
                           />
                         </td>
                       ))}
@@ -548,9 +583,7 @@ function ClassForm({
 
       {/* Starting proficiencies */}
       <div>
-        <label className="block text-sm font-medium mb-1">
-          Starting Proficiencies
-        </label>
+        <label className="block text-sm font-medium mb-1">Starting Proficiencies</label>
         <p className="text-xs text-muted-foreground mb-3">
           Set the proficiencies this class grants for saves, perception, armor, attacks, class DC,
           and spellcasting traditions.
@@ -592,9 +625,7 @@ function ClassForm({
 
       {/* Class-trained skills */}
       <div>
-        <label className="block text-sm font-medium mb-1">
-          Class-Granted Trained Skills
-        </label>
+        <label className="block text-sm font-medium mb-1">Class-Granted Trained Skills</label>
         <p className="text-xs text-muted-foreground mb-2">
           These skills are pre-trained by the class (locked in the character builder).
         </p>
@@ -618,9 +649,7 @@ function ClassForm({
 
       {/* Class-granted Lore skills */}
       <div>
-        <label className="block text-sm font-medium mb-1">
-          Class-Granted Lore Skills
-        </label>
+        <label className="block text-sm font-medium mb-1">Class-Granted Lore Skills</label>
         <p className="text-xs text-muted-foreground mb-2">
           Add specific Lore skills granted by the class, such as Warfare Lore or Dragonmark Lore.
         </p>
@@ -665,8 +694,7 @@ function ClassForm({
 
       <div>
         <label className="block text-sm font-medium mb-1">
-          Description{" "}
-          <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+          Description <span className="text-xs text-muted-foreground font-normal">(optional)</span>
         </label>
         <textarea
           className="input w-full min-h-[72px] resize-y text-sm"
@@ -687,7 +715,9 @@ function ClassForm({
           className="btn-primary px-4 flex items-center gap-2"
         >
           {isPending ? (
-            <><Loader2 size={14} className="animate-spin" /> Saving…</>
+            <>
+              <Loader2 size={14} className="animate-spin" /> Saving…
+            </>
           ) : isEditing ? (
             "Save Changes"
           ) : (
@@ -795,16 +825,23 @@ export function ClassPanel() {
   const deleteClass = useDeleteHomebrewClass();
 
   const items = (rawData ?? []).map(toItem);
-  const filtered = q
-    ? items.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()))
-    : items;
+  const filtered = q ? items.filter((c) => c.name.toLowerCase().includes(q.toLowerCase())) : items;
 
   const editingItem = editingId ? items.find((c) => c.id === editingId) : undefined;
   const showForm = isCreating || !!editingId;
 
-  function openCreate() { setIsCreating(true); setEditingId(null); }
-  function openEdit(id: string) { setEditingId(id); setIsCreating(false); }
-  function closeForm() { setIsCreating(false); setEditingId(null); }
+  function openCreate() {
+    setIsCreating(true);
+    setEditingId(null);
+  }
+  function openEdit(id: string) {
+    setEditingId(id);
+    setIsCreating(false);
+  }
+  function closeForm() {
+    setIsCreating(false);
+    setEditingId(null);
+  }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this class? This cannot be undone.")) return;
@@ -833,10 +870,7 @@ export function ClassPanel() {
             className="input pl-9"
           />
         </div>
-        <button
-          onClick={openCreate}
-          className="btn-primary flex items-center gap-2 shrink-0"
-        >
+        <button onClick={openCreate} className="btn-primary flex items-center gap-2 shrink-0">
           <Plus size={16} />
           Add Class
         </button>
@@ -848,11 +882,7 @@ export function ClassPanel() {
           <h3 className="font-heading font-semibold mb-4">
             {editingId ? "Edit Class" : "New Class"}
           </h3>
-          <ClassForm
-            key={editingId ?? "new"}
-            initialValues={editingItem}
-            onDone={closeForm}
-          />
+          <ClassForm key={editingId ?? "new"} initialValues={editingItem} onDone={closeForm} />
         </div>
       )}
 

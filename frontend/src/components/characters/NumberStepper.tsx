@@ -7,6 +7,7 @@ interface NumberStepperProps {
   value: number;
   min?: number;
   max?: number;
+  step?: number;
   /** Called with the new value when user changes it via +/- or direct input. */
   onCommit: (next: number) => void;
   isPending?: boolean;
@@ -26,14 +27,15 @@ export function NumberStepper({
   value,
   min = 0,
   max,
+  step: stepSize = 1,
   onCommit,
   isPending = false,
   label,
   className = "",
 }: NumberStepperProps) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft]     = useState(String(value));
-  const inputRef              = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState(String(value));
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Keep draft in sync when value changes externally (e.g. Realtime update)
   useEffect(() => {
@@ -58,7 +60,7 @@ export function NumberStepper({
 
   function commitEdit() {
     const parsed = parseInt(draft, 10);
-    const next   = clamp(isNaN(parsed) ? value : parsed);
+    const next = clamp(isNaN(parsed) ? value : parsed);
     setEditing(false);
     setDraft(String(next));
     if (next !== value) onCommit(next);
@@ -70,38 +72,47 @@ export function NumberStepper({
   }
 
   return (
-    <div className={`flex items-center gap-1 ${className}`}>
+    <div
+      className={`inline-flex min-h-11 items-stretch overflow-hidden rounded-md border border-border bg-background ${className}`}
+    >
       {label && <span className="text-xs text-muted-foreground mr-1 select-none">{label}</span>}
 
       <button
-        onClick={() => step(-1)}
+        type="button"
+        onClick={() => step(-stepSize)}
         disabled={isPending || (min !== undefined && value <= min)}
-        className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="flex min-h-11 min-w-11 touch-manipulation items-center justify-center border-r border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
         aria-label={`Decrease ${label ?? "value"}`}
       >
-        <Minus size={12} />
+        <Minus size={16} />
       </button>
 
       {editing ? (
         <input
           ref={inputRef}
-          type="number"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9+-]*"
           value={draft}
           min={min}
           max={max}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitEdit}
           onKeyDown={(e) => {
-            if (e.key === "Enter")  commitEdit();
+            if (e.key === "Enter") commitEdit();
             if (e.key === "Escape") cancelEdit();
           }}
-          className="w-14 text-center text-sm font-mono font-bold bg-background border border-primary rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary"
+          className="min-h-11 w-16 border-0 bg-background px-2 text-center font-mono text-sm font-bold focus:outline-none focus:ring-1 focus:ring-primary"
         />
       ) : (
         <button
-          onClick={() => { setDraft(String(value)); setEditing(true); }}
+          type="button"
+          onClick={() => {
+            setDraft(String(value));
+            setEditing(true);
+          }}
           disabled={isPending}
-          className="min-w-[2.5rem] px-1 py-0.5 text-sm font-mono font-bold text-center rounded hover:bg-muted transition-colors disabled:cursor-not-allowed"
+          className="min-h-11 min-w-16 touch-manipulation px-3 text-center font-mono text-sm font-bold transition-colors hover:bg-muted disabled:cursor-not-allowed"
           aria-label={`Edit ${label ?? "value"} (currently ${value})`}
           title="Click to type a value"
         >
@@ -110,12 +121,13 @@ export function NumberStepper({
       )}
 
       <button
-        onClick={() => step(1)}
+        type="button"
+        onClick={() => step(stepSize)}
         disabled={isPending || (max !== undefined && value >= max)}
-        className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="flex min-h-11 min-w-11 touch-manipulation items-center justify-center border-l border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
         aria-label={`Increase ${label ?? "value"}`}
       >
-        <Plus size={12} />
+        <Plus size={16} />
       </button>
     </div>
   );

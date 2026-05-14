@@ -3,8 +3,18 @@
 import { MainLayout } from "@/components/layout";
 import { HealthBar } from "@/components/characters/HealthBar";
 import { useCharacterLive, useSyncCharacter } from "@/lib/hooks/use-characters";
-import { useCharacterDowntime, downtimeKeys, type DowntimeLogEntry } from "@/lib/hooks/use-downtime";
-import { useCharacterNotes, NOTE_CATEGORIES, NOTE_CATEGORY_ORDER, notesKeys, type BotNote } from "@/lib/hooks/use-notes";
+import {
+  useCharacterDowntime,
+  downtimeKeys,
+  type DowntimeLogEntry,
+} from "@/lib/hooks/use-downtime";
+import {
+  useCharacterNotes,
+  NOTE_CATEGORIES,
+  NOTE_CATEGORY_ORDER,
+  notesKeys,
+  type BotNote,
+} from "@/lib/hooks/use-notes";
 import { useCompanions, useUpdateCompanion } from "@/lib/hooks/use-companions";
 import { useUpdateCharacter } from "@/lib/hooks/use-characters";
 import { NumberStepper, InlineSelect, InlineTextarea } from "@/components/characters";
@@ -12,9 +22,20 @@ import { useBag, bagKeys, type BagCategories, type BagItem } from "@/lib/hooks/u
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay, BotCompanion } from "@/lib/types/bot-integration";
 import {
-  ArrowLeft, Radio, Zap, Heart, Flame,
-  CalendarDays, BookOpen, RefreshCw, Plus, Trash2, X,
-  Package, Inbox, ExternalLink,
+  ArrowLeft,
+  Radio,
+  Zap,
+  Heart,
+  Flame,
+  CalendarDays,
+  BookOpen,
+  RefreshCw,
+  Plus,
+  Trash2,
+  X,
+  Package,
+  Inbox,
+  ExternalLink,
 } from "lucide-react";
 import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import Link from "next/link";
@@ -54,7 +75,7 @@ interface FeatData {
   description: string | null;
   feat_type: string | null;
   level: number | null;
-  traits: unknown;           // JSONB — string[]
+  traits: unknown; // JSONB — string[]
   prerequisites: string | null;
   action_cost: string | null;
   trigger: string | null;
@@ -71,7 +92,7 @@ interface ItemData {
   level: number | null;
   price_cp: number | null;
   bulk: string | null;
-  traits: unknown;           // JSONB — string[]
+  traits: unknown; // JSONB — string[]
   rarity: string | null;
   is_magical: boolean | null;
   usage: string | null;
@@ -98,7 +119,11 @@ function signedTotal(total: number): string {
 }
 
 function customKey(name: string): string {
-  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
 }
 
 function customLabel(key: string): string {
@@ -115,51 +140,72 @@ function deriveMaxHp(build: PBBuild, level: number): number | null {
 
 function formatPriceCp(cp: number | null): string {
   if (cp === null || cp === 0) return "—";
-  const gp  = Math.floor(cp / 100);
-  const sp  = Math.floor((cp % 100) / 10);
+  const gp = Math.floor(cp / 100);
+  const sp = Math.floor((cp % 100) / 10);
   const rem = cp % 10;
-  return [
-    gp  ? `${gp} gp`  : null,
-    sp  ? `${sp} sp`  : null,
-    rem ? `${rem} cp` : null,
-  ].filter(Boolean).join(", ") || "—";
+  return (
+    [gp ? `${gp} gp` : null, sp ? `${sp} sp` : null, rem ? `${rem} cp` : null]
+      .filter(Boolean)
+      .join(", ") || "—"
+  );
 }
 
 // ── PF2e static maps ──────────────────────────────────────────────────────────
 
 const SKILL_ABILITY_MAP: Record<string, keyof NonNullable<PBBuild["abilities"]>> = {
-  acrobatics:    "dex",
-  arcana:        "int",
-  athletics:     "str",
-  crafting:      "int",
-  deception:     "cha",
-  diplomacy:     "cha",
-  intimidation:  "cha",
-  medicine:      "wis",
-  nature:        "wis",
-  occultism:     "int",
-  performance:   "cha",
-  religion:      "wis",
-  society:       "int",
-  stealth:       "dex",
-  survival:      "wis",
-  thievery:      "dex",
+  acrobatics: "dex",
+  arcana: "int",
+  athletics: "str",
+  crafting: "int",
+  deception: "cha",
+  diplomacy: "cha",
+  intimidation: "cha",
+  medicine: "wis",
+  nature: "wis",
+  occultism: "int",
+  performance: "cha",
+  religion: "wis",
+  society: "int",
+  stealth: "dex",
+  survival: "wis",
+  thievery: "dex",
 };
 
 const SKILL_ORDER = [
-  "acrobatics", "arcana", "athletics", "crafting", "deception",
-  "diplomacy", "intimidation", "medicine", "nature", "occultism",
-  "performance", "religion", "society", "stealth", "survival", "thievery",
+  "acrobatics",
+  "arcana",
+  "athletics",
+  "crafting",
+  "deception",
+  "diplomacy",
+  "intimidation",
+  "medicine",
+  "nature",
+  "occultism",
+  "performance",
+  "religion",
+  "society",
+  "stealth",
+  "survival",
+  "thievery",
 ];
 
 const SAVE_LABELS: Record<string, string> = { fortitude: "Fort", reflex: "Ref", will: "Will" };
 const SAVE_ABILITY: Record<string, keyof NonNullable<PBBuild["abilities"]>> = {
-  fortitude: "con", reflex: "dex", will: "wis",
+  fortitude: "con",
+  reflex: "dex",
+  will: "wis",
 };
 
 const COMBAT_PROF_KEYS = new Set([
-  "light_armor", "medium_armor", "heavy_armor", "unarmored",
-  "simple_weapons", "martial_weapons", "advanced_weapons", "unarmed",
+  "light_armor",
+  "medium_armor",
+  "heavy_armor",
+  "unarmored",
+  "simple_weapons",
+  "martial_weapons",
+  "advanced_weapons",
+  "unarmed",
 ]);
 const NON_SKILL_PROF_KEYS = new Set([
   ...SKILL_ORDER,
@@ -173,10 +219,10 @@ const NON_SKILL_PROF_KEYS = new Set([
 // ── Content modal helpers ─────────────────────────────────────────────────────
 
 const RARITY_STYLES: Record<string, string> = {
-  common:   "bg-muted text-muted-foreground border border-border",
+  common: "bg-muted text-muted-foreground border border-border",
   uncommon: "bg-amber-500/20 text-amber-400 border border-amber-500/30",
-  rare:     "bg-blue-500/20 text-blue-400 border border-blue-500/30",
-  unique:   "bg-purple-500/20 text-purple-400 border border-purple-500/30",
+  rare: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
+  unique: "bg-purple-500/20 text-purple-400 border border-purple-500/30",
 };
 
 function actionCostLabel(cost: string | null): string | null {
@@ -186,7 +232,7 @@ function actionCostLabel(cost: string | null): string | null {
     "2": "◆◆ 2 Actions",
     "3": "◆◆◆ 3 Actions",
     reaction: "↺ Reaction",
-    free:     "◇ Free Action",
+    free: "◇ Free Action",
   };
   return map[cost] ?? cost;
 }
@@ -212,7 +258,9 @@ function ContentModal({
 }) {
   // Close on Escape
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
@@ -223,7 +271,7 @@ function ContentModal({
       const endpoint = type === "feat" ? "feats" : "items";
       const res = await fetch(`/api/content/${endpoint}?name=${encodeURIComponent(name)}&limit=5`);
       if (!res.ok) return null;
-      const { data: rows } = await res.json() as { data: (FeatData | ItemData)[] };
+      const { data: rows } = (await res.json()) as { data: (FeatData | ItemData)[] };
       return rows?.find((r) => r.name.toLowerCase() === name.toLowerCase()) ?? null;
     },
     staleTime: Infinity,
@@ -236,11 +284,7 @@ function ContentModal({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 overflow-y-auto">
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden />
 
       {/* Card */}
       <div className="relative bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl">
@@ -252,8 +296,7 @@ function ContentModal({
               <p className="text-sm text-muted-foreground mt-0.5 capitalize">
                 {type === "feat"
                   ? `${(data as FeatData).feat_type?.replace(/_/g, " ") ?? "Feat"} · Level ${data.level ?? "—"}`
-                  : `${(data as ItemData).item_type ?? "Item"}${(data as ItemData).item_subtype ? ` · ${(data as ItemData).item_subtype}` : ""} · Level ${data.level ?? "—"}`
-                }
+                  : `${(data as ItemData).item_type ?? "Item"}${(data as ItemData).item_subtype ? ` · ${(data as ItemData).item_subtype}` : ""} · Level ${data.level ?? "—"}`}
               </p>
             )}
           </div>
@@ -278,7 +321,8 @@ function ContentModal({
           {!isLoading && !data && (
             <div className="text-center py-6 space-y-3">
               <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{name}</span> isn&apos;t in the local database yet.
+                <span className="font-medium text-foreground">{name}</span> isn&apos;t in the local
+                database yet.
               </p>
               <a
                 href={`https://2e.aonprd.com/Search.aspx?query=${encodeURIComponent(name)}`}
@@ -298,53 +342,80 @@ function ContentModal({
               {(traits.length > 0 || rarity !== "common") && (
                 <div className="flex flex-wrap gap-1.5">
                   {rarity !== "common" && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${RARITY_STYLES[rarity] ?? RARITY_STYLES.common}`}>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${RARITY_STYLES[rarity] ?? RARITY_STYLES.common}`}
+                    >
                       {rarity}
                     </span>
                   )}
-                  {traits.map((t) => <TraitBadge key={t} trait={t} />)}
+                  {traits.map((t) => (
+                    <TraitBadge key={t} trait={t} />
+                  ))}
                 </div>
               )}
 
               {/* Feat-specific metadata */}
-              {type === "feat" && (() => {
-                const f = data as FeatData;
-                const cost = actionCostLabel(f.action_cost);
-                return (
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                    {cost && (
-                      <><dt className="text-muted-foreground">Action</dt><dd className="font-mono text-xs">{cost}</dd></>
-                    )}
-                    {f.prerequisites && (
-                      <><dt className="text-muted-foreground">Prerequisites</dt><dd>{f.prerequisites}</dd></>
-                    )}
-                    {f.trigger && (
-                      <><dt className="text-muted-foreground">Trigger</dt><dd>{f.trigger}</dd></>
-                    )}
-                  </div>
-                );
-              })()}
+              {type === "feat" &&
+                (() => {
+                  const f = data as FeatData;
+                  const cost = actionCostLabel(f.action_cost);
+                  return (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                      {cost && (
+                        <>
+                          <dt className="text-muted-foreground">Action</dt>
+                          <dd className="font-mono text-xs">{cost}</dd>
+                        </>
+                      )}
+                      {f.prerequisites && (
+                        <>
+                          <dt className="text-muted-foreground">Prerequisites</dt>
+                          <dd>{f.prerequisites}</dd>
+                        </>
+                      )}
+                      {f.trigger && (
+                        <>
+                          <dt className="text-muted-foreground">Trigger</dt>
+                          <dd>{f.trigger}</dd>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
               {/* Item-specific metadata */}
-              {type === "item" && (() => {
-                const it = data as ItemData;
-                return (
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                    {it.price_cp !== null && it.price_cp !== undefined && (
-                      <><dt className="text-muted-foreground">Price</dt><dd>{formatPriceCp(it.price_cp)}</dd></>
-                    )}
-                    {it.bulk && (
-                      <><dt className="text-muted-foreground">Bulk</dt><dd>{it.bulk}</dd></>
-                    )}
-                    {it.usage && (
-                      <><dt className="text-muted-foreground">Usage</dt><dd className="capitalize">{it.usage}</dd></>
-                    )}
-                    {it.is_magical && (
-                      <><dt className="text-muted-foreground">Magical</dt><dd>Yes</dd></>
-                    )}
-                  </div>
-                );
-              })()}
+              {type === "item" &&
+                (() => {
+                  const it = data as ItemData;
+                  return (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                      {it.price_cp !== null && it.price_cp !== undefined && (
+                        <>
+                          <dt className="text-muted-foreground">Price</dt>
+                          <dd>{formatPriceCp(it.price_cp)}</dd>
+                        </>
+                      )}
+                      {it.bulk && (
+                        <>
+                          <dt className="text-muted-foreground">Bulk</dt>
+                          <dd>{it.bulk}</dd>
+                        </>
+                      )}
+                      {it.usage && (
+                        <>
+                          <dt className="text-muted-foreground">Usage</dt>
+                          <dd className="capitalize">{it.usage}</dd>
+                        </>
+                      )}
+                      {it.is_magical && (
+                        <>
+                          <dt className="text-muted-foreground">Magical</dt>
+                          <dd>Yes</dd>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
               {/* Description */}
               {data.description && (
@@ -388,7 +459,7 @@ const PROF_STYLES: Record<number, string> = {
   4: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30",
 };
 const PROF_LETTERS = ["U", "T", "E", "M", "L"];
-const PROF_NAMES   = ["Untrained", "Trained", "Expert", "Master", "Legendary"];
+const PROF_NAMES = ["Untrained", "Trained", "Expert", "Master", "Legendary"];
 
 function ProfBadge({ rank }: { rank: number }) {
   return (
@@ -404,14 +475,26 @@ function ProfBadge({ rank }: { rank: number }) {
 function AbilityBlock({ label, score }: { label: string; score: number }) {
   return (
     <div className="flex flex-col items-center py-3 px-1 bg-muted/60 rounded-lg border border-border/50">
-      <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-medium">{label}</span>
+      <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-medium">
+        {label}
+      </span>
       <span className="text-xl font-bold font-mono mt-0.5">{abilityModStr(score)}</span>
       <span className="text-xs text-muted-foreground mt-0.5">{score}</span>
     </div>
   );
 }
 
-function PipRow({ count, max, color, label }: { count: number; max: number; color: string; label: string }) {
+function PipRow({
+  count,
+  max,
+  color,
+  label,
+}: {
+  count: number;
+  max: number;
+  color: string;
+  label: string;
+}) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-muted-foreground w-24 shrink-0">{label}</span>
@@ -420,7 +503,9 @@ function PipRow({ count, max, color, label }: { count: number; max: number; colo
           <div
             key={i}
             className={`w-4 h-4 rounded-full border-2 transition-colors ${
-              i < count ? `${color} border-transparent` : "border-muted-foreground/30 bg-transparent"
+              i < count
+                ? `${color} border-transparent`
+                : "border-muted-foreground/30 bg-transparent"
             }`}
           />
         ))}
@@ -439,16 +524,24 @@ function LiveBadge() {
 }
 
 function SaveBox({
-  label, rank, abilityScore, level,
+  label,
+  rank,
+  abilityScore,
+  level,
 }: {
-  label: string; rank: number; abilityScore: number; level: number;
+  label: string;
+  rank: number;
+  abilityScore: number;
+  level: number;
 }) {
   const total = profBonus(rank, level) + abilityModNum(abilityScore);
   return (
     <div className="flex flex-col items-center p-2 bg-muted/40 rounded-lg">
       <ProfBadge rank={rank} />
       <span className="text-xl font-bold font-mono mt-1">{signedTotal(total)}</span>
-      <span className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">{label}</span>
+      <span className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
+        {label}
+      </span>
     </div>
   );
 }
@@ -458,17 +551,17 @@ function SaveBox({
 function companionMaxHp(comp: BotCompanion, charLevel: number): number | null {
   if (comp.baseType !== "custom" || !comp.customStats) return null;
   const base = comp.customStats.hpPerLevel ?? 8;
-  const con  = comp.customStats.abilities?.con ?? 0;
-  if (comp.form === "young")  return base * charLevel;
+  const con = comp.customStats.abilities?.con ?? 0;
+  if (comp.form === "young") return base * charLevel;
   if (comp.form === "mature") return (base + con) * charLevel;
   return (base + con + 1) * charLevel;
 }
 
 const COMPANION_FORM_OPTIONS = [
-  { value: "young",   label: "Young"   },
-  { value: "mature",  label: "Mature"  },
-  { value: "nimble",  label: "Nimble"  },
-  { value: "savage",  label: "Savage"  },
+  { value: "young", label: "Young" },
+  { value: "mature", label: "Mature" },
+  { value: "nimble", label: "Nimble" },
+  { value: "savage", label: "Savage" },
 ];
 
 function CompanionCard({
@@ -482,10 +575,11 @@ function CompanionCard({
   charLevel: number;
   updateMutation: ReturnType<typeof useUpdateCompanion>;
 }) {
-  const maxHp  = companionMaxHp(comp, charLevel);
-  const curHp  = comp.currentHp;
-  const hpPct  = maxHp && curHp !== null ? Math.max(0, Math.min(100, (curHp / maxHp) * 100)) : null;
-  const isPending = updateMutation.isPending && (updateMutation.variables as { compId: string })?.compId === compId;
+  const maxHp = companionMaxHp(comp, charLevel);
+  const curHp = comp.currentHp;
+  const hpPct = maxHp && curHp !== null ? Math.max(0, Math.min(100, (curHp / maxHp) * 100)) : null;
+  const isPending =
+    updateMutation.isPending && (updateMutation.variables as { compId: string })?.compId === compId;
 
   return (
     <div className="p-4 bg-muted/40 rounded-lg space-y-3">
@@ -494,7 +588,9 @@ function CompanionCard({
         <div>
           <p className="font-semibold text-sm">{comp.displayName}</p>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-xs text-muted-foreground capitalize">{comp.baseType.replace(/-/g, " ")} ·</span>
+            <span className="text-xs text-muted-foreground capitalize">
+              {comp.baseType.replace(/-/g, " ")} ·
+            </span>
             <InlineSelect
               value={comp.form}
               options={COMPANION_FORM_OPTIONS}
@@ -508,18 +604,32 @@ function CompanionCard({
         {/* HP display */}
         {curHp !== null ? (
           maxHp ? (
-            <span className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
-              curHp === 0        ? "text-destructive bg-destructive/10"
-              : curHp / maxHp < 0.3 ? "text-orange-400 bg-orange-500/10"
-              : "text-green-400 bg-green-500/10"
-            }`}>{curHp}/{maxHp} HP</span>
+            <span
+              className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
+                curHp === 0
+                  ? "text-destructive bg-destructive/10"
+                  : curHp / maxHp < 0.3
+                    ? "text-orange-400 bg-orange-500/10"
+                    : "text-green-400 bg-green-500/10"
+              }`}
+            >
+              {curHp}/{maxHp} HP
+            </span>
           ) : (
-            <span className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
-              curHp === 0 ? "text-destructive bg-destructive/10" : "text-green-400 bg-green-500/10"
-            }`}>{curHp} HP</span>
+            <span
+              className={`text-xs font-mono px-2 py-0.5 rounded-full shrink-0 ${
+                curHp === 0
+                  ? "text-destructive bg-destructive/10"
+                  : "text-green-400 bg-green-500/10"
+              }`}
+            >
+              {curHp} HP
+            </span>
           )
         ) : (
-          <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted shrink-0">Not in combat</span>
+          <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted shrink-0">
+            Not in combat
+          </span>
         )}
       </div>
 
@@ -603,7 +713,11 @@ function useDeleteNote(characterId: string) {
 
 function useSpendDowntime(characterId: string) {
   const qc = useQueryClient();
-  return useMutation<{ actualDelta: number; clipped: boolean }, Error, { delta: number; reason: string }>({
+  return useMutation<
+    { actualDelta: number; clipped: boolean },
+    Error,
+    { delta: number; reason: string }
+  >({
     mutationFn: (body) =>
       fetch(`/api/characters/${characterId}/downtime`, {
         method: "POST",
@@ -669,14 +783,17 @@ function useUpdateItemQty() {
 
 function EditableQty({ item, category }: { item: BagItem; category: string }) {
   const [editing, setEditing] = useState(false);
-  const [value, setValue]     = useState(String(item.qty));
-  const updateQty             = useUpdateItemQty();
+  const [value, setValue] = useState(String(item.qty));
+  const updateQty = useUpdateItemQty();
 
   if (!editing) {
     return (
       <button
         type="button"
-        onClick={() => { setValue(String(item.qty)); setEditing(true); }}
+        onClick={() => {
+          setValue(String(item.qty));
+          setEditing(true);
+        }}
         className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors"
         title="Click to edit quantity"
       >
@@ -696,15 +813,21 @@ function EditableQty({ item, category }: { item: BagItem; category: string }) {
   return (
     <input
       className="w-14 text-xs text-center bg-muted/60 border border-primary/50 rounded px-1 py-0.5 font-mono focus:outline-none focus:border-primary"
-      type="number"
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9+-]*"
       min={1}
       value={value}
       autoFocus
       onChange={(e) => setValue(e.target.value)}
       onBlur={save}
       onKeyDown={(e) => {
-        if (e.key === "Enter")  { e.currentTarget.blur(); }
-        if (e.key === "Escape") { setEditing(false); }
+        if (e.key === "Enter") {
+          e.currentTarget.blur();
+        }
+        if (e.key === "Escape") {
+          setEditing(false);
+        }
       }}
     />
   );
@@ -714,7 +837,7 @@ function EditableQty({ item, category }: { item: BagItem; category: string }) {
 
 function AddNoteForm({ characterId, onClose }: { characterId: string; onClose: () => void }) {
   const addNote = useAddNote(characterId);
-  const [text, setText]         = useState("");
+  const [text, setText] = useState("");
   const [category, setCategory] = useState("npcs");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -729,7 +852,11 @@ function AddNoteForm({ characterId, onClose }: { characterId: string; onClose: (
     <form onSubmit={handleSubmit} className="space-y-3 pt-3 border-t border-border">
       <div>
         <label className="text-xs text-muted-foreground mb-1 block">Category</label>
-        <select className="input text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
+        <select
+          className="input text-sm"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
           <option value="npcs">🧑 NPCs</option>
           <option value="locations">🗺️ Locations</option>
           <option value="plot-threads">🎭 Plot Threads</option>
@@ -751,8 +878,14 @@ function AddNoteForm({ characterId, onClose }: { characterId: string; onClose: (
       </div>
       {addNote.error && <p className="text-xs text-destructive">{addNote.error.message}</p>}
       <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">Cancel</button>
-        <button type="submit" disabled={addNote.isPending || !text.trim()} className="btn btn-primary btn-sm">
+        <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={addNote.isPending || !text.trim()}
+          className="btn btn-primary btn-sm"
+        >
           {addNote.isPending ? "Saving…" : "Add Note"}
         </button>
       </div>
@@ -761,34 +894,51 @@ function AddNoteForm({ characterId, onClose }: { characterId: string; onClose: (
 }
 
 function SpendDowntimeForm({
-  characterId, currentBank, onClose,
+  characterId,
+  currentBank,
+  onClose,
 }: {
-  characterId: string; currentBank: number; onClose: () => void;
+  characterId: string;
+  currentBank: number;
+  onClose: () => void;
 }) {
-  const spendMutation           = useSpendDowntime(characterId);
-  const [days, setDays]         = useState("1");
-  const [reason, setReason]     = useState("");
-  const [mode, setMode]         = useState<"spend" | "add">("spend");
+  const spendMutation = useSpendDowntime(characterId);
+  const [days, setDays] = useState("1");
+  const [reason, setReason] = useState("");
+  const [mode, setMode] = useState<"spend" | "add">("spend");
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const n = parseInt(days, 10);
     if (!n || n < 1) return;
-    const delta  = mode === "spend" ? -n : n;
+    const delta = mode === "spend" ? -n : n;
     const result = await spendMutation.mutateAsync({ delta, reason: reason.trim() });
     if (result.clipped) {
       setFeedback(`Only ${Math.abs(result.actualDelta)} day(s) deducted (not enough remaining).`);
     }
-    setDays("1"); setReason("");
+    setDays("1");
+    setReason("");
     if (!result.clipped) onClose();
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 pt-3 border-t border-border">
       <div className="flex gap-2">
-        <button type="button" onClick={() => setMode("spend")} className={`btn btn-sm flex-1 ${mode === "spend" ? "btn-primary" : "btn-ghost"}`}>Spend Days</button>
-        <button type="button" onClick={() => setMode("add")}   className={`btn btn-sm flex-1 ${mode === "add"   ? "btn-primary" : "btn-ghost"}`}>Add Days</button>
+        <button
+          type="button"
+          onClick={() => setMode("spend")}
+          className={`btn btn-sm flex-1 ${mode === "spend" ? "btn-primary" : "btn-ghost"}`}
+        >
+          Spend Days
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("add")}
+          className={`btn btn-sm flex-1 ${mode === "add" ? "btn-primary" : "btn-ghost"}`}
+        >
+          Add Days
+        </button>
       </div>
       <div>
         <label className="text-xs text-muted-foreground mb-1 block">
@@ -796,7 +946,9 @@ function SpendDowntimeForm({
         </label>
         <input
           className="input text-sm"
-          type="number"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9+-]*"
           min={1}
           max={mode === "spend" ? currentBank : undefined}
           value={days}
@@ -819,8 +971,14 @@ function SpendDowntimeForm({
         </p>
       )}
       <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">Cancel</button>
-        <button type="submit" disabled={spendMutation.isPending || !days || parseInt(days) < 1} className="btn btn-primary btn-sm">
+        <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={spendMutation.isPending || !days || parseInt(days) < 1}
+          className="btn btn-primary btn-sm"
+        >
           {spendMutation.isPending ? "Saving…" : "Confirm"}
         </button>
       </div>
@@ -831,17 +989,19 @@ function SpendDowntimeForm({
 const DEFAULT_CATEGORIES = ["General", "Armor", "Weapons", "Potions", "Tools", "Valuables"];
 
 function AddItemForm({
-  existingCategories, onClose,
+  existingCategories,
+  onClose,
 }: {
-  existingCategories: string[]; onClose: () => void;
+  existingCategories: string[];
+  onClose: () => void;
 }) {
-  const addMutation               = useAddItem();
-  const [name, setName]           = useState("");
-  const [qty, setQty]             = useState("1");
-  const [category, setCategory]   = useState("");
+  const addMutation = useAddItem();
+  const [name, setName] = useState("");
+  const [qty, setQty] = useState("1");
+  const [category, setCategory] = useState("");
   const [customCat, setCustomCat] = useState("");
 
-  const allCats      = Array.from(new Set([...DEFAULT_CATEGORIES, ...existingCategories])).sort();
+  const allCats = Array.from(new Set([...DEFAULT_CATEGORIES, ...existingCategories])).sort();
   const effectiveCat = category === "__custom__" ? customCat.trim() : category || "General";
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -850,14 +1010,20 @@ function AddItemForm({
     const cat = category === "__custom__" ? customCat.trim() : category || "General";
     if (!cat) return;
     await addMutation.mutateAsync({ name: name.trim(), qty: parseInt(qty) || 1, category: cat });
-    setName(""); setQty("1"); onClose();
+    setName("");
+    setQty("1");
+    onClose();
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 pt-3 border-t border-border">
       <div className="flex items-center justify-between mb-1">
         <p className="text-sm font-medium">Add Item</p>
-        <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-muted-foreground hover:text-foreground"
+        >
           <X size={15} />
         </button>
       </div>
@@ -873,30 +1039,56 @@ function AddItemForm({
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Quantity</label>
-          <input className="input text-sm" type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} />
+          <input
+            className="input text-sm"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9+-]*"
+            min={1}
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+          />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Category</label>
-          <select className="input text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select
+            className="input text-sm"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
             <option value="">General</option>
-            {allCats.map((c) => <option key={c} value={c}>{c}</option>)}
+            {allCats.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
             <option value="__custom__">+ New category…</option>
           </select>
         </div>
         {category === "__custom__" && (
           <div className="col-span-2">
             <label className="text-xs text-muted-foreground mb-1 block">New Category Name</label>
-            <input className="input text-sm" placeholder="e.g. Quest Items" value={customCat} onChange={(e) => setCustomCat(e.target.value)} required />
+            <input
+              className="input text-sm"
+              placeholder="e.g. Quest Items"
+              value={customCat}
+              onChange={(e) => setCustomCat(e.target.value)}
+              required
+            />
           </div>
         )}
       </div>
       {addMutation.error && <p className="text-xs text-destructive">{addMutation.error.message}</p>}
       <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">Cancel</button>
+        <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">
+          Cancel
+        </button>
         <button
           type="submit"
           className="btn btn-primary btn-sm"
-          disabled={addMutation.isPending || !name.trim() || (category === "__custom__" && !effectiveCat)}
+          disabled={
+            addMutation.isPending || !name.trim() || (category === "__custom__" && !effectiveCat)
+          }
         >
           {addMutation.isPending ? "Adding…" : "Add Item"}
         </button>
@@ -917,12 +1109,16 @@ function StatsTabPanel({
   build: PBBuild;
   level: number;
   onSaveProficiencies: (proficiencies: Record<string, number>) => void;
-  onSaveCustomAttacks: (attacks: { name: string; bonus: string; damage: string; traits: string }[]) => void;
+  onSaveCustomAttacks: (
+    attacks: { name: string; bonus: string; damage: string; traits: string }[]
+  ) => void;
   isSaving: boolean;
 }) {
-  const abs   = build.abilities;
+  const abs = build.abilities;
   const profs = build.proficiencies ?? {};
-  const extraProfs = Object.entries(profs).filter(([key, rank]) => !NON_SKILL_PROF_KEYS.has(key) && rank > 0);
+  const extraProfs = Object.entries(profs).filter(
+    ([key, rank]) => !NON_SKILL_PROF_KEYS.has(key) && rank > 0
+  );
   const customAttacks = build.custom_attacks ?? [];
   const [extraSkillName, setExtraSkillName] = useState("");
   const [extraSkillRank, setExtraSkillRank] = useState(2);
@@ -969,7 +1165,9 @@ function StatsTabPanel({
     <div className="space-y-5">
       {abs && (
         <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Perception</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Perception
+          </h4>
           <div className="flex items-center gap-3 py-2 px-3 bg-muted/40 rounded-lg">
             <ProfBadge rank={profs.perception ?? 2} />
             <span className="flex-1 text-sm font-medium">Perception</span>
@@ -982,19 +1180,28 @@ function StatsTabPanel({
       )}
 
       <div>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Skills</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Skills
+        </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
           {SKILL_ORDER.map((skill) => {
-            const rank      = profs[skill] ?? 0;
-            const abilKey   = SKILL_ABILITY_MAP[skill];
+            const rank = profs[skill] ?? 0;
+            const abilKey = SKILL_ABILITY_MAP[skill];
             const abilScore = abs ? (abs[abilKey] ?? 10) : 10;
-            const total     = profBonus(rank, level) + abilityModNum(abilScore);
+            const total = profBonus(rank, level) + abilityModNum(abilScore);
             return (
-              <div key={skill} className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors">
+              <div
+                key={skill}
+                className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
+              >
                 <ProfBadge rank={rank} />
                 <span className="flex-1 text-sm capitalize">{skill}</span>
-                <span className="text-xs text-muted-foreground uppercase w-7">{abilKey.slice(0, 3)}</span>
-                <span className="font-mono font-bold text-sm w-10 text-right">{signedTotal(total)}</span>
+                <span className="text-xs text-muted-foreground uppercase w-7">
+                  {abilKey.slice(0, 3)}
+                </span>
+                <span className="font-mono font-bold text-sm w-10 text-right">
+                  {signedTotal(total)}
+                </span>
               </div>
             );
           })}
@@ -1004,15 +1211,22 @@ function StatsTabPanel({
       <div>
         <div className="flex items-center justify-between gap-3 mb-2">
           <div>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Additional Skills</h4>
-            <p className="text-xs text-muted-foreground mt-1">Add or remove unlimited homebrew, lore, and campaign skills.</p>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Additional Skills
+            </h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              Add or remove unlimited homebrew, lore, and campaign skills.
+            </p>
           </div>
         </div>
         <div className="space-y-2">
           {extraProfs.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
               {extraProfs.map(([key, rank]) => (
-                <div key={key} className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors">
+                <div
+                  key={key}
+                  className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
+                >
                   <ProfBadge rank={rank} />
                   <span className="flex-1 text-sm">{customLabel(key)}</span>
                   <button
@@ -1063,10 +1277,15 @@ function StatsTabPanel({
         if (combatProfs.length === 0) return null;
         return (
           <div>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Armor & Weapons</h4>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Armor & Weapons
+            </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
               {combatProfs.map(([key, rank]) => (
-                <div key={key} className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors">
+                <div
+                  key={key}
+                  className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
+                >
                   <ProfBadge rank={rank} />
                   <span className="text-sm capitalize flex-1">{key.replace(/_/g, " ")}</span>
                 </div>
@@ -1079,21 +1298,31 @@ function StatsTabPanel({
       <div>
         <div className="flex items-center justify-between gap-3 mb-2">
           <div>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Custom Attacks</h4>
-            <p className="text-xs text-muted-foreground mt-1">Add or remove strikes, spell attacks, and special attack options.</p>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Custom Attacks
+            </h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              Add or remove strikes, spell attacks, and special attack options.
+            </p>
           </div>
         </div>
         <div className="space-y-2">
           {customAttacks.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {customAttacks.map((attack, index) => (
-                <div key={`${attack.name}-${index}`} className="bg-muted/40 rounded-md p-3 flex items-start gap-3">
+                <div
+                  key={`${attack.name}-${index}`}
+                  className="bg-muted/40 rounded-md p-3 flex items-start gap-3"
+                >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{attack.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {[attack.bonus, attack.damage].filter(Boolean).join(" · ") || "No attack details set"}
+                      {[attack.bonus, attack.damage].filter(Boolean).join(" · ") ||
+                        "No attack details set"}
                     </p>
-                    {attack.traits && <p className="text-xs text-muted-foreground/70 mt-1">{attack.traits}</p>}
+                    {attack.traits && (
+                      <p className="text-xs text-muted-foreground/70 mt-1">{attack.traits}</p>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -1163,19 +1392,21 @@ function FeatsTabPanel({
   onSaveSpecials: (specials: string[]) => void;
   isSaving: boolean;
 }) {
-  const feats    = build.feats ?? [];
+  const feats = build.feats ?? [];
   const specials = build.specials ?? [];
   const [featName, setFeatName] = useState("");
   const [featType, setFeatType] = useState("Ancestry");
   const [featLevel, setFeatLevel] = useState(String(build.level ?? 1));
   const [specialText, setSpecialText] = useState("");
 
-  const normalizedFeats = feats.map((feat): [string, string | null, string | null, string | null] => {
-    const name = Array.isArray(feat) ? (feat[0] as string) : String(feat);
-    const type = (Array.isArray(feat) ? (feat[2] as string | null) : null) ?? "Other";
-    const levelText = Array.isArray(feat) ? (feat[3] as string | null) : null;
-    return [name, null, type, levelText];
-  });
+  const normalizedFeats = feats.map(
+    (feat): [string, string | null, string | null, string | null] => {
+      const name = Array.isArray(feat) ? (feat[0] as string) : String(feat);
+      const type = (Array.isArray(feat) ? (feat[2] as string | null) : null) ?? "Other";
+      const levelText = Array.isArray(feat) ? (feat[3] as string | null) : null;
+      return [name, null, type, levelText];
+    }
+  );
 
   const grouped: Record<string, { name: string; index: number }[]> = {};
   normalizedFeats.forEach((feat, index) => {
@@ -1190,7 +1421,10 @@ function FeatsTabPanel({
   function addFeat() {
     const name = featName.trim();
     if (!name) return;
-    onSaveFeats([...normalizedFeats, [name, null, featType, featLevel ? `Level ${featLevel}` : null]]);
+    onSaveFeats([
+      ...normalizedFeats,
+      [name, null, featType, featLevel ? `Level ${featLevel}` : null],
+    ]);
     setFeatName("");
     setFeatType("Ancestry");
     setFeatLevel(String(build.level ?? 1));
@@ -1213,10 +1447,14 @@ function FeatsTabPanel({
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-muted-foreground">Click a feat to see its description and details.</p>
+      <p className="text-xs text-muted-foreground">
+        Click a feat to see its description and details.
+      </p>
 
       <div className="card p-4 bg-muted/20 space-y-3">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add Custom Feat</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Add Custom Feat
+        </h4>
         <div className="grid grid-cols-[1fr_150px_100px_auto] gap-2">
           <input
             className="input text-sm"
@@ -1224,14 +1462,20 @@ function FeatsTabPanel({
             onChange={(e) => setFeatName(e.target.value)}
             placeholder="e.g. Stormmarked Cantrip"
           />
-          <select className="input text-sm" value={featType} onChange={(e) => setFeatType(e.target.value)}>
+          <select
+            className="input text-sm"
+            value={featType}
+            onChange={(e) => setFeatType(e.target.value)}
+          >
             {["Ancestry", "Class", "Skill", "General", "Archetype", "Other"].map((type) => (
               <option key={type}>{type}</option>
             ))}
           </select>
           <input
             className="input text-sm"
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9+-]*"
             min={1}
             value={featLevel}
             onChange={(e) => setFeatLevel(e.target.value)}
@@ -1249,43 +1493,51 @@ function FeatsTabPanel({
         </div>
       </div>
 
-      {[...TYPE_ORDER, ...Object.keys(grouped).filter((t) => !TYPE_ORDER.includes(t))].map((type) => {
-        const list = grouped[type];
-        if (!list || list.length === 0) return null;
-        return (
-          <div key={type}>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{type} Feats</h4>
-            <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
-              {list.map((feat) => (
-                <li key={`${feat.name}-${feat.index}`} className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => onSelect(feat.name)}
-                    className="flex-1 text-left text-sm py-1.5 px-3 bg-muted/40 rounded-md hover:bg-muted/70 hover:text-primary transition-colors"
-                  >
-                    {feat.name}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeFeat(feat.index)}
-                    disabled={isSaving}
-                    className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                    title="Remove feat"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-      })}
+      {[...TYPE_ORDER, ...Object.keys(grouped).filter((t) => !TYPE_ORDER.includes(t))].map(
+        (type) => {
+          const list = grouped[type];
+          if (!list || list.length === 0) return null;
+          return (
+            <div key={type}>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                {type} Feats
+              </h4>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                {list.map((feat) => (
+                  <li key={`${feat.name}-${feat.index}`} className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onSelect(feat.name)}
+                      className="flex-1 text-left text-sm py-1.5 px-3 bg-muted/40 rounded-md hover:bg-muted/70 hover:text-primary transition-colors"
+                    >
+                      {feat.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeFeat(feat.index)}
+                      disabled={isSaving}
+                      className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                      title="Remove feat"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        }
+      )}
 
       <div>
         <div className="flex items-center justify-between gap-3 mb-2">
           <div>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Special Abilities</h4>
-            <p className="text-xs text-muted-foreground mt-1">Add or remove custom abilities, features, and granted powers.</p>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Special Abilities
+            </h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              Add or remove custom abilities, features, and granted powers.
+            </p>
           </div>
         </div>
         <div className="space-y-2">
@@ -1311,7 +1563,10 @@ function FeatsTabPanel({
         {specials.length > 0 && (
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
             {specials.map((s, i) => (
-              <li key={i} className="text-sm py-1.5 px-3 bg-muted/40 rounded-md flex items-start gap-3">
+              <li
+                key={i}
+                className="text-sm py-1.5 px-3 bg-muted/40 rounded-md flex items-start gap-3"
+              >
                 <span className="flex-1">{s}</span>
                 <button
                   type="button"
@@ -1332,29 +1587,34 @@ function FeatsTabPanel({
 }
 
 // onSelect receives an item name — parent opens the detail modal
-function GearTabPanel({
-  build,
-  onSelect,
-}: {
-  build: PBBuild;
-  onSelect: (name: string) => void;
-}) {
+function GearTabPanel({ build, onSelect }: { build: PBBuild; onSelect: (name: string) => void }) {
   const equipment = build.equipment ?? [];
 
   return (
     <div className="space-y-5">
       {(build.deity || build.keyability || (build.languages && build.languages.length > 0)) && (
         <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Details</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Details
+          </h4>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
             {build.deity && (
-              <><dt className="text-muted-foreground">Deity</dt><dd>{build.deity}</dd></>
+              <>
+                <dt className="text-muted-foreground">Deity</dt>
+                <dd>{build.deity}</dd>
+              </>
             )}
             {build.keyability && (
-              <><dt className="text-muted-foreground">Key Ability</dt><dd className="capitalize">{build.keyability}</dd></>
+              <>
+                <dt className="text-muted-foreground">Key Ability</dt>
+                <dd className="capitalize">{build.keyability}</dd>
+              </>
             )}
             {build.languages && build.languages.length > 0 && (
-              <><dt className="text-muted-foreground">Languages</dt><dd>{build.languages.join(", ")}</dd></>
+              <>
+                <dt className="text-muted-foreground">Languages</dt>
+                <dd>{build.languages.join(", ")}</dd>
+              </>
             )}
           </dl>
         </div>
@@ -1364,14 +1624,23 @@ function GearTabPanel({
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
             Starting Equipment
-            <span className="ml-1.5 font-normal normal-case text-muted-foreground/60">(click for details)</span>
+            <span className="ml-1.5 font-normal normal-case text-muted-foreground/60">
+              (click for details)
+            </span>
           </h4>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
             {(equipment as unknown[]).map((item, i) => {
-              const name = Array.isArray(item) ? item[0] as string : (item as { name: string }).name ?? String(item);
-              const qty  = Array.isArray(item) ? item[1] as number : (item as { qty: number }).qty ?? 1;
+              const name = Array.isArray(item)
+                ? (item[0] as string)
+                : ((item as { name: string }).name ?? String(item));
+              const qty = Array.isArray(item)
+                ? (item[1] as number)
+                : ((item as { qty: number }).qty ?? 1);
               return (
-                <li key={i} className="text-sm py-1.5 px-3 bg-muted/40 rounded-md flex items-center justify-between">
+                <li
+                  key={i}
+                  className="text-sm py-1.5 px-3 bg-muted/40 rounded-md flex items-center justify-between"
+                >
                   <button
                     type="button"
                     onClick={() => onSelect(name)}
@@ -1379,7 +1648,9 @@ function GearTabPanel({
                   >
                     {name}
                   </button>
-                  {qty > 1 && <span className="text-xs text-muted-foreground ml-3 shrink-0">×{qty}</span>}
+                  {qty > 1 && (
+                    <span className="text-xs text-muted-foreground ml-3 shrink-0">×{qty}</span>
+                  )}
                 </li>
               );
             })}
@@ -1389,7 +1660,9 @@ function GearTabPanel({
 
       {build.spellCasters && build.spellCasters.length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Spell Casters</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Spell Casters
+          </h4>
           <div className="space-y-2">
             {build.spellCasters.map((sc, i) => (
               <div key={i} className="py-2 px-3 bg-muted/40 rounded-md">
@@ -1407,12 +1680,17 @@ function GearTabPanel({
 function BagTabPanel() {
   const { data: bag, isLoading, error } = useBag();
   const removeMutation = useRemoveItem();
-  const [showAddForm, setShowAddForm]   = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
 
-  const categories    = (bag?.categories ?? {}) as BagCategories;
+  const categories = (bag?.categories ?? {}) as BagCategories;
   const categoryNames = Object.keys(categories).sort();
 
-  if (isLoading) return <div className="flex items-center justify-center py-8"><div className="spinner" /></div>;
+  if (isLoading)
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="spinner" />
+      </div>
+    );
   if (error) return <p className="text-sm text-destructive">{error.message}</p>;
 
   return (
@@ -1460,7 +1738,9 @@ function BagTabPanel() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {categoryNames.map((cat) => (
             <div key={cat} className="bg-muted/30 rounded-lg p-4">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{cat}</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                {cat}
+              </h4>
               <ul className="space-y-1">
                 {(categories[cat] ?? []).map((item: BagItem, i: number) => (
                   <li key={i} className="flex items-center justify-between text-sm group py-0.5">
@@ -1470,7 +1750,9 @@ function BagTabPanel() {
                       <EditableQty item={item} category={cat} />
                       <button
                         type="button"
-                        onClick={() => removeMutation.mutate({ category: cat, itemName: item.name })}
+                        onClick={() =>
+                          removeMutation.mutate({ category: cat, itemName: item.name })
+                        }
                         disabled={removeMutation.isPending}
                         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity disabled:opacity-30"
                         title="Remove item"
@@ -1498,20 +1780,28 @@ function NotesTabPanel({
 }) {
   const [showAddNote, setShowAddNote] = useState(false);
   const deleteNote = useDeleteNote(characterId);
-  const notes      = notesRecord ? (notesRecord.notes as unknown as BotNote[]) : [];
+  const notes = notesRecord ? (notesRecord.notes as unknown as BotNote[]) : [];
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{notes.length} {notes.length === 1 ? "note" : "notes"}</p>
+        <p className="text-sm text-muted-foreground">
+          {notes.length} {notes.length === 1 ? "note" : "notes"}
+        </p>
         {!showAddNote && (
-          <button type="button" onClick={() => setShowAddNote(true)} className="btn btn-primary btn-sm flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowAddNote(true)}
+            className="btn btn-primary btn-sm flex items-center gap-1.5"
+          >
             <Plus size={14} /> Add Note
           </button>
         )}
       </div>
 
-      {showAddNote && <AddNoteForm characterId={characterId} onClose={() => setShowAddNote(false)} />}
+      {showAddNote && (
+        <AddNoteForm characterId={characterId} onClose={() => setShowAddNote(false)} />
+      )}
 
       {notes.length === 0 && !showAddNote && (
         <div className="text-center py-8">
@@ -1521,7 +1811,7 @@ function NotesTabPanel({
       )}
 
       {NOTE_CATEGORY_ORDER.map((catKey) => {
-        const cat   = NOTE_CATEGORIES[catKey];
+        const cat = NOTE_CATEGORIES[catKey];
         const inCat = notes
           .filter((n) => n.category === catKey)
           .sort((a, b) => {
@@ -1531,7 +1821,9 @@ function NotesTabPanel({
         if (inCat.length === 0) return null;
         return (
           <div key={catKey}>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{cat.icon} {cat.label}</h4>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              {cat.icon} {cat.label}
+            </h4>
             <ul className="space-y-2">
               {inCat.map((note) => (
                 <li key={note.id} className="text-sm bg-muted/40 rounded-lg p-3 space-y-1 group">
@@ -1565,7 +1857,8 @@ function NotesTabPanel({
 }
 
 function DowntimeTabPanel({
-  characterId, downtime,
+  characterId,
+  downtime,
 }: {
   characterId: string;
   downtime: { bank: number; log: unknown } | null | undefined;
@@ -1577,7 +1870,8 @@ function DowntimeTabPanel({
       <div className="text-center py-8">
         <CalendarDays size={32} className="mx-auto text-muted-foreground mb-3" />
         <p className="text-sm text-muted-foreground">
-          No downtime tracked yet. Use <code className="bg-muted px-1 rounded">/downtime</code> in Discord to start.
+          No downtime tracked yet. Use <code className="bg-muted px-1 rounded">/downtime</code> in
+          Discord to start.
         </p>
       </div>
     );
@@ -1593,25 +1887,44 @@ function DowntimeTabPanel({
           <span className="text-sm text-muted-foreground">days available</span>
         </div>
         {!showForm && (
-          <button type="button" onClick={() => setShowForm(true)} className="btn btn-primary btn-sm flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="btn btn-primary btn-sm flex items-center gap-1.5"
+          >
             <Plus size={14} /> Manage
           </button>
         )}
       </div>
 
       {showForm && (
-        <SpendDowntimeForm characterId={characterId} currentBank={downtime.bank} onClose={() => setShowForm(false)} />
+        <SpendDowntimeForm
+          characterId={characterId}
+          currentBank={downtime.bank}
+          onClose={() => setShowForm(false)}
+        />
       )}
 
       {log.length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Activity Log</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Activity Log
+          </h4>
           <ul className="space-y-0.5">
             {log.map((entry, i) => (
-              <li key={i} className="flex items-center justify-between text-xs py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors">
-                <span className="text-muted-foreground">{entry.date}{entry.reason ? ` · ${entry.reason}` : ""}</span>
-                <span className={`font-mono font-semibold shrink-0 ml-3 ${entry.delta > 0 ? "text-green-400" : "text-orange-400"}`}>
-                  {entry.delta > 0 ? "+" : ""}{entry.delta}d
+              <li
+                key={i}
+                className="flex items-center justify-between text-xs py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
+              >
+                <span className="text-muted-foreground">
+                  {entry.date}
+                  {entry.reason ? ` · ${entry.reason}` : ""}
+                </span>
+                <span
+                  className={`font-mono font-semibold shrink-0 ml-3 ${entry.delta > 0 ? "text-green-400" : "text-orange-400"}`}
+                >
+                  {entry.delta > 0 ? "+" : ""}
+                  {entry.delta}d
                 </span>
               </li>
             ))}
@@ -1625,34 +1938,40 @@ function DowntimeTabPanel({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function CharacterDetailPage() {
-  const params      = useParams();
-  const { user }    = useAuth();
+  const params = useParams();
+  const { user } = useAuth();
   const characterId = params.id as string;
 
-  const { data: character, isLoading, error } = useCharacterLive(characterId, {
+  const {
+    data: character,
+    isLoading,
+    error,
+  } = useCharacterLive(characterId, {
     enabled: !!characterId && !!user,
   });
-  const syncMutation              = useSyncCharacter();
+  const syncMutation = useSyncCharacter();
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [tab, setTab]             = useState<TabKey>("stats");
+  const [tab, setTab] = useState<TabKey>("stats");
 
   // Modal state: null = closed, otherwise { type, name }
   const [modal, setModal] = useState<{ type: ContentType; name: string } | null>(null);
 
   const charKey = character ? (character as unknown as { char_key: string | null }).char_key : null;
-  const { data: downtime }    = useCharacterDowntime(charKey);
+  const { data: downtime } = useCharacterDowntime(charKey);
   const { data: notesRecord } = useCharacterNotes(charKey);
   const { companions, companionRows } = useCompanions(characterId, charKey, {
     enabled: !!characterId && !!user,
   });
 
-  const updateCharacter  = useUpdateCharacter(characterId);
-  const updateCompanion  = useUpdateCompanion(characterId);
+  const updateCharacter = useUpdateCharacter(characterId);
+  const updateCompanion = useUpdateCompanion(characterId);
 
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center py-12"><div className="spinner" /></div>
+        <div className="flex items-center justify-center py-12">
+          <div className="spinner" />
+        </div>
       </MainLayout>
     );
   }
@@ -1663,7 +1982,10 @@ export default function CharacterDetailPage() {
         <div className="card p-6 bg-destructive/10 border-destructive">
           <p className="text-destructive font-semibold">Character not found</p>
           <p className="text-sm text-muted-foreground mt-1">{error?.message}</p>
-          <Link href="/characters" className="mt-4 inline-flex items-center gap-2 text-sm text-primary">
+          <Link
+            href="/characters"
+            className="mt-4 inline-flex items-center gap-2 text-sm text-primary"
+          >
             <ArrowLeft size={14} /> Back to characters
           </Link>
         </div>
@@ -1671,37 +1993,38 @@ export default function CharacterDetailPage() {
     );
   }
 
-  const pb    = character.pathbuilder_data as { build?: PBBuild } | PBBuild | null;
+  const pb = character.pathbuilder_data as { build?: PBBuild } | PBBuild | null;
   const build = pb ? ((pb as { build?: PBBuild }).build ?? (pb as PBBuild)) : null;
-  const abs   = build?.abilities;
+  const abs = build?.abilities;
 
   const currentHp = (character as unknown as { current_hp: number | null }).current_hp;
-  const overlay   = (character as unknown as { overlay: CharacterOverlay }).overlay ?? {};
-  const daily     = overlay.daily;
+  const overlay = (character as unknown as { overlay: CharacterOverlay }).overlay ?? {};
+  const daily = overlay.daily;
   const hasLiveHp = currentHp !== null && currentHp !== undefined;
 
-  const level   = character.level ?? build?.level ?? 1;
-  const maxHp   = build ? deriveMaxHp(build, level) : null;
-  const dying   = character.dying ?? 0;
+  const level = character.level ?? build?.level ?? 1;
+  const maxHp = build ? deriveMaxHp(build, level) : null;
+  const dying = character.dying ?? 0;
   const wounded = character.wounded ?? 0;
 
   const heroPoints = daily?.hero_points ?? character.hero_points ?? 1;
   const focusSpent = daily?.focus_spent ?? 0;
-  const focusMax   = (build?.spellCasters ?? []).reduce(
-    (sum, c) => sum + ((c as unknown as { focusPoints?: number }).focusPoints ?? 0), 0
+  const focusMax = (build?.spellCasters ?? []).reduce(
+    (sum, c) => sum + ((c as unknown as { focusPoints?: number }).focusPoints ?? 0),
+    0
   );
 
-  const profs         = build?.proficiencies ?? {};
+  const profs = build?.proficiencies ?? {};
   // Companions come from the dedicated `companions` table via useCompanions()
   const hasCompanions = companions.length > 0;
 
   type TabDef = { key: TabKey; label: string };
   const tabs: TabDef[] = [
-    { key: "stats",    label: "Stats"    },
-    { key: "feats",    label: "Feats"    },
-    { key: "gear",     label: "Gear"     },
-    { key: "bag",      label: "Bag"      },
-    { key: "notes",    label: "Notes"    },
+    { key: "stats", label: "Stats" },
+    { key: "feats", label: "Feats" },
+    { key: "gear", label: "Gear" },
+    { key: "bag", label: "Bag" },
+    { key: "notes", label: "Notes" },
     { key: "downtime", label: "Downtime" },
     ...(hasCompanions ? [{ key: "companions" as TabKey, label: "Companions" }] : []),
   ];
@@ -1709,36 +2032,39 @@ export default function CharacterDetailPage() {
   return (
     <MainLayout>
       {/* Detail modal — rendered outside main flow so it overlays everything */}
-      {modal && (
-        <ContentModal
-          type={modal.type}
-          name={modal.name}
-          onClose={() => setModal(null)}
-        />
-      )}
+      {modal && <ContentModal type={modal.type} name={modal.name} onClose={() => setModal(null)} />}
 
       <div className="mb-4">
-        <Link href="/characters" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/characters"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft size={16} />
           Back to Characters
         </Link>
       </div>
 
       <div className="space-y-4">
-
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="card p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="font-heading text-3xl font-bold leading-tight">{character.name}</h1>
               <p className="text-muted-foreground mt-0.5">
-                Level {level} · {[character.ancestry_name, character.heritage_name, character.class_name].filter(Boolean).join(" ")}
+                Level {level} ·{" "}
+                {[character.ancestry_name, character.heritage_name, character.class_name]
+                  .filter(Boolean)
+                  .join(" ")}
               </p>
               {character.background_name && (
-                <p className="text-sm text-muted-foreground mt-0.5">{character.background_name} background</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {character.background_name} background
+                </p>
               )}
               {build?.languages && build.languages.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1 opacity-70">{build.languages.join(" · ")}</p>
+                <p className="text-xs text-muted-foreground mt-1 opacity-70">
+                  {build.languages.join(" · ")}
+                </p>
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
@@ -1746,8 +2072,11 @@ export default function CharacterDetailPage() {
                 <button
                   onClick={async () => {
                     setSyncError(null);
-                    try { await syncMutation.mutateAsync(characterId); }
-                    catch (err) { setSyncError(err instanceof Error ? err.message : "Sync failed"); }
+                    try {
+                      await syncMutation.mutateAsync(characterId);
+                    } catch (err) {
+                      setSyncError(err instanceof Error ? err.message : "Sync failed");
+                    }
                   }}
                   disabled={syncMutation.isPending}
                   className="btn-outline flex items-center gap-2 text-sm"
@@ -1757,21 +2086,29 @@ export default function CharacterDetailPage() {
                   {syncMutation.isPending ? "Syncing…" : "Sync"}
                 </button>
               )}
-              <span className={`text-sm px-3 py-1 rounded-full ${
-                character.status === "active" ? "bg-green-500/20 text-green-400" : "bg-muted text-muted-foreground"
-              }`}>
+              <span
+                className={`text-sm px-3 py-1 rounded-full ${
+                  character.status === "active"
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
                 {character.status}
               </span>
             </div>
           </div>
-          {syncMutation.isSuccess && <p className="text-xs text-green-400 mt-2">Sheet refreshed from Pathbuilder.</p>}
+          {syncMutation.isSuccess && (
+            <p className="text-xs text-green-400 mt-2">Sheet refreshed from Pathbuilder.</p>
+          )}
           {syncError && <p className="text-xs text-destructive mt-2">{syncError}</p>}
         </div>
 
         {/* ── Vitals ─────────────────────────────────────────────────────── */}
         <div className="card p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Vitals</h2>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Vitals
+            </h2>
             {hasLiveHp && <LiveBadge />}
           </div>
 
@@ -1832,7 +2169,12 @@ export default function CharacterDetailPage() {
 
           {abs && (
             <div className="grid grid-cols-4 gap-2">
-              <SaveBox label="Perception" rank={profs.perception ?? 0} abilityScore={abs.wis} level={level} />
+              <SaveBox
+                label="Perception"
+                rank={profs.perception ?? 0}
+                abilityScore={abs.wis}
+                level={level}
+              />
               {(["fortitude", "reflex", "will"] as const).map((save) => (
                 <SaveBox
                   key={save}
@@ -1853,7 +2195,9 @@ export default function CharacterDetailPage() {
                 {Array.from({ length: 3 }).map((_, i) => (
                   <button
                     key={i}
-                    onClick={() => updateCharacter.mutate({ hero_points: i < heroPoints ? i : i + 1 })}
+                    onClick={() =>
+                      updateCharacter.mutate({ hero_points: i < heroPoints ? i : i + 1 })
+                    }
                     disabled={updateCharacter.isPending}
                     title={`Set hero points to ${i < heroPoints ? i : i + 1}`}
                     className={`w-4 h-4 rounded-full border-2 transition-all hover:scale-110 disabled:cursor-not-allowed ${
@@ -1867,20 +2211,29 @@ export default function CharacterDetailPage() {
               <span className="text-xs text-muted-foreground tabular-nums">{heroPoints}/3</span>
             </div>
             {focusMax > 0 && (
-              <PipRow count={Math.max(0, focusMax - focusSpent)} max={focusMax} color="bg-blue-400" label="Focus Pool" />
+              <PipRow
+                count={Math.max(0, focusMax - focusSpent)}
+                max={focusMax}
+                color="bg-blue-400"
+                label="Focus Pool"
+              />
             )}
           </div>
 
           {daily?.slots_used && Object.keys(daily.slots_used).length > 0 && (
             <div className="space-y-2 pt-2 border-t border-border">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Spell Slots — Today</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Spell Slots — Today
+              </p>
               {Object.entries(daily.slots_used).map(([caster, ranks]) => (
                 <div key={caster}>
                   <p className="text-xs text-muted-foreground mb-1">{caster}</p>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(ranks).map(([rank, used]) =>
                       used > 0 ? (
-                        <span key={rank} className="text-xs bg-muted px-2 py-0.5 rounded font-mono">Rank {rank}: {used} used</span>
+                        <span key={rank} className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
+                          Rank {rank}: {used} used
+                        </span>
                       ) : null
                     )}
                   </div>
@@ -1932,40 +2285,55 @@ export default function CharacterDetailPage() {
           </div>
 
           <div className="p-5">
-            {tab === "stats" && (
-              build
-                ? (
-                  <StatsTabPanel
-                    build={build}
-                    level={level}
-                    isSaving={updateCharacter.isPending}
-                    onSaveProficiencies={(proficiencies) => updateCharacter.mutate({ build_patch: { proficiencies } })}
-                    onSaveCustomAttacks={(custom_attacks) => updateCharacter.mutate({ build_patch: { custom_attacks } })}
-                  />
-                )
-                : <p className="text-sm text-muted-foreground italic">No Pathbuilder data available.</p>
+            {tab === "stats" &&
+              (build ? (
+                <StatsTabPanel
+                  build={build}
+                  level={level}
+                  isSaving={updateCharacter.isPending}
+                  onSaveProficiencies={(proficiencies) =>
+                    updateCharacter.mutate({ build_patch: { proficiencies } })
+                  }
+                  onSaveCustomAttacks={(custom_attacks) =>
+                    updateCharacter.mutate({ build_patch: { custom_attacks } })
+                  }
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  No Pathbuilder data available.
+                </p>
+              ))}
+            {tab === "feats" &&
+              (build ? (
+                <FeatsTabPanel
+                  build={build}
+                  isSaving={updateCharacter.isPending}
+                  onSaveFeats={(feats) => updateCharacter.mutate({ build_patch: { feats } })}
+                  onSaveSpecials={(specials) =>
+                    updateCharacter.mutate({ build_patch: { specials } })
+                  }
+                  onSelect={(name) => setModal({ type: "feat", name })}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  No Pathbuilder data available.
+                </p>
+              ))}
+            {tab === "gear" &&
+              (build ? (
+                <GearTabPanel build={build} onSelect={(name) => setModal({ type: "item", name })} />
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  No Pathbuilder data available.
+                </p>
+              ))}
+            {tab === "bag" && <BagTabPanel />}
+            {tab === "notes" && (
+              <NotesTabPanel characterId={characterId} notesRecord={notesRecord} />
             )}
-            {tab === "feats" && (
-              build
-                ? (
-                  <FeatsTabPanel
-                    build={build}
-                    isSaving={updateCharacter.isPending}
-                    onSaveFeats={(feats) => updateCharacter.mutate({ build_patch: { feats } })}
-                    onSaveSpecials={(specials) => updateCharacter.mutate({ build_patch: { specials } })}
-                    onSelect={(name) => setModal({ type: "feat", name })}
-                  />
-                )
-                : <p className="text-sm text-muted-foreground italic">No Pathbuilder data available.</p>
+            {tab === "downtime" && (
+              <DowntimeTabPanel characterId={characterId} downtime={downtime} />
             )}
-            {tab === "gear" && (
-              build
-                ? <GearTabPanel build={build} onSelect={(name) => setModal({ type: "item", name })} />
-                : <p className="text-sm text-muted-foreground italic">No Pathbuilder data available.</p>
-            )}
-            {tab === "bag"      && <BagTabPanel />}
-            {tab === "notes"    && <NotesTabPanel characterId={characterId} notesRecord={notesRecord} />}
-            {tab === "downtime" && <DowntimeTabPanel characterId={characterId} downtime={downtime} />}
             {tab === "companions" && hasCompanions && (
               <div className="space-y-3">
                 {companions.map((comp, i) => (
@@ -1981,7 +2349,6 @@ export default function CharacterDetailPage() {
             )}
           </div>
         </div>
-
       </div>
     </MainLayout>
   );

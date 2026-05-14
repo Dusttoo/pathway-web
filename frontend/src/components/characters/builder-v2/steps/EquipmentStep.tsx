@@ -235,7 +235,9 @@ export function EquipmentStep({ state, update }: StepProps) {
             <div key={key}>
               <label className="block text-xs text-muted-foreground uppercase mb-1">{label}</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9+-]*"
                 min={0}
                 className="input w-full text-center font-mono"
                 value={state.money[key]}

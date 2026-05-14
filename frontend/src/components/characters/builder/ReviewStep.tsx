@@ -187,7 +187,9 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
               <label className="block text-xs text-muted-foreground uppercase mb-1">{coin}</label>
               <input
                 className="input w-full text-center font-mono"
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9+-]*"
                 min={0}
                 value={state.money[coin]}
                 onChange={(e) =>

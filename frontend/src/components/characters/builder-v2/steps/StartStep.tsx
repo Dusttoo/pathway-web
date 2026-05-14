@@ -3,6 +3,7 @@
 import { ChevronDown } from "lucide-react";
 import type { StepProps } from "../types";
 import { OptionsStep } from "./OptionsStep";
+import { NumberStepper } from "@/components/characters/NumberStepper";
 
 const ALIGNMENTS = [
   { value: "LG", label: "Lawful Good" },
@@ -43,15 +44,12 @@ export function StartStep(props: StepProps) {
 
           <div>
             <label className="block text-sm font-medium mb-1">Level</label>
-            <input
-              className="input w-full"
-              type="number"
+            <NumberStepper
+              className="w-full"
               min={1}
               max={20}
               value={state.level}
-              onChange={(e) =>
-                update({ level: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)) })
-              }
+              onCommit={(level) => update({ level })}
             />
           </div>
 

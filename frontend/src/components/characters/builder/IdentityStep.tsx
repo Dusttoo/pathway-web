@@ -5,15 +5,15 @@ import type { StepProps } from "./types";
 import { useDiscordGuilds } from "@/lib/hooks/use-characters";
 
 const ALIGNMENTS = [
-  { value: "LG", label: "Lawful Good"    },
+  { value: "LG", label: "Lawful Good" },
   { value: "LN", label: "Lawful Neutral" },
-  { value: "LE", label: "Lawful Evil"    },
-  { value: "NG", label: "Neutral Good"   },
-  { value: "N",  label: "True Neutral"   },
-  { value: "NE", label: "Neutral Evil"   },
-  { value: "CG", label: "Chaotic Good"   },
-  { value: "CN", label: "Chaotic Neutral"},
-  { value: "CE", label: "Chaotic Evil"   },
+  { value: "LE", label: "Lawful Evil" },
+  { value: "NG", label: "Neutral Good" },
+  { value: "N", label: "True Neutral" },
+  { value: "NE", label: "Neutral Evil" },
+  { value: "CG", label: "Chaotic Good" },
+  { value: "CN", label: "Chaotic Neutral" },
+  { value: "CE", label: "Chaotic Evil" },
 ];
 
 function GuildPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
@@ -60,10 +60,15 @@ function GuildPicker({ value, onChange }: { value: string; onChange: (id: string
       >
         <option value="">None (no Discord server)</option>
         {guilds.map((g) => (
-          <option key={g.id} value={g.id}>{g.name}</option>
+          <option key={g.id} value={g.id}>
+            {g.name}
+          </option>
         ))}
       </select>
-      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+      <ChevronDown
+        size={14}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+      />
     </div>
   );
 }
@@ -99,11 +104,15 @@ export function IdentityStep({ state, update, onNext }: StepProps) {
           <label className="block text-sm font-medium mb-1">Level</label>
           <input
             className="input w-full"
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9+-]*"
             min={1}
             max={20}
             value={state.level}
-            onChange={(e) => update({ level: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)) })}
+            onChange={(e) =>
+              update({ level: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)) })
+            }
           />
         </div>
 
@@ -117,10 +126,15 @@ export function IdentityStep({ state, update, onNext }: StepProps) {
               onChange={(e) => update({ alignment: e.target.value })}
             >
               {ALIGNMENTS.map((a) => (
-                <option key={a.value} value={a.value}>{a.label} ({a.value})</option>
+                <option key={a.value} value={a.value}>
+                  {a.label} ({a.value})
+                </option>
               ))}
             </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <ChevronDown
+              size={14}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
           </div>
         </div>
 
@@ -155,7 +169,8 @@ export function IdentityStep({ state, update, onNext }: StepProps) {
         {/* Discord server */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium mb-1">
-            Discord Server <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+            Discord Server{" "}
+            <span className="text-xs text-muted-foreground font-normal">(optional)</span>
           </label>
           <GuildPicker value={state.guildId} onChange={(id) => update({ guildId: id })} />
           <p className="text-xs text-muted-foreground mt-1">

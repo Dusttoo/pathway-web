@@ -2,7 +2,15 @@
 
 import React, { useState } from "react";
 import {
-  Plus, Pencil, Trash2, Search, ChevronDown, Loader2, X, Wand2, AlertTriangle,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  ChevronDown,
+  Loader2,
+  X,
+  Wand2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   useHomebrewAncestries,
@@ -66,16 +74,18 @@ function AncestryForm({
   const [size, setSize] = useState(initialValues?.size ?? "Medium");
   const [description, setDesc] = useState(initialValues?.description ?? "");
   const [heritages, setHeritages] = useState<HomebrewHeritage[]>(
-    initialValues?.heritages?.length
-      ? initialValues.heritages
-      : [{ name: "" }]
+    initialValues?.heritages?.length ? initialValues.heritages : [{ name: "" }]
   );
   const [formError, setFormError] = useState<string | null>(null);
 
   const isPending = create.isPending || update.isPending;
 
-  function addHeritage() { setHeritages((h) => [...h, { name: "" }]); }
-  function removeHeritage(i: number) { setHeritages((h) => h.filter((_, idx) => idx !== i)); }
+  function addHeritage() {
+    setHeritages((h) => [...h, { name: "" }]);
+  }
+  function removeHeritage(i: number) {
+    setHeritages((h) => h.filter((_, idx) => idx !== i));
+  }
   function setHeritageName(i: number, v: string) {
     setHeritages((h) => h.map((x, idx) => (idx === i ? { ...x, name: v } : x)));
   }
@@ -125,7 +135,9 @@ function AncestryForm({
           <label className="block text-sm font-medium mb-1">Ancestry HP</label>
           <input
             className="input w-full"
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9+-]*"
             min={4}
             max={16}
             value={hp}
@@ -136,7 +148,9 @@ function AncestryForm({
           <label className="block text-sm font-medium mb-1">Speed (ft)</label>
           <input
             className="input w-full"
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9+-]*"
             min={10}
             max={60}
             step={5}
@@ -153,7 +167,9 @@ function AncestryForm({
               onChange={(e) => setSize(e.target.value)}
             >
               {SIZES.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
             <ChevronDown
@@ -230,7 +246,9 @@ function AncestryForm({
           className="btn-primary px-4 flex items-center gap-2"
         >
           {isPending ? (
-            <><Loader2 size={14} className="animate-spin" /> Saving…</>
+            <>
+              <Loader2 size={14} className="animate-spin" /> Saving…
+            </>
           ) : isEditing ? (
             "Save Changes"
           ) : (
@@ -321,16 +339,23 @@ export function AncestryPanel() {
   const deleteAncestry = useDeleteHomebrewAncestry();
 
   const items = (rawData ?? []).map(toItem);
-  const filtered = q
-    ? items.filter((a) => a.name.toLowerCase().includes(q.toLowerCase()))
-    : items;
+  const filtered = q ? items.filter((a) => a.name.toLowerCase().includes(q.toLowerCase())) : items;
 
   const editingItem = editingId ? items.find((a) => a.id === editingId) : undefined;
   const showForm = isCreating || !!editingId;
 
-  function openCreate() { setIsCreating(true); setEditingId(null); }
-  function openEdit(id: string) { setEditingId(id); setIsCreating(false); }
-  function closeForm() { setIsCreating(false); setEditingId(null); }
+  function openCreate() {
+    setIsCreating(true);
+    setEditingId(null);
+  }
+  function openEdit(id: string) {
+    setEditingId(id);
+    setIsCreating(false);
+  }
+  function closeForm() {
+    setIsCreating(false);
+    setEditingId(null);
+  }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this ancestry and all its heritages? This cannot be undone.")) return;
@@ -359,10 +384,7 @@ export function AncestryPanel() {
             className="input pl-9"
           />
         </div>
-        <button
-          onClick={openCreate}
-          className="btn-primary flex items-center gap-2 shrink-0"
-        >
+        <button onClick={openCreate} className="btn-primary flex items-center gap-2 shrink-0">
           <Plus size={16} />
           Add Ancestry
         </button>
@@ -374,11 +396,7 @@ export function AncestryPanel() {
           <h3 className="font-heading font-semibold mb-4">
             {editingId ? "Edit Ancestry" : "New Ancestry"}
           </h3>
-          <AncestryForm
-            key={editingId ?? "new"}
-            initialValues={editingItem}
-            onDone={closeForm}
-          />
+          <AncestryForm key={editingId ?? "new"} initialValues={editingItem} onDone={closeForm} />
         </div>
       )}
 
