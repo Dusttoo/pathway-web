@@ -6,6 +6,7 @@ import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useCreateCharacter } from "@/lib/hooks/use-characters";
 import type { NativeBuildInput } from "@/lib/types/character";
 import type { StepProps } from "../types";
+import { classOptionSpecials } from "../class-options";
 
 function modOf(score: number): number {
   return Math.floor((score - 10) / 2);
@@ -20,6 +21,11 @@ export function ReviewStep({ state }: StepProps) {
   const conMod = modOf(state.abilities.con);
   const maxHp = state.ancestryHp + (state.classHp + conMod) * state.level;
   const variantCount = Object.values(state.variantRules).filter(Boolean).length;
+  const classSpecials = classOptionSpecials(state);
+  const allCustomSpecials = [
+    ...classSpecials,
+    ...state.customSpecials.map((special) => special.trim()).filter(Boolean),
+  ];
 
   const canSubmit =
     !!state.name.trim() &&
@@ -58,7 +64,7 @@ export function ReviewStep({ state }: StepProps) {
       background_trained_skill: state.backgroundTrainedSkill || undefined,
       additional_skills: state.additionalSkills.filter((s) => s.name.trim()),
       custom_feats: state.customFeats.filter((f) => f.name.trim()),
-      custom_specials: state.customSpecials.filter((s) => s.trim()),
+      custom_specials: allCustomSpecials,
       custom_attacks: state.customAttacks.filter((a) => a.name.trim()),
       deity: state.deity,
       languages: state.languages.length ? state.languages : ["None selected"],
@@ -198,6 +204,7 @@ export function ReviewStep({ state }: StepProps) {
         <div className="pt-2 border-t border-border text-xs text-muted-foreground">
           Variant rules: {variantCount > 0 ? `${variantCount} active` : "RAW (none)"}
           {state.companionType && ` · Companion: ${state.companionType}`}
+          {classSpecials.length > 0 && ` · Class options: ${classSpecials.length}`}
         </div>
 
         <div className="pt-2 border-t border-border">

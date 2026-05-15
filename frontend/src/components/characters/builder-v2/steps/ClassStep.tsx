@@ -33,7 +33,10 @@ export function ClassStep({ state, update }: StepProps) {
       classInitialProfs: profs,
       classTrainedCount: trainedCount,
       keyability: keyAttrs.length === 1 ? keyAttrs[0].toLowerCase() : "",
+      classOptions: { kineticGate: "", kineticElements: [] },
       trainedSkills: [],
+      selectedSpells: [],
+      selectedFeats: state.selectedFeats.filter((feat) => feat.feat_slot !== "class"),
     });
   }
 

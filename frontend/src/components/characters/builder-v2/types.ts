@@ -37,6 +37,25 @@ export type StartingItem = {
   quantity: number;
 };
 
+export type ClassOptions = {
+  subclass?: string;
+  doctrine?: string;
+  patron?: string;
+  thesis?: string;
+  muse?: string;
+  bloodline?: string;
+  mystery?: string;
+  hybridStudy?: string;
+  methodology?: string;
+  instinct?: string;
+  cause?: string;
+  patronSkill?: string;
+  kineticGate?: "single" | "dual" | "";
+  kineticElements?: string[];
+  kineticNotes?: string;
+  notes?: string;
+};
+
 export type AbilityBoostChoices = {
   ancestryFree: AbilityKey[];
   background: AbilityKey[];
@@ -116,6 +135,7 @@ export type BuilderState = {
   classInitialProfs: Record<string, number>;
   classTrainedCount: number;
   keyability: string;
+  classOptions: ClassOptions;
 
   // Companion (optional, populated when companion step is visible)
   companionType: "animal" | "familiar" | "construct" | "eidolon" | "";
@@ -199,6 +219,7 @@ export const DEFAULT_STATE: BuilderState = {
   classInitialProfs: {},
   classTrainedCount: 3,
   keyability: "",
+  classOptions: { kineticGate: "", kineticElements: [] },
 
   companionType: "",
   companionName: "",

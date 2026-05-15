@@ -17,6 +17,7 @@ import {
   Backpack,
   Wand2,
   Eye,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import type { BuilderState } from "./types";
@@ -27,6 +28,7 @@ export type StepKey =
   | "heritage"
   | "languages"
   | "class"
+  | "classOptions"
   | "companion"
   | "background"
   | "abilities"
@@ -79,8 +81,8 @@ export const STEPS: StepDef[] = [
   { key: "start", label: "Start", icon: PlayCircle, shouldShow: () => true },
   { key: "ancestry", label: "Ancestry", icon: Users, shouldShow: () => true },
   { key: "heritage", label: "Heritage", icon: GitBranch, shouldShow: () => true },
-  { key: "languages", label: "Languages", icon: Languages, shouldShow: () => true },
   { key: "class", label: "Class", icon: Shield, shouldShow: () => true },
+  { key: "classOptions", label: "Class Options", icon: Sparkles, shouldShow: (s) => !!s.className },
   {
     key: "companion",
     label: "Companion",
@@ -89,6 +91,7 @@ export const STEPS: StepDef[] = [
   },
   { key: "background", label: "Background", icon: BookOpen, shouldShow: () => true },
   { key: "abilities", label: "Abilities", icon: Hexagon, shouldShow: () => true },
+  { key: "languages", label: "Languages", icon: Languages, shouldShow: () => true },
   { key: "skills", label: "Skills", icon: CheckCircle2, shouldShow: () => true },
   { key: "feats", label: "Feats", icon: Award, shouldShow: () => true },
   { key: "description", label: "Description & Personality", icon: Heart, shouldShow: () => true },

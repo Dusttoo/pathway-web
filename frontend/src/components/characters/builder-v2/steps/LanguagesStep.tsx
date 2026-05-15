@@ -43,6 +43,10 @@ function uniqueSorted(values: string[]): string[] {
   return [...byKey.values()].sort((a, b) => a.localeCompare(b));
 }
 
+function abilityMod(score: number): number {
+  return Math.floor((score - 10) / 2);
+}
+
 export function LanguagesStep({ state, update }: StepProps) {
   const [customLanguage, setCustomLanguage] = useState("");
   const selected = useMemo(() => uniqueSorted(state.languages), [state.languages]);
@@ -51,6 +55,9 @@ export function LanguagesStep({ state, update }: StepProps) {
     () => uniqueSorted([...COMMON_LANGUAGES, ...state.defaultLanguages, ...selected]),
     [selected, state.defaultLanguages]
   );
+  const intelligenceBonus = Math.max(0, abilityMod(state.abilities.int));
+  const bonusSlots = state.ancestryBonusLanguages + intelligenceBonus;
+  const extraSelected = Math.max(0, selected.length - state.defaultLanguages.length);
 
   function setLanguages(next: string[]) {
     update({ languages: uniqueSorted(next) });
@@ -92,6 +99,15 @@ export function LanguagesStep({ state, update }: StepProps) {
           <span className="rounded bg-background px-2 py-1">
             Bonus language slots:{" "}
             <strong className="text-foreground">{state.ancestryBonusLanguages}</strong>
+          </span>
+          <span className="rounded bg-background px-2 py-1">
+            INT bonus: <strong className="text-foreground">+{intelligenceBonus}</strong>
+          </span>
+          <span className="rounded bg-background px-2 py-1">
+            Suggested extra picks:{" "}
+            <strong className="text-foreground">
+              {extraSelected} / {bonusSlots}
+            </strong>
           </span>
         </div>
       </div>

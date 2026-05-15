@@ -11,6 +11,7 @@ import { AncestryStep } from "./steps/AncestryStep";
 import { HeritageStep } from "./steps/HeritageStep";
 import { LanguagesStep } from "./steps/LanguagesStep";
 import { ClassStep } from "./steps/ClassStep";
+import { ClassOptionsStep } from "./steps/ClassOptionsStep";
 import { CompanionStep } from "./steps/CompanionStep";
 import { BackgroundStep } from "./steps/BackgroundStep";
 import { AbilitiesStep } from "./steps/AbilitiesStep";
@@ -30,6 +31,7 @@ const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepPr
   heritage: HeritageStep,
   languages: LanguagesStep,
   class: ClassStep,
+  classOptions: ClassOptionsStep,
   companion: CompanionStep,
   background: BackgroundStep,
   abilities: AbilitiesStep,
