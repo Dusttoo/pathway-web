@@ -3,14 +3,30 @@ import { NextResponse } from "next/server";
 import type { Json } from "@/lib/types/database.types";
 
 const ALL_SKILLS = [
-  "acrobatics", "arcana", "athletics", "crafting", "deception", "diplomacy",
-  "intimidation", "medicine", "nature", "occultism", "performance", "religion",
-  "society", "stealth", "survival", "thievery",
+  "acrobatics",
+  "arcana",
+  "athletics",
+  "crafting",
+  "deception",
+  "diplomacy",
+  "intimidation",
+  "medicine",
+  "nature",
+  "occultism",
+  "performance",
+  "religion",
+  "society",
+  "stealth",
+  "survival",
+  "thievery",
 ];
 
 function cleanLoreSkill(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const topic = value.trim().replace(/\s+lore$/i, "").replace(/\s+/g, " ");
+  const topic = value
+    .trim()
+    .replace(/\s+lore$/i, "")
+    .replace(/\s+/g, " ");
   return topic ? `${topic} Lore` : null;
 }
 
@@ -49,11 +65,23 @@ const CLASS_PROFICIENCY_KEYS = [
 ];
 
 const DEFAULT_CLASS_PROFICIENCIES: Record<string, number> = {
-  classDC: 2, perception: 2,
-  fortitude: 2, reflex: 2, will: 2,
-  heavy: 0, medium: 0, light: 2, unarmored: 2,
-  advanced: 0, martial: 0, simple: 2, unarmed: 2,
-  castingArcane: 0, castingDivine: 0, castingOccult: 0, castingPrimal: 0,
+  classDC: 2,
+  perception: 2,
+  fortitude: 2,
+  reflex: 2,
+  will: 2,
+  heavy: 0,
+  medium: 0,
+  light: 2,
+  unarmored: 2,
+  advanced: 0,
+  martial: 0,
+  simple: 2,
+  unarmed: 2,
+  castingArcane: 0,
+  castingDivine: 0,
+  castingOccult: 0,
+  castingPrimal: 0,
 };
 
 function proficiencyRank(value: unknown, fallback: number): number {
@@ -62,9 +90,10 @@ function proficiencyRank(value: unknown, fallback: number): number {
 }
 
 function cleanClassProficiencies(value: unknown): Record<string, number> {
-  const input = value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  const input =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   return Object.fromEntries(
     CLASS_PROFICIENCY_KEYS.map((key) => [
       key,
@@ -76,23 +105,24 @@ function cleanClassProficiencies(value: unknown): Record<string, number> {
 const SPELL_TRADITIONS = new Set(["arcane", "divine", "occult", "primal"]);
 const SPELLCASTING_TYPES = new Set(["prepared", "spontaneous"]);
 
-function cleanSlotRow(value: unknown): number[] {
+function cleanSlotRow(value: unknown, max = 9): number[] {
   const row = Array.isArray(value) ? value : [];
   return Array.from({ length: 10 }, (_, i) => {
     const raw = row[i];
     const n = typeof raw === "number" ? raw : parseInt(String(raw ?? "0"), 10);
-    return Number.isFinite(n) ? Math.max(0, Math.min(9, n)) : 0;
+    return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : 0;
   });
 }
 
-function cleanSlotProgression(value: unknown): Record<string, number[]> {
-  const input = value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+function cleanSlotProgression(value: unknown, max = 9): Record<string, number[]> {
+  const input =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   return Object.fromEntries(
     Array.from({ length: 20 }, (_, i) => {
       const level = String(i + 1);
-      return [level, cleanSlotRow(input[level])];
+      return [level, cleanSlotRow(input[level], max)];
     })
   );
 }
@@ -111,8 +141,8 @@ async function resolveOwnership(id: string) {
 
   const service = createServiceClient();
   const discordId =
-    authUser.identities?.find((i) => i.provider === "discord")
-      ?.identity_data?.provider_id ?? authUser.id;
+    authUser.identities?.find((i) => i.provider === "discord")?.identity_data?.provider_id ??
+    authUser.id;
 
   const { data: dbUser } = await service
     .from("users")
@@ -139,10 +169,7 @@ async function resolveOwnership(id: string) {
 // Body: { name?, class_hp?, key_attribute?, is_spellcaster?, spellcasting_ability?,
 //         trained_skill_count?, class_trained_skills?, description? }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const resolved = await resolveOwnership(id);
   if ("error" in resolved) {
@@ -160,6 +187,7 @@ export async function PATCH(
     cantrips_known?: number;
     focus_points?: number;
     spell_slot_progression?: Record<string, number[]>;
+    spells_known_progression?: Record<string, number[]>;
     trained_skill_count?: number;
     class_trained_skills?: string[];
     class_lore_skills?: string[];
@@ -183,6 +211,7 @@ export async function PATCH(
     cantrips_known,
     focus_points,
     spell_slot_progression,
+    spells_known_progression,
     trained_skill_count,
     class_trained_skills,
     class_lore_skills,
@@ -195,9 +224,7 @@ export async function PATCH(
   }
 
   // Rebuild initial_proficiencies from trained skills
-  const trainedSkills: string[] = Array.isArray(class_trained_skills)
-    ? class_trained_skills
-    : [];
+  const trainedSkills: string[] = Array.isArray(class_trained_skills) ? class_trained_skills : [];
   const loreSkills = Array.isArray(class_lore_skills)
     ? class_lore_skills.map(cleanLoreSkill).filter((skill): skill is string => !!skill)
     : undefined;
@@ -211,6 +238,7 @@ export async function PATCH(
   const cantripsKnown = cleanSmallNumber(cantrips_known, 5, 10);
   const focusPoints = cleanSmallNumber(focus_points, 0, 3);
   const slotProgression = cleanSlotProgression(spell_slot_progression);
+  const spellsKnownProgression = cleanSlotProgression(spells_known_progression, 20);
   const proficiencies: Record<string, number> = {
     ...grantedProficiencies,
     ...Object.fromEntries(ALL_SKILLS.map((s) => [s, 0])),
@@ -259,9 +287,11 @@ export async function PATCH(
     cantrips_known !== undefined ||
     focus_points !== undefined ||
     spell_slot_progression !== undefined ||
+    spells_known_progression !== undefined ||
     is_spellcaster !== undefined
   ) {
-    const spellcaster = is_spellcaster ?? Boolean(objectRecord(resolved.classMetadata).spellcasting_type);
+    const spellcaster =
+      is_spellcaster ?? Boolean(objectRecord(resolved.classMetadata).spellcasting_type);
     updates.class_metadata = {
       ...objectRecord(resolved.classMetadata),
       ...(trained_skill_count !== undefined ? { trained_skill_count } : {}),
@@ -271,6 +301,7 @@ export async function PATCH(
       cantrips_known: spellcaster ? cantripsKnown : 0,
       focus_points: spellcaster ? focusPoints : 0,
       spell_slot_progression: spellcaster ? slotProgression : {},
+      spells_known_progression: spellcaster ? spellsKnownProgression : {},
     } as Json;
   }
 

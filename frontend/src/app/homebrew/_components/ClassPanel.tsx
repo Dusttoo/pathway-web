@@ -138,6 +138,7 @@ type ClassItem = {
   cantrips_known: number;
   focus_points: number;
   spell_slot_progression: Record<string, number[]>;
+  spells_known_progression: Record<string, number[]>;
   trained_skill_count: number;
 };
 
@@ -157,16 +158,16 @@ function loreKey(value: string): string {
     .replace(/^_|_$/g, "");
 }
 
-function slotRow(value: unknown): number[] {
+function slotRow(value: unknown, max = 9): number[] {
   const row = Array.isArray(value) ? value : [];
   return Array.from({ length: 10 }, (_, i) => {
     const raw = row[i];
     const n = typeof raw === "number" ? raw : parseInt(String(raw ?? "0"), 10);
-    return Number.isFinite(n) ? Math.max(0, Math.min(9, n)) : 0;
+    return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : 0;
   });
 }
 
-function slotProgression(value: unknown): Record<string, number[]> {
+function slotProgression(value: unknown, max = 9): Record<string, number[]> {
   const input =
     value && typeof value === "object" && !Array.isArray(value)
       ? (value as Record<string, unknown>)
@@ -174,7 +175,7 @@ function slotProgression(value: unknown): Record<string, number[]> {
   return Object.fromEntries(
     Array.from({ length: 20 }, (_, i) => {
       const level = String(i + 1);
-      return [level, slotRow(input[level])];
+      return [level, slotRow(input[level], max)];
     })
   );
 }
@@ -230,6 +231,10 @@ function toItem(raw: Record<string, unknown>): ClassItem {
     cantrips_known: typeof meta.cantrips_known === "number" ? meta.cantrips_known : 5,
     focus_points: typeof meta.focus_points === "number" ? meta.focus_points : 0,
     spell_slot_progression: slotProgression(meta.spell_slot_progression),
+    spells_known_progression: slotProgression(
+      meta.spells_known_progression ?? meta.repertoire_progression,
+      20
+    ),
     trained_skill_count:
       typeof meta.trained_skill_count === "number" ? meta.trained_skill_count : 3,
   };
@@ -270,6 +275,9 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
   const [spellSlotProgression, setSpellSlotProgression] = useState<Record<string, number[]>>(
     initialValues?.spell_slot_progression ?? slotProgression({})
   );
+  const [spellsKnownProgression, setSpellsKnownProgression] = useState<Record<string, number[]>>(
+    initialValues?.spells_known_progression ?? slotProgression({})
+  );
   const [loreInput, setLoreInput] = useState("");
   const [description, setDesc] = useState(initialValues?.description ?? "");
   const [formError, setFormError] = useState<string | null>(null);
@@ -306,6 +314,14 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
       return { ...prev, [key]: row };
     });
   }
+  function setKnownSpellCount(level: number, rank: number, value: number) {
+    setSpellsKnownProgression((prev) => {
+      const key = String(level);
+      const row = slotRow(prev[key], 20);
+      row[rank - 1] = Math.max(0, Math.min(20, value));
+      return { ...prev, [key]: row };
+    });
+  }
   function applySlotPreset(kind: "full" | "bounded" | "clear") {
     const next: Record<string, number[]> = {};
     for (let level = 1; level <= 20; level += 1) {
@@ -335,6 +351,7 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
       cantrips_known: isSpell ? cantripsKnown : 0,
       focus_points: isSpell ? focusPoints : 0,
       spell_slot_progression: isSpell ? spellSlotProgression : {},
+      spells_known_progression: isSpell ? spellsKnownProgression : {},
       trained_skill_count: trainedCount,
       class_trained_skills: classSkills,
       class_lore_skills: classLoreSkills,
@@ -578,6 +595,52 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
               </table>
             </div>
           </div>
+
+          {spellcastingType === "spontaneous" && (
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div>
+                  <label className="block text-sm font-medium">Repertoire Spells Known</label>
+                  <p className="text-xs text-muted-foreground">
+                    Enter how many non-cantrip spells this class knows by character level and spell
+                    rank.
+                  </p>
+                </div>
+              </div>
+              <div className="max-h-72 overflow-auto rounded-md border border-border">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-background">
+                    <tr>
+                      <th className="px-2 py-1 text-left">Lvl</th>
+                      {Array.from({ length: 10 }, (_, i) => i + 1).map((rank) => (
+                        <th key={rank} className="px-1 py-1 text-center">
+                          R{rank}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 20 }, (_, i) => i + 1).map((level) => (
+                      <tr key={level} className="border-t border-border">
+                        <td className="px-2 py-1 font-mono text-muted-foreground">{level}</td>
+                        {Array.from({ length: 10 }, (_, rankIndex) => rankIndex + 1).map((rank) => (
+                          <td key={rank} className="min-w-36 px-1 py-1">
+                            <NumberStepper
+                              className="w-full"
+                              min={0}
+                              max={20}
+                              value={spellsKnownProgression[String(level)]?.[rank - 1] ?? 0}
+                              onCommit={(value) => setKnownSpellCount(level, rank, value)}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

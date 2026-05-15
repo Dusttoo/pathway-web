@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 
 function cleanLoreSkill(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const topic = value.trim().replace(/\s+lore$/i, "").replace(/\s+/g, " ");
+  const topic = value
+    .trim()
+    .replace(/\s+lore$/i, "")
+    .replace(/\s+/g, " ");
   return topic ? `${topic} Lore` : null;
 }
 
@@ -36,11 +39,23 @@ const CLASS_PROFICIENCY_KEYS = [
 ];
 
 const DEFAULT_CLASS_PROFICIENCIES: Record<string, number> = {
-  classDC: 2, perception: 2,
-  fortitude: 2, reflex: 2, will: 2,
-  heavy: 0, medium: 0, light: 2, unarmored: 2,
-  advanced: 0, martial: 0, simple: 2, unarmed: 2,
-  castingArcane: 0, castingDivine: 0, castingOccult: 0, castingPrimal: 0,
+  classDC: 2,
+  perception: 2,
+  fortitude: 2,
+  reflex: 2,
+  will: 2,
+  heavy: 0,
+  medium: 0,
+  light: 2,
+  unarmored: 2,
+  advanced: 0,
+  martial: 0,
+  simple: 2,
+  unarmed: 2,
+  castingArcane: 0,
+  castingDivine: 0,
+  castingOccult: 0,
+  castingPrimal: 0,
 };
 
 function proficiencyRank(value: unknown, fallback: number): number {
@@ -49,9 +64,10 @@ function proficiencyRank(value: unknown, fallback: number): number {
 }
 
 function cleanClassProficiencies(value: unknown): Record<string, number> {
-  const input = value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  const input =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   return Object.fromEntries(
     CLASS_PROFICIENCY_KEYS.map((key) => [
       key,
@@ -63,23 +79,24 @@ function cleanClassProficiencies(value: unknown): Record<string, number> {
 const SPELL_TRADITIONS = new Set(["arcane", "divine", "occult", "primal"]);
 const SPELLCASTING_TYPES = new Set(["prepared", "spontaneous"]);
 
-function cleanSlotRow(value: unknown): number[] {
+function cleanSlotRow(value: unknown, max = 9): number[] {
   const row = Array.isArray(value) ? value : [];
   return Array.from({ length: 10 }, (_, i) => {
     const raw = row[i];
     const n = typeof raw === "number" ? raw : parseInt(String(raw ?? "0"), 10);
-    return Number.isFinite(n) ? Math.max(0, Math.min(9, n)) : 0;
+    return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : 0;
   });
 }
 
-function cleanSlotProgression(value: unknown): Record<string, number[]> {
-  const input = value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+function cleanSlotProgression(value: unknown, max = 9): Record<string, number[]> {
+  const input =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   return Object.fromEntries(
     Array.from({ length: 20 }, (_, i) => {
       const level = String(i + 1);
-      return [level, cleanSlotRow(input[level])];
+      return [level, cleanSlotRow(input[level], max)];
     })
   );
 }
@@ -91,13 +108,15 @@ function cleanSmallNumber(value: unknown, fallback: number, max: number): number
 
 async function resolveUser() {
   const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
   if (!authUser) return null;
 
   const service = createServiceClient();
   const discordId =
-    authUser.identities?.find((i) => i.provider === "discord")
-      ?.identity_data?.provider_id ?? authUser.id;
+    authUser.identities?.find((i) => i.provider === "discord")?.identity_data?.provider_id ??
+    authUser.id;
 
   const { data: dbUser } = await service
     .from("users")
@@ -139,6 +158,7 @@ export async function POST(request: Request) {
     cantrips_known,
     focus_points,
     spell_slot_progression,
+    spells_known_progression,
     trained_skill_count,
     class_trained_skills,
     class_lore_skills,
@@ -155,7 +175,9 @@ export async function POST(request: Request) {
 
   const keyAttrList: string[] = Array.isArray(key_attribute)
     ? key_attribute
-    : key_attribute ? [key_attribute] : ["str"];
+    : key_attribute
+      ? [key_attribute]
+      : ["str"];
 
   // Build initial_proficiencies from class-trained skills
   const trainedSkills: string[] = Array.isArray(class_trained_skills) ? class_trained_skills : [];
@@ -170,10 +192,24 @@ export async function POST(request: Request) {
   const cantripsKnown = cleanSmallNumber(cantrips_known, 5, 10);
   const focusPoints = cleanSmallNumber(focus_points, 0, 3);
   const slotProgression = cleanSlotProgression(spell_slot_progression);
+  const spellsKnownProgression = cleanSlotProgression(spells_known_progression, 20);
   const ALL_SKILLS = [
-    "acrobatics","arcana","athletics","crafting","deception","diplomacy",
-    "intimidation","medicine","nature","occultism","performance","religion",
-    "society","stealth","survival","thievery",
+    "acrobatics",
+    "arcana",
+    "athletics",
+    "crafting",
+    "deception",
+    "diplomacy",
+    "intimidation",
+    "medicine",
+    "nature",
+    "occultism",
+    "performance",
+    "religion",
+    "society",
+    "stealth",
+    "survival",
+    "thievery",
   ];
   const proficiencies: Record<string, number> = {
     ...grantedProficiencies,
@@ -204,6 +240,7 @@ export async function POST(request: Request) {
         cantrips_known: is_spellcaster ? cantripsKnown : 0,
         focus_points: is_spellcaster ? focusPoints : 0,
         spell_slot_progression: is_spellcaster ? slotProgression : {},
+        spells_known_progression: is_spellcaster ? spellsKnownProgression : {},
       },
     })
     .select()

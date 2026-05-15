@@ -30,6 +30,7 @@ export type HomebrewClassInput = {
   cantrips_known?: number;
   focus_points?: number;
   spell_slot_progression?: Record<string, number[]>;
+  spells_known_progression?: Record<string, number[]>;
   description?: string;
 };
 
@@ -43,8 +44,8 @@ export type HomebrewBackgroundInput = {
 // ── Keys ──────────────────────────────────────────────────────────────────────
 
 const hbKeys = {
-  ancestries:  ["homebrew-ancestries"]  as const,
-  classes:     ["homebrew-classes"]     as const,
+  ancestries: ["homebrew-ancestries"] as const,
+  classes: ["homebrew-classes"] as const,
   backgrounds: ["homebrew-backgrounds"] as const,
 };
 

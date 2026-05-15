@@ -69,6 +69,40 @@ function allowedSpellCount(classKey: string, level: number, rank: number): numbe
   return fullCasterRankBudget(level, rank);
 }
 
+function numericMetadataValue(classDetail: unknown, key: string): number | null {
+  const value = classMetadataValue(classDetail, key);
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function progressionOverride(classDetail: unknown, level: number, rank: number): number | null {
+  const raw =
+    classMetadataValue(classDetail, "spells_known_progression") ??
+    classMetadataValue(classDetail, "repertoire_progression");
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+
+  const row = (raw as Record<string, unknown>)[String(level)];
+  if (!Array.isArray(row)) return null;
+
+  const value = row[rank - 1];
+  const parsed = typeof value === "number" ? value : parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(20, parsed)) : null;
+}
+
+function allowedSpellCountForClass(
+  classDetail: unknown,
+  classKey: string,
+  level: number,
+  rank: number
+): number {
+  if (rank === 0) {
+    const cantripsKnown = numericMetadataValue(classDetail, "cantrips_known");
+    if (cantripsKnown !== null) return Math.max(0, Math.min(20, cantripsKnown));
+  }
+
+  const override = progressionOverride(classDetail, level, rank);
+  return override ?? allowedSpellCount(classKey, level, rank);
+}
+
 function spellBudgetLabel(classKey: string): string {
   const mode = casterMode(classKey);
   if (mode === "spellbook") return "Spellbook budget";
@@ -120,7 +154,7 @@ export function SpellsStep({ state, update }: StepProps) {
   const selectedKeys = new Set(
     state.selectedSpells.map((s) => `${s.spell_id}:${s.tradition}:${s.spell_source}`)
   );
-  const currentAllowed = allowedSpellCount(classKey, state.level, rank);
+  const currentAllowed = allowedSpellCountForClass(classDetail, classKey, state.level, rank);
   const currentSelected = state.selectedSpells.filter(
     (spell) =>
       spell.tradition === tradition && spell.spell_source === spellSource && spell.rank === rank
@@ -128,7 +162,7 @@ export function SpellsStep({ state, update }: StepProps) {
   const currentBudgetFull = currentSelected >= currentAllowed;
   const rankBudgets = Array.from({ length: maxRank + 1 }, (_, spellRank) => ({
     rank: spellRank,
-    allowed: allowedSpellCount(classKey, state.level, spellRank),
+    allowed: allowedSpellCountForClass(classDetail, classKey, state.level, spellRank),
     selected: state.selectedSpells.filter(
       (spell) =>
         spell.tradition === tradition &&
