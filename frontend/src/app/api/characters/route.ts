@@ -1,4 +1,12 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import {
+  fetchVirtualHomebrew,
+  fetchVirtualHomebrewById,
+  heritageMatchesAncestry,
+  virtualAncestry,
+  virtualClass,
+  virtualHeritage,
+} from "@/lib/homebrew/virtual-content";
 import type { Json, Tables, TablesInsert } from "@/lib/types/database.types";
 import type { NativeBuildInput } from "@/lib/types/character";
 import { NextResponse } from "next/server";
@@ -71,10 +79,7 @@ function clampProficiencyRank(raw: unknown, fallback = 0): number {
 
 function loreTopicFromKey(key: string): string | null {
   if (key.startsWith("lore:")) {
-    const topic = key
-      .slice("lore:".length)
-      .replace(/[_-]+/g, " ")
-      .trim();
+    const topic = key.slice("lore:".length).replace(/[_-]+/g, " ").trim();
     return topic || null;
   }
   if (key.endsWith("_lore")) {
@@ -94,6 +99,25 @@ function metadataString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function normalizedName(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+async function virtualHeritageIsAllowed(
+  service: ReturnType<typeof createServiceClient>,
+  heritageName: string,
+  ancestryName: string
+): Promise<boolean> {
+  const rows = await fetchVirtualHomebrew(service, "heritage");
+  const target = normalizedName(heritageName);
+
+  return rows.some((row) => {
+    const mapped = virtualHeritage(row);
+    if (normalizedName(mapped.name) !== target) return false;
+    return mapped.is_versatile || heritageMatchesAncestry(row, ancestryName);
+  });
+}
+
 function metadataNumber(value: unknown, fallback: number, max: number): number {
   const n = typeof value === "number" ? value : parseInt(String(value ?? ""), 10);
   return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : fallback;
@@ -101,9 +125,10 @@ function metadataNumber(value: unknown, fallback: number, max: number): number {
 
 function spellSlotsForLevel(metadata: Record<string, unknown>, level: number): number[] {
   const progression = metadata.spell_slot_progression;
-  const table = progression && typeof progression === "object" && !Array.isArray(progression)
-    ? (progression as Record<string, unknown>)
-    : {};
+  const table =
+    progression && typeof progression === "object" && !Array.isArray(progression)
+      ? (progression as Record<string, unknown>)
+      : {};
   const row: unknown[] = Array.isArray(table[String(level)])
     ? (table[String(level)] as unknown[])
     : [];
@@ -147,9 +172,7 @@ function synthesizeBuild(
   ) as Record<string, number>;
   const classMetadata = (charClass.class_metadata ?? {}) as Record<string, unknown>;
   const classLoreSkills = Array.isArray(classMetadata.class_lore_skills)
-    ? classMetadata.class_lore_skills
-        .map(loreTopicName)
-        .filter((topic): topic is string => !!topic)
+    ? classMetadata.class_lore_skills.map(loreTopicName).filter((topic): topic is string => !!topic)
     : [];
   const baseSkills = Object.fromEntries(ALL_SKILLS.map((s) => [s, 0]));
 
@@ -256,7 +279,8 @@ function synthesizeBuild(
       abilities: {
         ...input.abilities,
         breakdown: {
-          ancestryFree: input.ancestry_boost_mode === "remaster" ? input.ancestry_boosts ?? [] : [],
+          ancestryFree:
+            input.ancestry_boost_mode === "remaster" ? (input.ancestry_boosts ?? []) : [],
           ancestryBoosts: input.ancestry_boosts ?? [],
           ancestryFlaws: input.ancestry_flaws ?? [],
           backgroundBoosts: [],
@@ -407,8 +431,8 @@ export async function POST(request: Request) {
     }
 
     const [ancestryResult, classResult, heritageResult] = await Promise.all([
-      ctx.service.from("ancestries").select("*").eq("id", nb.ancestry_id).single(),
-      ctx.service.from("character_classes").select("*").eq("id", nb.class_id).single(),
+      ctx.service.from("ancestries").select("*").eq("id", nb.ancestry_id).maybeSingle(),
+      ctx.service.from("character_classes").select("*").eq("id", nb.class_id).maybeSingle(),
       ctx.service
         .from("heritages")
         .select("id")
@@ -418,23 +442,37 @@ export async function POST(request: Request) {
         .maybeSingle(),
     ]);
 
-    if (ancestryResult.error || !ancestryResult.data) {
+    let ancestry = ancestryResult.data as AncestryRow | null;
+    if (ancestryResult.error || !ancestry) {
+      const virtualRow = await fetchVirtualHomebrewById(ctx.service, nb.ancestry_id, "ancestry");
+      ancestry = virtualRow ? (virtualAncestry(virtualRow) as unknown as AncestryRow) : null;
+    }
+
+    let charClass = classResult.data as ClassRow | null;
+    if (classResult.error || !charClass) {
+      const virtualRow = await fetchVirtualHomebrewById(ctx.service, nb.class_id, "class");
+      charClass = virtualRow ? (virtualClass(virtualRow) as unknown as ClassRow) : null;
+    }
+
+    if (!ancestry) {
       return NextResponse.json({ error: "Ancestry not found" }, { status: 400 });
     }
-    if (classResult.error || !classResult.data) {
+    if (!charClass) {
       return NextResponse.json({ error: "Class not found" }, { status: 400 });
     }
-    if (
-      (!heritageResult.data || heritageResult.error) &&
-      !OFFICIAL_VERSATILE_HERITAGE_NAMES.has(nb.heritage.toLowerCase())
-    ) {
+    const heritageAllowed =
+      (!!heritageResult.data && !heritageResult.error) ||
+      OFFICIAL_VERSATILE_HERITAGE_NAMES.has(nb.heritage.toLowerCase()) ||
+      (await virtualHeritageIsAllowed(ctx.service, nb.heritage, ancestry.name));
+
+    if (!heritageAllowed) {
       return NextResponse.json(
         { error: "Heritage must match the selected ancestry or be a versatile heritage" },
         { status: 400 }
       );
     }
 
-    const pathbuilderData = synthesizeBuild(nb, ancestryResult.data, classResult.data);
+    const pathbuilderData = synthesizeBuild(nb, ancestry, charClass);
 
     // variant_rules + art columns may not be in the generated types yet
     // (migrations 20260512100000 / 20260514000000). Cast at the insert site
