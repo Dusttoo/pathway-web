@@ -1,6 +1,7 @@
 "use client";
 
 import { MainLayout } from "@/components/layout";
+import { NumberStepper } from "@/components/characters/NumberStepper";
 import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import {
   useCharacterImages,
@@ -20,6 +21,11 @@ import { useEffect, useRef, useState } from "react";
 type Character = Tables<"characters">;
 
 const PATHWAY_AVATAR = "/images/pathway-avatar.png";
+
+function numberFromString(value: string, fallback = 0): number {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
 
 type CustomAttack = {
   name: string;
@@ -876,15 +882,14 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 </label>
                 <label className="space-y-1 text-sm">
                   <span>Level</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9+-]*"
+                  <NumberStepper
+                    className="w-full"
                     min={1}
                     max={20}
-                    value={identity.level}
-                    onChange={(e) => setIdentity((draft) => ({ ...draft, level: e.target.value }))}
-                    className="input w-full"
+                    value={numberFromString(identity.level, 1)}
+                    onCommit={(value) =>
+                      setIdentity((draft) => ({ ...draft, level: String(value) }))
+                    }
                   />
                 </label>
                 <label className="space-y-1 text-sm">
@@ -985,28 +990,27 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
               <div className="grid gap-4 md:grid-cols-3">
                 <label className="space-y-1 text-sm">
                   <span>Armor Class</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9+-]*"
-                    value={defenses.ac}
-                    onChange={(e) => setDefenses((current) => ({ ...current, ac: e.target.value }))}
-                    className="input w-full"
-                    placeholder="18"
+                  <NumberStepper
+                    className="w-full"
+                    min={0}
+                    max={60}
+                    value={numberFromString(defenses.ac)}
+                    onCommit={(value) =>
+                      setDefenses((current) => ({ ...current, ac: String(value) }))
+                    }
                   />
                 </label>
                 <label className="space-y-1 text-sm">
                   <span>Speed (ft)</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9+-]*"
-                    value={defenses.speed}
-                    onChange={(e) =>
-                      setDefenses((current) => ({ ...current, speed: e.target.value }))
+                  <NumberStepper
+                    className="w-full"
+                    min={0}
+                    max={200}
+                    step={5}
+                    value={numberFromString(defenses.speed)}
+                    onCommit={(value) =>
+                      setDefenses((current) => ({ ...current, speed: String(value) }))
                     }
-                    className="input w-full"
-                    placeholder="25"
                   />
                 </label>
                 <label className="space-y-1 text-sm">
@@ -1022,30 +1026,26 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 </label>
                 <label className="space-y-1 text-sm">
                   <span>Class DC</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9+-]*"
-                    value={defenses.classDc}
-                    onChange={(e) =>
-                      setDefenses((current) => ({ ...current, classDc: e.target.value }))
+                  <NumberStepper
+                    className="w-full"
+                    min={0}
+                    max={60}
+                    value={numberFromString(defenses.classDc)}
+                    onCommit={(value) =>
+                      setDefenses((current) => ({ ...current, classDc: String(value) }))
                     }
-                    className="input w-full"
-                    placeholder="17"
                   />
                 </label>
                 <label className="space-y-1 text-sm">
                   <span>Spell DC</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9+-]*"
-                    value={defenses.spellDc}
-                    onChange={(e) =>
-                      setDefenses((current) => ({ ...current, spellDc: e.target.value }))
+                  <NumberStepper
+                    className="w-full"
+                    min={0}
+                    max={60}
+                    value={numberFromString(defenses.spellDc)}
+                    onCommit={(value) =>
+                      setDefenses((current) => ({ ...current, spellDc: String(value) }))
                     }
-                    className="input w-full"
-                    placeholder="17"
                   />
                 </label>
               </div>
@@ -1119,18 +1119,17 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 {ABILITY_KEYS.map((key) => (
                   <label key={key} className="space-y-1 text-sm uppercase">
                     <span>{key}</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9+-]*"
+                    <NumberStepper
+                      className="w-full"
+                      min={1}
+                      max={30}
                       value={abilities[key]}
-                      onChange={(e) =>
+                      onCommit={(value) =>
                         setAbilities((draft) => ({
                           ...draft,
-                          [key]: Math.round(Number(e.target.value) || 0),
+                          [key]: value,
                         }))
                       }
-                      className="input w-full"
                     />
                   </label>
                 ))}
@@ -1144,18 +1143,17 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 ].map(([key, label]) => (
                   <label key={key} className="space-y-1 text-sm">
                     <span>{label}</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9+-]*"
+                    <NumberStepper
+                      className="w-full"
+                      min={key.startsWith("bonus") ? -100 : 0}
+                      max={key === "classhp" || key === "ancestryhp" ? 30 : 999}
                       value={attributes[key as keyof HpAttributes]}
-                      onChange={(e) =>
+                      onCommit={(value) =>
                         setAttributes((draft) => ({
                           ...draft,
-                          [key]: Math.round(Number(e.target.value) || 0),
+                          [key]: value,
                         }))
                       }
-                      className="input w-full"
                     />
                   </label>
                 ))}
@@ -1310,7 +1308,7 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 <label className="space-y-1 text-sm">
                   <span>Equipment</span>
                   <div className="mb-3 rounded-md border border-border/70 bg-background/30 p-3">
-                    <div className="grid gap-3 md:grid-cols-[1fr_110px]">
+                    <div className="grid gap-3 md:grid-cols-[1fr_160px]">
                       <ItemSearchCombobox
                         value={equipmentSearch}
                         onChange={setEquipmentSearch}
@@ -1318,15 +1316,12 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                         placeholder="Search the item database..."
                         className="w-full"
                       />
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9+-]*"
+                      <NumberStepper
+                        className="w-full"
                         min={1}
-                        value={equipmentQuantity}
-                        onChange={(e) => setEquipmentQuantity(e.target.value)}
-                        className="input w-full"
-                        aria-label="Equipment quantity"
+                        max={999}
+                        value={numberFromString(equipmentQuantity, 1)}
+                        onCommit={(value) => setEquipmentQuantity(String(value))}
                       />
                     </div>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
