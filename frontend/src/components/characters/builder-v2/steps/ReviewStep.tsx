@@ -12,7 +12,7 @@ function modOf(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
-export function ReviewStep({ state }: StepProps) {
+export function ReviewStep({ state, onCreated }: StepProps) {
   const router = useRouter();
   const createMutation = useCreateCharacter();
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -144,6 +144,7 @@ export function ReviewStep({ state }: StepProps) {
         }
       }
 
+      await onCreated?.();
       setProgress("Done. Redirecting…");
       router.push(`/characters/${character.id}`);
     } catch (err) {

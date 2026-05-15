@@ -267,4 +267,5 @@ export type StepProps = {
   update: (patch: Partial<BuilderState>) => void;
   onNext: () => void;
   onBack: () => void;
+  onCreated?: () => Promise<void> | void;
 };
