@@ -16,6 +16,7 @@ import { AonLink, valueFromMetadata } from "../AonLink";
 type Feat = Tables<"feats"> & { aon_url?: string | null };
 
 const KINETICIST_STARTING_IMPULSES = 2;
+const KINETICIST_ELEMENTS = ["air", "earth", "fire", "metal", "water", "wood"];
 
 function normalize(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -36,6 +37,13 @@ function featTraits(feat: Feat): string[] {
   return listValue(feat.traits).map(normalize);
 }
 
+function titleCase(value: string): string {
+  return value
+    .split(/\s+/)
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(" ");
+}
+
 function isImpulse(feat: Feat): boolean {
   const traits = featTraits(feat);
   return traits.includes("impulse") || normalize(feat.name).includes("impulse");
@@ -45,6 +53,13 @@ function impulseMatchesElements(feat: Feat, elements: string[]): boolean {
   if (elements.length === 0) return true;
   const traits = new Set(featTraits(feat));
   return elements.some((element) => traits.has(normalize(element)));
+}
+
+function impulseSlotLabel(feat: Feat | undefined): string {
+  if (!feat) return "Impulse Feat";
+  const traits = new Set(featTraits(feat));
+  const element = KINETICIST_ELEMENTS.find((name) => traits.has(name));
+  return element ? `${titleCase(element)} Impulse Feat` : "Impulse Feat";
 }
 
 function updateOption(
@@ -63,7 +78,7 @@ function optionValue(options: ClassOptions, field: ClassOptionField): string | s
 function selectedImpulseIds(state: StepProps["state"]): Set<string> {
   return new Set(
     state.selectedFeats
-      .filter((feat) => feat.feat_slot === "class" && feat.level_acquired === 1)
+      .filter((feat) => feat.feat_slot === "impulse" && feat.level_acquired === 1)
       .map((feat) => feat.feat_id)
   );
 }
@@ -75,7 +90,7 @@ export function ClassOptionsStep({ state, update }: StepProps) {
 
   const kineticElements = state.classOptions.kineticElements ?? [];
   const impulseIds = selectedImpulseIds(state);
-  const impulseCount = state.selectedFeats.filter((feat) => impulseIds.has(feat.feat_id)).length;
+  const impulseCount = state.selectedFeats.filter((feat) => feat.feat_slot === "impulse").length;
 
   const { data: kineticistFeats, isLoading: featsLoading } = useFeats(
     {
@@ -132,7 +147,7 @@ export function ClassOptionsStep({ state, update }: StepProps) {
     const selected: SelectedFeat = {
       feat_id: feat.id,
       feat_name: feat.name,
-      feat_slot: "class",
+      feat_slot: "impulse",
       level_acquired: 1,
     };
     update({ selectedFeats: [...state.selectedFeats, selected] });
@@ -140,11 +155,13 @@ export function ClassOptionsStep({ state, update }: StepProps) {
 
   function removeImpulse(featId: string) {
     update({
-      selectedFeats: state.selectedFeats.filter((feat) => feat.feat_id !== featId),
+      selectedFeats: state.selectedFeats.filter(
+        (feat) => !(feat.feat_slot === "impulse" && feat.feat_id === featId)
+      ),
     });
   }
 
-  const selectedImpulseFeats = state.selectedFeats.filter((feat) => impulseIds.has(feat.feat_id));
+  const selectedImpulseFeats = state.selectedFeats.filter((feat) => feat.feat_slot === "impulse");
   const specials = classOptionSpecials(state);
 
   return (
@@ -203,22 +220,26 @@ export function ClassOptionsStep({ state, update }: StepProps) {
 
           {selectedImpulseFeats.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {selectedImpulseFeats.map((feat) => (
-                <span
-                  key={feat.feat_id}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-2.5 py-1 text-xs"
-                >
-                  {feat.feat_name}
-                  <button
-                    type="button"
-                    onClick={() => removeImpulse(feat.feat_id)}
-                    className="hover:text-destructive"
-                    aria-label={`Remove ${feat.feat_name}`}
+              {selectedImpulseFeats.map((feat) => {
+                const fullFeat = kineticistFeats?.data?.find((row) => row.id === feat.feat_id);
+                return (
+                  <span
+                    key={feat.feat_id}
+                    className="inline-flex items-center gap-2 rounded-md bg-primary/10 text-primary px-2.5 py-1.5 text-xs"
                   >
-                    <X size={11} />
-                  </button>
-                </span>
-              ))}
+                    <span className="text-muted-foreground">{impulseSlotLabel(fullFeat)}</span>
+                    <span className="font-medium">{feat.feat_name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeImpulse(feat.feat_id)}
+                      className="hover:text-destructive"
+                      aria-label={`Remove ${feat.feat_name}`}
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                );
+              })}
             </div>
           )}
 

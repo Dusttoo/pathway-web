@@ -42,6 +42,7 @@ export type BuilderState = {
       | "skill"
       | "archetype"
       | "free_archetype"
+      | "impulse"
       | "bonus";
     level_acquired: number;
   }[];

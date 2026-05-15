@@ -14,6 +14,7 @@ const VALID_SLOTS = new Set([
   "skill",
   "archetype",
   "free_archetype",
+  "impulse",
   "bonus",
 ]);
 

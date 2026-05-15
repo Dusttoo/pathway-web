@@ -36,7 +36,9 @@ export function ClassStep({ state, update }: StepProps) {
       classOptions: { kineticGate: "", kineticElements: [] },
       trainedSkills: [],
       selectedSpells: [],
-      selectedFeats: state.selectedFeats.filter((feat) => feat.feat_slot !== "class"),
+      selectedFeats: state.selectedFeats.filter(
+        (feat) => feat.feat_slot !== "class" && feat.feat_slot !== "impulse"
+      ),
     });
   }
 

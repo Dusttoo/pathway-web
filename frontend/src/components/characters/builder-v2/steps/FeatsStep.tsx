@@ -76,6 +76,8 @@ const FEAT_DESCRIPTIONS: Record<FeatSlotKind, string> = {
   archetype: "An archetype feat comes from a dedication or multiclass path.",
   free_archetype:
     "Free Archetype grants separate archetype feat slots without spending class feat slots.",
+  impulse:
+    "A kineticist impulse feat is granted by your kinetic gate and does not consume class feat slots.",
   bonus: "A bonus feat is granted by a rule, feature, or campaign option.",
 };
 
@@ -186,6 +188,7 @@ function sortSlot(kind: FeatSlotKind): number {
     "general",
     "free_archetype",
     "archetype",
+    "impulse",
     "bonus",
   ].indexOf(kind);
 }

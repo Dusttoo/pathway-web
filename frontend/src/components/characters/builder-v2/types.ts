@@ -10,6 +10,7 @@ export type FeatSlot =
   | "skill"
   | "archetype"
   | "free_archetype"
+  | "impulse"
   | "bonus";
 
 export type Tradition = "arcane" | "divine" | "occult" | "primal";
