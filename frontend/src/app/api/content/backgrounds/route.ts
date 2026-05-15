@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchVirtualHomebrew, virtualBackground } from "@/lib/homebrew/virtual-content";
 import { NextResponse } from "next/server";
 
 type BackgroundRow = {
@@ -80,7 +81,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const deduped = dedupeBackgrounds((data ?? []) as BackgroundRow[]);
+  const virtualRows = includeHomebrew ? await fetchVirtualHomebrew(supabase, "background") : [];
+  const virtualBackgrounds = virtualRows
+    .map((row) => virtualBackground(row) as BackgroundRow)
+    .filter((row) => !q || row.name.toLowerCase().includes(q.toLowerCase()));
+
+  const deduped = dedupeBackgrounds([...((data ?? []) as BackgroundRow[]), ...virtualBackgrounds]);
   const paged = deduped.slice(offset, offset + limit);
 
   return NextResponse.json({ data: paged, total: deduped.length, page, limit });

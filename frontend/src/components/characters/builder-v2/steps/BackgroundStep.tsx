@@ -8,6 +8,17 @@ import { AonLink } from "../AonLink";
 
 function asStringList(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string");
+  if (typeof raw === "string") {
+    return raw
+      .split(/[,;\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (raw && typeof raw === "object") {
+    return Object.entries(raw)
+      .filter(([, rank]) => Number(rank) > 0 || rank === true)
+      .map(([name]) => name);
+  }
   return [];
 }
 

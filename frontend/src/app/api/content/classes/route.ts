@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchVirtualHomebrew, virtualClass } from "@/lib/homebrew/virtual-content";
 import { NextResponse } from "next/server";
 
 type ClassRow = {
@@ -112,7 +113,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const deduped = dedupeClasses(normalizeCasterFlags((data ?? []) as ClassRow[]));
+  const virtualRows = includeHomebrew ? await fetchVirtualHomebrew(supabase, "class") : [];
+  const virtualClasses = virtualRows
+    .map((row) => virtualClass(row) as ClassRow)
+    .filter((row) => !q || row.name.toLowerCase().includes(q.toLowerCase()));
+
+  const deduped = dedupeClasses(
+    normalizeCasterFlags([...((data ?? []) as ClassRow[]), ...virtualClasses])
+  );
   const paged = deduped.slice(offset, offset + limit);
 
   return NextResponse.json({

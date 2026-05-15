@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchVirtualHomebrewById, virtualClass } from "@/lib/homebrew/virtual-content";
 import { NextResponse } from "next/server";
 
 const OFFICIAL_SPELLCASTER_CLASSES = new Set(
@@ -25,10 +26,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     .from("character_classes")
     .select("*")
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
-    return NextResponse.json({ error: "Class not found" }, { status: 404 });
+    const virtualRow = await fetchVirtualHomebrewById(supabase, id, "class");
+    if (!virtualRow) {
+      return NextResponse.json({ error: "Class not found" }, { status: 404 });
+    }
+    return NextResponse.json(virtualClass(virtualRow));
   }
 
   return NextResponse.json({

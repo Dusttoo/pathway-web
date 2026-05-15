@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchVirtualHomebrew, virtualAncestry } from "@/lib/homebrew/virtual-content";
 import { NextResponse } from "next/server";
 
 type AncestryRow = {
@@ -86,7 +87,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const deduped = dedupeAncestries((data ?? []) as AncestryRow[]);
+  const virtualRows = includeHomebrew ? await fetchVirtualHomebrew(supabase, "ancestry") : [];
+  const virtualAncestries = virtualRows
+    .map((row) => virtualAncestry(row) as AncestryRow)
+    .filter((row) => !q || row.name.toLowerCase().includes(q.toLowerCase()));
+
+  const deduped = dedupeAncestries([...((data ?? []) as AncestryRow[]), ...virtualAncestries]);
   const paged = deduped.slice(offset, offset + limit);
 
   return NextResponse.json({ data: paged, total: deduped.length, page, limit });

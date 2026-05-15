@@ -1,4 +1,11 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import {
+  fetchVirtualHomebrew,
+  fetchVirtualHomebrewById,
+  heritageMatchesAncestry,
+  virtualAncestry,
+  virtualHeritage,
+} from "@/lib/homebrew/virtual-content";
 import { NextResponse } from "next/server";
 
 const OFFICIAL_VERSATILE_HERITAGES = [
@@ -27,17 +34,35 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const [ancestryResult, heritagesResult, versatileHeritagesResult] = await Promise.all([
-    supabase.from("ancestries").select("*").eq("id", id).single(),
-    supabase.from("heritages").select("*").eq("ancestry_id", id).order("name"),
-    supabase.from("heritages").select("*").eq("is_versatile", true).order("name"),
-  ]);
+  const ancestryResult = await supabase.from("ancestries").select("*").eq("id", id).maybeSingle();
 
-  if (ancestryResult.error || !ancestryResult.data) {
-    return NextResponse.json({ error: "Ancestry not found" }, { status: 404 });
+  let ancestry: any = ancestryResult.data;
+  if (ancestryResult.error || !ancestry) {
+    const virtualRow = await fetchVirtualHomebrewById(supabase, id, "ancestry");
+    if (!virtualRow) {
+      return NextResponse.json({ error: "Ancestry not found" }, { status: 404 });
+    }
+    ancestry = virtualAncestry(virtualRow);
   }
 
-  const versatileHeritages = versatileHeritagesResult.data ?? [];
+  const [heritagesResult, versatileHeritagesResult, virtualHeritageRows] = await Promise.all([
+    supabase.from("heritages").select("*").eq("ancestry_id", id).order("name"),
+    supabase.from("heritages").select("*").eq("is_versatile", true).order("name"),
+    fetchVirtualHomebrew(supabase, "heritage"),
+  ]);
+
+  const virtualAncestryHeritages = virtualHeritageRows
+    .filter((row) => heritageMatchesAncestry(row, ancestry.name))
+    .map((row) => virtualHeritage(row, id));
+  const virtualVersatileHeritages = virtualHeritageRows
+    .map((row) => virtualHeritage(row, id))
+    .filter((row) => row.is_versatile);
+
+  const heritages = [...(heritagesResult.data ?? []), ...virtualAncestryHeritages];
+  const versatileHeritages = [
+    ...(versatileHeritagesResult.data ?? []),
+    ...virtualVersatileHeritages,
+  ];
   const existingNames = new Set(versatileHeritages.map((h) => String(h.name).toLowerCase()));
   const fallbackVersatileHeritages = OFFICIAL_VERSATILE_HERITAGES.filter(
     (heritage) => !existingNames.has(heritage.name.toLowerCase())
@@ -59,8 +84,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }));
 
   return NextResponse.json({
-    ...ancestryResult.data,
-    heritages: heritagesResult.data ?? [],
+    ...ancestry,
+    heritages: heritages.sort((a, b) => a.name.localeCompare(b.name)),
     versatileHeritages: [...versatileHeritages, ...fallbackVersatileHeritages].sort((a, b) =>
       a.name.localeCompare(b.name)
     ),
