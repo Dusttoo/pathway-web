@@ -12,6 +12,16 @@ function abilityMod(score: number) {
   return mod >= 0 ? `+${mod}` : `${mod}`;
 }
 
+function featTypeLabel(slot: string): string {
+  if (slot === "class") return "Class";
+  if (slot === "skill") return "Skill";
+  if (slot === "general") return "General";
+  if (slot === "archetype" || slot === "free_archetype") return "Archetype";
+  if (slot === "impulse") return "Impulse";
+  if (slot === "ancestry") return "Ancestry";
+  return "Other";
+}
+
 export function ReviewStep({ state, update, onBack }: StepProps) {
   const router = useRouter();
   const createMutation = useCreateCharacter();
@@ -21,6 +31,11 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
   const { abilities, ancestryHp, classHp, level } = state;
   const conMod = Math.floor((abilities.con - 10) / 2);
   const maxHp = ancestryHp + (classHp + conMod) * level;
+  const selectedFeatSnapshots = state.selectedFeats.map((feat) => ({
+    name: feat.feat_name,
+    featType: featTypeLabel(feat.feat_slot),
+    level: feat.level_acquired,
+  }));
 
   function addLanguage() {
     const lang = langInput.trim();
@@ -57,7 +72,10 @@ export function ReviewStep({ state, update, onBack }: StepProps) {
       trained_skills: state.trainedSkills,
       background_trained_skill: state.backgroundTrainedSkill || undefined,
       additional_skills: state.additionalSkills.filter((skill) => skill.name.trim()),
-      custom_feats: state.customFeats.filter((feat) => feat.name.trim()),
+      custom_feats: [
+        ...selectedFeatSnapshots,
+        ...state.customFeats.filter((feat) => feat.name.trim()),
+      ],
       custom_specials: state.customSpecials.filter((special) => special.trim()),
       custom_attacks: state.customAttacks.filter((attack) => attack.name.trim()),
       deity: state.deity,
