@@ -44,12 +44,14 @@ import {
   Package,
   Inbox,
   ExternalLink,
+  Printer,
 } from "lucide-react";
 import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Tables } from "@/lib/types/database.types";
 
 // ── Pathbuilder build shape ───────────────────────────────────────────────────
 
@@ -98,7 +100,16 @@ interface PBBuild {
   stats?: Record<string, unknown>;
 }
 
-type TabKey = "stats" | "feats" | "spells" | "gear" | "bag" | "notes" | "downtime" | "companions";
+type TabKey =
+  | "stats"
+  | "official"
+  | "feats"
+  | "spells"
+  | "gear"
+  | "bag"
+  | "notes"
+  | "downtime"
+  | "companions";
 type ContentType = "feat" | "item";
 
 // Shapes returned by /api/content/feats and /api/content/items
@@ -553,6 +564,22 @@ function spellRankLabel(rank: number): string {
   return rank === 0 ? "Cantrip" : `Rank ${rank}`;
 }
 
+function rankLabel(rank: number): string {
+  return PROFICIENCY_RANK_OPTIONS.find((option) => option.value === rank)?.label ?? "Untrained";
+}
+
+function formatList(values: unknown, fallback = "None"): string {
+  const list = Array.isArray(values)
+    ? values.map((value) => (typeof value === "string" ? value.trim() : "")).filter(Boolean)
+    : typeof values === "string"
+      ? values
+          .split(/[,;]+/)
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : [];
+  return list.length ? list.join(", ") : fallback;
+}
+
 type SheetAttack = NonNullable<PBBuild["custom_attacks"]>[number];
 
 function formatAttackBonus(value: unknown): string {
@@ -656,6 +683,27 @@ function getLoreSkills(build: PBBuild, level: number, usesRawBonus: boolean) {
       };
     })
     .filter((lore): lore is { skill: string; rank: number; total: number } => !!lore);
+}
+
+function getEquipmentEntries(build: PBBuild): { name: string; qty: number }[] {
+  if (!Array.isArray(build.equipment)) return [];
+  return build.equipment
+    .map((item) => {
+      if (Array.isArray(item)) {
+        return {
+          name: typeof item[0] === "string" ? item[0] : "",
+          qty: typeof item[1] === "number" ? item[1] : 1,
+        };
+      }
+      if (isRecord(item)) {
+        return {
+          name: typeof item.name === "string" ? item.name : "",
+          qty: typeof item.qty === "number" ? item.qty : 1,
+        };
+      }
+      return { name: "", qty: 1 };
+    })
+    .filter((item) => item.name.trim());
 }
 
 // ── ContentModal — shared feat / item detail modal ────────────────────────────
@@ -2154,6 +2202,404 @@ function StatsTabPanel({
   );
 }
 
+function OfficialSheetField({
+  label,
+  value,
+  tall = false,
+}: {
+  label: string;
+  value?: string | number | null;
+  tall?: boolean;
+}) {
+  return (
+    <div
+      className={`official-field rounded-md border border-slate-900 bg-white px-2 py-1 ${tall ? "min-h-16" : "min-h-10"}`}
+    >
+      <div className="text-[9px] font-bold uppercase tracking-wide text-slate-600">{label}</div>
+      <div className="mt-0.5 text-sm font-semibold text-slate-950">{value || ""}</div>
+    </div>
+  );
+}
+
+function OfficialSheetPanel({
+  characterId,
+  character,
+  build,
+  level,
+  maxHp,
+  currentHp,
+  usesRawBonus,
+  defenses,
+}: {
+  characterId: string;
+  character: Tables<"characters">;
+  build: PBBuild;
+  level: number;
+  maxHp: number | null;
+  currentHp: number | null | undefined;
+  usesRawBonus: boolean;
+  defenses: ReturnType<typeof getDefenseDetails> | null;
+}) {
+  const { data: characterFeatRows } = useCharacterFeats(characterId);
+  const { data: knownSpells } = useCharacterKnownSpells(characterId);
+  const abs = build.abilities ?? { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+  const profs = build.proficiencies ?? {};
+  const attacks = getCharacterAttacks(build);
+  const equipment = getEquipmentEntries(build);
+  const loreSkills = getLoreSkills(build, level, usesRawBonus);
+  const featNames = dedupeDisplayFeats([
+    ...(characterFeatRows?.data ?? [])
+      .filter((row) => row.feat)
+      .map((row) => ({
+        key: row.id,
+        name: row.feat.name,
+        type: displayFeatType(row.feat.feat_type, row.feat_slot),
+        level: row.level_acquired ?? row.feat.level ?? null,
+        source: row.feat.source ?? null,
+        description: row.feat.description ?? row.notes ?? null,
+        rowId: row.id,
+      })),
+    ...(build.feats ?? []).map(normalizeBuildFeat).filter((feat) => feat.name.trim()),
+  ]);
+  const spells = knownSpells?.data ?? [];
+  const spellsByRank = spells.reduce<Record<string, CharacterKnownSpell[]>>((acc, spell) => {
+    const key = spellRankLabel(spell.rank);
+    (acc[key] ??= []).push(spell);
+    return acc;
+  }, {});
+  const printSheet = () => window.print();
+  const saves = [
+    { key: "fortitude", label: "Fortitude", ability: "con" as const },
+    { key: "reflex", label: "Reflex", ability: "dex" as const },
+    { key: "will", label: "Will", ability: "wis" as const },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          .official-print-sheet, .official-print-sheet * { visibility: visible !important; }
+          .official-print-sheet {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            color: #020617 !important;
+            background: white !important;
+            box-shadow: none !important;
+          }
+          .official-print-actions { display: none !important; }
+          .official-print-page { break-after: page; page-break-after: always; }
+          @page { size: letter; margin: 0.35in; }
+        }
+      `}</style>
+      <div className="official-print-actions flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-heading text-xl font-bold">Official-Style Character Sheet</h3>
+          <p className="text-sm text-muted-foreground">
+            Print this sheet or choose Save as PDF in your browser&apos;s print dialog.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={printSheet}
+          className="btn btn-primary flex items-center gap-2"
+        >
+          <Printer size={16} />
+          Print / Export PDF
+        </button>
+      </div>
+
+      <div className="official-print-sheet rounded-lg border border-border bg-white p-4 text-slate-950 shadow-lg">
+        <section className="official-print-page space-y-3">
+          <div className="border-b-4 border-slate-950 pb-2">
+            <div className="text-xs font-bold uppercase tracking-[0.35em] text-slate-600">
+              Pathfinder Second Edition Remaster
+            </div>
+            <h2 className="font-serif text-4xl font-black tracking-tight">Character Sheet</h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
+            <OfficialSheetField label="Character Name" value={character.name} />
+            <OfficialSheetField label="Player" value=" " />
+            <OfficialSheetField label="Ancestry" value={character.ancestry_name} />
+            <OfficialSheetField label="Heritage" value={character.heritage_name} />
+            <OfficialSheetField label="Background" value={character.background_name} />
+            <OfficialSheetField
+              label="Class / Level"
+              value={`${character.class_name ?? ""} ${level}`}
+            />
+            <OfficialSheetField label="Deity" value={build.deity ?? ""} />
+            <OfficialSheetField
+              label="Size"
+              value={getNestedString(build, [["size"], ["stats", "size"]]) ?? ""}
+            />
+            <OfficialSheetField
+              label="Speed"
+              value={defenses?.speed ? `${defenses.speed} ft` : ""}
+            />
+            <OfficialSheetField label="Languages" value={formatList(build.languages)} />
+            <OfficialSheetField label="Senses" value={defenses?.senses ?? ""} />
+            <OfficialSheetField label="XP" value="0 / 1000" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1.1fr]">
+            <div className="space-y-3">
+              <div className="rounded-md border-2 border-slate-950">
+                <div className="bg-slate-950 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                  Ability Scores
+                </div>
+                <div className="grid grid-cols-3 gap-px bg-slate-950 md:grid-cols-6">
+                  {(["str", "dex", "con", "int", "wis", "cha"] as const).map((key) => (
+                    <div key={key} className="bg-white p-2 text-center">
+                      <div className="text-xs font-black uppercase">{key}</div>
+                      <div className="text-2xl font-black">{abs[key]}</div>
+                      <div className="text-sm font-bold">{abilityModStr(abs[key])}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-md border-2 border-slate-950">
+                <div className="bg-slate-950 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                  Defense
+                </div>
+                <div className="grid grid-cols-2 gap-2 p-2 md:grid-cols-4">
+                  <OfficialSheetField label="AC" value={defenses?.ac} />
+                  <OfficialSheetField label="Max HP" value={maxHp ?? ""} />
+                  <OfficialSheetField label="Current HP" value={currentHp ?? maxHp ?? ""} />
+                  <OfficialSheetField label="Temp HP" value="" />
+                  <OfficialSheetField label="Armor" value={defenses?.armor ?? ""} />
+                  <OfficialSheetField label="Shield" value={defenses?.shield ?? ""} />
+                  <OfficialSheetField label="Class DC" value={defenses?.classDc ?? ""} />
+                  <OfficialSheetField label="Spell DC" value={defenses?.spellDc ?? ""} />
+                </div>
+              </div>
+
+              <div className="rounded-md border-2 border-slate-950">
+                <div className="bg-slate-950 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                  Perception & Saving Throws
+                </div>
+                <div className="divide-y divide-slate-300">
+                  <div className="grid grid-cols-[1fr_80px_80px] items-center gap-2 px-3 py-2">
+                    <span className="font-semibold">Perception</span>
+                    <span>
+                      {rankLabel(proficiencyValueToRank(profs.perception ?? 0, usesRawBonus))}
+                    </span>
+                    <span className="text-right font-mono font-black">
+                      {signedTotal(
+                        normalizedProfBonus(profs.perception ?? 0, level, usesRawBonus) +
+                          abilityModNum(abs.wis)
+                      )}
+                    </span>
+                  </div>
+                  {saves.map((save) => (
+                    <div
+                      key={save.key}
+                      className="grid grid-cols-[1fr_80px_80px] items-center gap-2 px-3 py-2"
+                    >
+                      <span className="font-semibold">{save.label}</span>
+                      <span>
+                        {rankLabel(proficiencyValueToRank(profs[save.key] ?? 0, usesRawBonus))}
+                      </span>
+                      <span className="text-right font-mono font-black">
+                        {signedTotal(
+                          normalizedProfBonus(profs[save.key] ?? 0, level, usesRawBonus) +
+                            abilityModNum(abs[save.ability])
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="rounded-md border-2 border-slate-950">
+                <div className="bg-slate-950 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                  Skills
+                </div>
+                <div className="grid grid-cols-1 gap-x-4 p-2 md:grid-cols-2">
+                  {SKILL_ORDER.map((skill) => {
+                    const rank = profs[skill] ?? 0;
+                    const ability = SKILL_ABILITY_MAP[skill];
+                    const total =
+                      normalizedProfBonus(rank, level, usesRawBonus) + abilityModNum(abs[ability]);
+                    return (
+                      <div
+                        key={skill}
+                        className="grid grid-cols-[1fr_26px_42px] items-center gap-2 border-b border-slate-200 py-1 text-sm"
+                      >
+                        <span className="capitalize">{skill}</span>
+                        <span className="text-xs font-bold uppercase">
+                          {rankLabel(proficiencyValueToRank(rank, usesRawBonus)).slice(0, 1)}
+                        </span>
+                        <span className="text-right font-mono font-bold">{signedTotal(total)}</span>
+                      </div>
+                    );
+                  })}
+                  {loreSkills.map((lore) => (
+                    <div
+                      key={lore.skill}
+                      className="grid grid-cols-[1fr_26px_42px] items-center gap-2 border-b border-slate-200 py-1 text-sm"
+                    >
+                      <span>{lore.skill}</span>
+                      <span className="text-xs font-bold uppercase">
+                        {rankLabel(lore.rank).slice(0, 1)}
+                      </span>
+                      <span className="text-right font-mono font-bold">
+                        {signedTotal(lore.total)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-md border-2 border-slate-950">
+                <div className="bg-slate-950 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                  Attacks
+                </div>
+                <div className="divide-y divide-slate-300">
+                  {attacks.length ? (
+                    attacks.map((attack, index) => (
+                      <div
+                        key={`${attack.name}-${index}`}
+                        className="grid grid-cols-[1fr_72px] gap-2 p-2"
+                      >
+                        <div>
+                          <div className="font-bold">{attack.name}</div>
+                          <div className="text-xs text-slate-700">
+                            {[attack.damage, formatAttackTraits(attack.traits), attack.range]
+                              .filter(Boolean)
+                              .join(" • ")}
+                          </div>
+                        </div>
+                        <div className="text-right font-mono text-lg font-black">
+                          {formatAttackBonus(attack.bonus)}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-sm text-slate-500">No attacks saved.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3 pt-4">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="rounded-md border-2 border-slate-950">
+              <div className="bg-slate-950 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                Feats & Features
+              </div>
+              <div className="grid grid-cols-1 gap-px bg-slate-200 p-2">
+                {featNames.length ? (
+                  featNames.map((feat) => (
+                    <div key={feat.key} className="bg-white px-2 py-1 text-sm">
+                      <span className="font-bold">{feat.name}</span>
+                      <span className="text-slate-600">
+                        {" "}
+                        {feat.type}
+                        {feat.level ? ` ${feat.level}` : ""}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-white px-2 py-2 text-sm text-slate-500">No feats saved.</div>
+                )}
+                {(build.specials ?? []).map((special) => (
+                  <div key={special} className="bg-white px-2 py-1 text-sm">
+                    <span className="font-bold">{special}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-md border-2 border-slate-950">
+              <div className="bg-slate-950 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                Spells
+              </div>
+              <div className="space-y-2 p-2">
+                {Object.keys(spellsByRank).length ? (
+                  Object.entries(spellsByRank).map(([rankName, rankSpells]) => (
+                    <div key={rankName}>
+                      <div className="mb-1 text-xs font-black uppercase text-slate-600">
+                        {rankName}
+                      </div>
+                      <div className="grid grid-cols-1 gap-1">
+                        {rankSpells.map((spell) => (
+                          <div
+                            key={spell.id}
+                            className="rounded border border-slate-300 px-2 py-1 text-sm"
+                          >
+                            <span className="font-bold">
+                              {spell.spell?.name ?? "Unknown Spell"}
+                            </span>
+                            <span className="text-slate-600"> • {spell.spell_source}</span>
+                            {spell.is_signature && (
+                              <span className="text-slate-600"> • signature</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">No spells saved.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="rounded-md border-2 border-slate-950">
+              <div className="bg-slate-950 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                Equipment
+              </div>
+              <div className="grid grid-cols-1 gap-px bg-slate-200 p-2 md:grid-cols-2">
+                {equipment.length ? (
+                  equipment.map((item) => (
+                    <div key={`${item.name}-${item.qty}`} className="bg-white px-2 py-1 text-sm">
+                      <span className="font-bold">{item.name}</span>
+                      <span className="text-slate-600"> x{item.qty}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-white px-2 py-2 text-sm text-slate-500">
+                    No equipment saved.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-md border-2 border-slate-950">
+              <div className="bg-slate-950 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                Notes & Description
+              </div>
+              <div className="grid gap-2 p-2">
+                <OfficialSheetField
+                  label="Description"
+                  value={getNestedString(build, [["description"], ["stats", "description"]]) ?? ""}
+                  tall
+                />
+                <OfficialSheetField
+                  label="Personality"
+                  value={getNestedString(build, [["personality"], ["stats", "personality"]]) ?? ""}
+                  tall
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 // onSelect receives a feat name — parent opens the detail modal
 function FeatsTabPanel({
   characterId,
@@ -3061,6 +3507,7 @@ export default function CharacterDetailPage() {
   type TabDef = { key: TabKey; label: string };
   const tabs: TabDef[] = [
     { key: "stats", label: "Stats" },
+    { key: "official", label: "Official Sheet" },
     { key: "feats", label: "Feats" },
     { key: "spells", label: "Spells" },
     { key: "gear", label: "Gear" },
@@ -3369,6 +3816,23 @@ export default function CharacterDetailPage() {
                   onSaveCustomAttacks={(custom_attacks) =>
                     updateCharacter.mutate({ build_patch: { custom_attacks } })
                   }
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  No Pathbuilder data available.
+                </p>
+              ))}
+            {tab === "official" &&
+              (build ? (
+                <OfficialSheetPanel
+                  characterId={characterId}
+                  character={character}
+                  build={build}
+                  level={level}
+                  maxHp={maxHp}
+                  currentHp={currentHp}
+                  usesRawBonus={usesRawBonus}
+                  defenses={defenses}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground italic">

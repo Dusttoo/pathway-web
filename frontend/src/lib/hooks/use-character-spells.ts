@@ -5,7 +5,7 @@ type Spell = Tables<"spells">;
 export type CharacterKnownSpell = {
   id: string;
   spell_id: string;
-  tradition: "arcane" | "divine" | "occult" | "primal";
+  tradition: "arcane" | "divine" | "occult" | "primal" | "focus";
   rank: number;
   spell_source: "spellbook" | "repertoire" | "innate" | "focus" | "staff" | "scroll";
   is_signature: boolean;
