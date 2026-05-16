@@ -9,12 +9,30 @@ import {
 } from "@/lib/homebrew/virtual-content";
 import type { Json, Tables, TablesInsert } from "@/lib/types/database.types";
 import type { NativeBuildInput } from "@/lib/types/character";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type AncestryRow = Tables<"ancestries">;
 type ClassRow = Tables<"character_classes">;
+type UntypedClient = SupabaseClient;
+type CharacterFeatSummary = {
+  character_id: string;
+  feat_slot: string | null;
+  level_acquired: number | null;
+  notes: string | null;
+  feat: {
+    name: string;
+    feat_type: string | null;
+    source: string | null;
+    level: number | null;
+    description: string | null;
+  } | null;
+};
+type RawCharacterFeatSummary = Omit<CharacterFeatSummary, "feat"> & {
+  feat: CharacterFeatSummary["feat"] | CharacterFeatSummary["feat"][];
+};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -392,7 +410,34 @@ export async function GET(request: Request) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json(data);
+  const characterIds = (data ?? []).map((character) => character.id);
+  if (characterIds.length === 0) return NextResponse.json(data);
+
+  const untyped = ctx.service as unknown as UntypedClient;
+  const { data: featRows, error: featError } = await untyped
+    .from("character_feats")
+    .select(
+      "character_id, feat_slot, level_acquired, notes, feat:feats(name, feat_type, source, level, description)"
+    )
+    .in("character_id", characterIds)
+    .order("level_acquired", { ascending: true });
+
+  if (featError) return NextResponse.json({ error: featError.message }, { status: 500 });
+
+  const featsByCharacter = new Map<string, CharacterFeatSummary[]>();
+  for (const row of (featRows ?? []) as unknown as RawCharacterFeatSummary[]) {
+    const feat = Array.isArray(row.feat) ? (row.feat[0] ?? null) : row.feat;
+    const rows = featsByCharacter.get(row.character_id) ?? [];
+    rows.push({ ...row, feat });
+    featsByCharacter.set(row.character_id, rows);
+  }
+
+  const enriched = (data ?? []).map((character) => ({
+    ...character,
+    selected_feats: featsByCharacter.get(character.id) ?? [],
+  }));
+
+  return NextResponse.json(enriched);
 }
 
 // ── POST — create character ───────────────────────────────────────────────────

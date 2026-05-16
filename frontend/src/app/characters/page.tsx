@@ -97,6 +97,24 @@ type DefenseDetails = {
 
 type FeatTuple = [string, string | null, string | null, string | null];
 
+type CharacterFeatSummary = {
+  character_id?: string | null;
+  feat_slot: string | null;
+  level_acquired: number | null;
+  notes: string | null;
+  feat: {
+    name: string;
+    feat_type: string | null;
+    source: string | null;
+    level: number | null;
+    description: string | null;
+  } | null;
+};
+
+type CharacterWithSheetExtras = Character & {
+  selected_feats?: CharacterFeatSummary[];
+};
+
 type FeatLibraryEntry = Pick<
   Tables<"feats">,
   | "action_cost"
@@ -347,21 +365,59 @@ function getLanguages(character: Character) {
 
 function getFeats(character: Character): FeatTuple[] {
   const build = getCharacterBuild(character);
-  if (!Array.isArray(build.feats)) return [];
-  return build.feats
-    .map((feat): FeatTuple | null => {
-      if (typeof feat === "string") return [feat, null, null, null];
-      if (Array.isArray(feat) && typeof feat[0] === "string") {
-        return [
-          feat[0],
-          typeof feat[1] === "string" ? feat[1] : null,
-          typeof feat[2] === "string" ? feat[2] : null,
-          typeof feat[3] === "string" ? feat[3] : null,
-        ];
-      }
-      return null;
+  const selectedFeatRows = (character as CharacterWithSheetExtras).selected_feats ?? [];
+  const selectedFeats = selectedFeatRows
+    .map((row): FeatTuple | null => {
+      const name = row.feat?.name?.trim();
+      if (!name) return null;
+      const levelLabel =
+        typeof row.level_acquired === "number"
+          ? `Level ${row.level_acquired}`
+          : typeof row.feat?.level === "number"
+            ? `Level ${row.feat.level}`
+            : null;
+
+      return [
+        name,
+        row.feat?.feat_type ?? row.feat_slot ?? null,
+        row.feat?.source ?? levelLabel,
+        row.notes ?? row.feat?.description ?? null,
+      ];
     })
     .filter((feat): feat is FeatTuple => !!feat && !!feat[0].trim());
+
+  const legacyFeats = Array.isArray(build.feats)
+    ? build.feats
+        .map((feat): FeatTuple | null => {
+          if (typeof feat === "string") return [feat, null, null, null];
+          if (Array.isArray(feat) && typeof feat[0] === "string") {
+            return [
+              feat[0],
+              typeof feat[1] === "string" ? feat[1] : null,
+              typeof feat[2] === "string" ? feat[2] : null,
+              typeof feat[3] === "string" ? feat[3] : null,
+            ];
+          }
+          return null;
+        })
+        .filter((feat): feat is FeatTuple => !!feat && !!feat[0].trim())
+    : [];
+
+  const featsByName = new Map<string, FeatTuple>();
+  for (const feat of [...selectedFeats, ...legacyFeats]) {
+    const key = feat[0].trim().toLowerCase();
+    const existing = featsByName.get(key);
+    if (!existing) {
+      featsByName.set(key, feat);
+      continue;
+    }
+
+    const existingDetails = existing.filter(Boolean).length;
+    const nextDetails = feat.filter(Boolean).length;
+    if (nextDetails > existingDetails) featsByName.set(key, feat);
+  }
+
+  return [...featsByName.values()];
 }
 
 function getEquipment(character: Character): EquipmentTuple[] {
@@ -545,11 +601,9 @@ function librarySourceFromData(data: unknown) {
   const source = data.source;
   if (typeof source === "string" && source.trim()) return source.trim();
   if (isRecord(source)) {
-    const sourceName =
-      typeof source.source_text === "string" ? source.source_text : source.book;
-    const page = typeof source.page === "string" || typeof source.page === "number"
-      ? String(source.page)
-      : "";
+    const sourceName = typeof source.source_text === "string" ? source.source_text : source.book;
+    const page =
+      typeof source.page === "string" || typeof source.page === "number" ? String(source.page) : "";
     if (typeof sourceName === "string" && sourceName.trim() && page.trim()) {
       return `${sourceName.trim()} pg. ${page.trim()}`;
     }
@@ -568,7 +622,9 @@ function chooseSpecialAbilityLibraryEntry(
   candidates: GamedataLibraryEntry[]
 ) {
   const normalizedName = featLookupKey(special.name);
-  const exact = candidates.filter((candidate) => featLookupKey(candidate.name || candidate.slug) === normalizedName);
+  const exact = candidates.filter(
+    (candidate) => featLookupKey(candidate.name || candidate.slug) === normalizedName
+  );
   const pool = exact.length ? exact : candidates;
   return pool.find((candidate) => candidate.category === "class_features") ?? pool[0] ?? null;
 }
@@ -1761,7 +1817,9 @@ function MiniCharacterSheet({
   const equipment = getEquipment(character);
   const specials = getSpecialAbilityEntries(character);
   const visibleSpecials = specials.slice(0, 8);
-  const visibleSpecialNames = visibleSpecials.map((special) => featLookupKey(special.name)).join("|");
+  const visibleSpecialNames = visibleSpecials
+    .map((special) => featLookupKey(special.name))
+    .join("|");
   const [specialLibrary, setSpecialLibrary] = useState<Record<string, GamedataLibraryEntry>>({});
   const attacks = getCharacterAttacks(character);
   const languages = getLanguages(character);
@@ -2105,10 +2163,8 @@ function MiniCharacterSheet({
                         </summary>
                         {(() => {
                           const libraryEntry = specialLibrary[featLookupKey(special.name)] ?? null;
-                          const { type, source, details, aonUrl, isOfficial } = formatSpecialAbility(
-                            special,
-                            libraryEntry
-                          );
+                          const { type, source, details, aonUrl, isOfficial } =
+                            formatSpecialAbility(special, libraryEntry);
                           return (
                             <div className="mt-2 space-y-2 text-xs text-muted-foreground">
                               {(type || source) && (
