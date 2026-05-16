@@ -108,7 +108,6 @@ type TabKey =
   | "feats"
   | "spells"
   | "gear"
-  | "bag"
   | "notes"
   | "downtime"
   | "official"
@@ -3148,57 +3147,21 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
 }
 
 function GearTabPanel({ build, onSelect }: { build: PBBuild; onSelect: (name: string) => void }) {
-  const equipment = getEquipmentEntries(build);
-
-  return (
-    <div className="space-y-5">
-      {equipment.length > 0 ? (
-        <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Equipment
-            <span className="ml-1.5 font-normal normal-case text-muted-foreground/60">
-              (click for details)
-            </span>
-          </h4>
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
-            {equipment.map((item, i) => (
-              <li
-                key={`${item.name}-${i}`}
-                className="text-sm py-1.5 px-3 bg-muted/40 rounded-md flex items-center justify-between"
-              >
-                <button
-                  type="button"
-                  onClick={() => onSelect(item.name)}
-                  className="text-left hover:text-primary transition-colors flex-1"
-                >
-                  {item.name}
-                </button>
-                {item.qty > 1 && (
-                  <span className="text-xs text-muted-foreground ml-3 shrink-0">
-                    &times;{item.qty}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <Package size={32} className="mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">No equipment saved on this character.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BagTabPanel() {
   const { data: bag, isLoading, error } = useBag();
   const removeMutation = useRemoveItem();
   const [showAddForm, setShowAddForm] = useState(false);
 
   const categories = (bag?.categories ?? {}) as BagCategories;
   const categoryNames = Object.keys(categories).sort();
+  const bagItemNames = new Set(
+    categoryNames
+      .flatMap((cat) => categories[cat] ?? [])
+      .map((item) => item.name.trim().toLocaleLowerCase())
+  );
+  const sheetEquipment = getEquipmentEntries(build).filter(
+    (item) => !bagItemNames.has(item.name.trim().toLocaleLowerCase())
+  );
+  const hasInventory = categoryNames.length > 0 || sheetEquipment.length > 0;
 
   if (isLoading)
     return (
@@ -3212,8 +3175,10 @@ function BagTabPanel() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {bag?.bag_name ?? (bag ? "Your bag" : "No bag yet")}
-          {bag && categoryNames.length > 0 ? ` · ${categoryNames.length} categories` : ""}
+          {bag?.bag_name ?? (bag ? "Inventory" : "No inventory yet")}
+          {hasInventory
+            ? ` - ${categoryNames.length + (sheetEquipment.length ? 1 : 0)} sections`
+            : ""}
         </p>
         <button
           type="button"
@@ -3233,23 +3198,23 @@ function BagTabPanel() {
         <div className="text-center py-8">
           <Inbox size={32} className="mx-auto text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground">
-            No bag found. Add your first item above, or use{" "}
+            No inventory found. Add your first item above, or use{" "}
             <code className="bg-muted px-1 rounded">/bag add</code> in Discord.
           </p>
         </div>
       )}
 
-      {bag && categoryNames.length === 0 && !showAddForm && (
+      {bag && !hasInventory && !showAddForm && (
         <div className="text-center py-8">
           <Package size={32} className="mx-auto text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground">
-            Bag is empty. Add items above or use{" "}
+            Inventory is empty. Add items above or use{" "}
             <code className="bg-muted px-1 rounded">/bag add</code> in Discord.
           </p>
         </div>
       )}
 
-      {categoryNames.length > 0 && (
+      {hasInventory && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {categoryNames.map((cat) => (
             <div key={cat} className="bg-muted/30 rounded-lg p-4">
@@ -3280,6 +3245,37 @@ function BagTabPanel() {
               </ul>
             </div>
           ))}
+          {sheetEquipment.length > 0 && (
+            <div className="bg-muted/30 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Character Equipment
+                <span className="ml-1.5 font-normal normal-case text-muted-foreground/60">
+                  (from sheet)
+                </span>
+              </h4>
+              <ul className="space-y-1">
+                {sheetEquipment.map((item, i) => (
+                  <li
+                    key={`${item.name}-${i}`}
+                    className="flex items-center justify-between text-sm py-0.5"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onSelect(item.name)}
+                      className="flex-1 min-w-0 truncate text-left hover:text-primary transition-colors"
+                    >
+                      {item.name}
+                    </button>
+                    {item.qty > 1 && (
+                      <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground shrink-0 ml-2">
+                        &times;{item.qty}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -3541,7 +3537,6 @@ export default function CharacterDetailPage() {
     { key: "feats", label: "Feats" },
     { key: "spells", label: "Spells" },
     { key: "gear", label: "Gear" },
-    { key: "bag", label: "Bag" },
     { key: "notes", label: "Notes" },
     { key: "downtime", label: "Downtime" },
     { key: "official", label: "Official Sheet" },
@@ -3909,7 +3904,6 @@ export default function CharacterDetailPage() {
                   No Pathbuilder data available.
                 </p>
               ))}
-            {tab === "bag" && <BagTabPanel />}
             {tab === "notes" && (
               <NotesTabPanel characterId={characterId} notesRecord={notesRecord} />
             )}
