@@ -110,6 +110,7 @@ type FeatLibraryEntry = Pick<
   | "source"
   | "trigger"
 >;
+type GamedataLibraryEntry = Pick<Tables<"gamedata">, "category" | "data" | "name" | "slug">;
 type EquipmentTuple = [string, number];
 type SpecialAbilityEntry = {
   name: string;
@@ -130,6 +131,13 @@ const PROFICIENCY_OPTIONS = [
   ["2", "Expert"],
   ["3", "Master"],
   ["4", "Legendary"],
+] as const;
+const SPECIAL_ABILITY_LOOKUP_CATEGORIES = [
+  "class_features",
+  "actions",
+  "traits",
+  "rules",
+  "conditions",
 ] as const;
 const SKILL_ABILITY_MAP: Record<string, keyof AbilityScores> = {
   acrobatics: "dex",
@@ -521,6 +529,63 @@ function libraryFeatRulesText(entry: FeatLibraryEntry | null) {
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+function libraryTextFromData(data: unknown) {
+  if (!isRecord(data)) return "";
+  for (const key of ["description", "text", "summary", "effect", "details", "flavor"]) {
+    const value = data[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function librarySourceFromData(data: unknown) {
+  if (!isRecord(data)) return "";
+  const source = data.source;
+  if (typeof source === "string" && source.trim()) return source.trim();
+  if (isRecord(source)) {
+    const sourceName =
+      typeof source.source_text === "string" ? source.source_text : source.book;
+    const page = typeof source.page === "string" || typeof source.page === "number"
+      ? String(source.page)
+      : "";
+    if (typeof sourceName === "string" && sourceName.trim() && page.trim()) {
+      return `${sourceName.trim()} pg. ${page.trim()}`;
+    }
+    if (typeof sourceName === "string" && sourceName.trim()) return sourceName.trim();
+  }
+  return "";
+}
+
+function hasUsefulSpecialDetails(special: SpecialAbilityEntry) {
+  const details = special.details.trim();
+  return !!details && featLookupKey(details) !== featLookupKey(special.name);
+}
+
+function chooseSpecialAbilityLibraryEntry(
+  special: SpecialAbilityEntry,
+  candidates: GamedataLibraryEntry[]
+) {
+  const normalizedName = featLookupKey(special.name);
+  const exact = candidates.filter((candidate) => featLookupKey(candidate.name || candidate.slug) === normalizedName);
+  const pool = exact.length ? exact : candidates;
+  return pool.find((candidate) => candidate.category === "class_features") ?? pool[0] ?? null;
+}
+
+function formatSpecialAbility(
+  special: SpecialAbilityEntry,
+  libraryEntry: GamedataLibraryEntry | null = null
+) {
+  const libraryText = libraryTextFromData(libraryEntry?.data);
+  const librarySource = librarySourceFromData(libraryEntry?.data);
+  return {
+    type: special.type || (libraryEntry ? libraryEntry.category.replace(/_/g, " ") : ""),
+    source: special.source || librarySource,
+    details: hasUsefulSpecialDetails(special) ? special.details : libraryText,
+    aonUrl: libraryEntry ? aonUrlFromMetadata(libraryEntry.data) : null,
+    isOfficial: libraryEntry ? true : null,
+  };
 }
 
 function formatFeat(feat: FeatTuple, libraryEntry: FeatLibraryEntry | null = null) {
@@ -1695,6 +1760,9 @@ function MiniCharacterSheet({
   const [featLibrary, setFeatLibrary] = useState<Record<string, FeatLibraryEntry>>({});
   const equipment = getEquipment(character);
   const specials = getSpecialAbilityEntries(character);
+  const visibleSpecials = specials.slice(0, 8);
+  const visibleSpecialNames = visibleSpecials.map((special) => featLookupKey(special.name)).join("|");
+  const [specialLibrary, setSpecialLibrary] = useState<Record<string, GamedataLibraryEntry>>({});
   const attacks = getCharacterAttacks(character);
   const languages = getLanguages(character);
   const defenses = getDefenseDetails(character);
@@ -1759,6 +1827,51 @@ function MiniCharacterSheet({
     void loadFeatDetails();
     return () => controller.abort();
   }, [character.id, visibleFeatNames]);
+
+  useEffect(() => {
+    const specialList = visibleSpecials.filter((special) => !hasUsefulSpecialDetails(special));
+    if (!specialList.length) {
+      setSpecialLibrary({});
+      return;
+    }
+
+    const controller = new AbortController();
+    async function loadSpecialDetails() {
+      const entries = await Promise.all(
+        specialList.map(async (special) => {
+          try {
+            const results = await Promise.all(
+              SPECIAL_ABILITY_LOOKUP_CATEGORIES.map(async (category) => {
+                const response = await fetch(
+                  `/api/content/gamedata?category=${category}&q=${encodeURIComponent(
+                    special.name
+                  )}&limit=10`,
+                  { signal: controller.signal }
+                );
+                if (!response.ok) return [] as GamedataLibraryEntry[];
+                const payload = (await response.json()) as { data?: GamedataLibraryEntry[] };
+                return payload.data ?? [];
+              })
+            );
+            const match = chooseSpecialAbilityLibraryEntry(special, results.flat());
+            return match ? ([featLookupKey(special.name), match] as const) : null;
+          } catch (error) {
+            if ((error as Error).name === "AbortError") return null;
+            return null;
+          }
+        })
+      );
+
+      if (!controller.signal.aborted) {
+        setSpecialLibrary(
+          Object.fromEntries(entries.filter(Boolean) as [string, GamedataLibraryEntry][])
+        );
+      }
+    }
+
+    void loadSpecialDetails();
+    return () => controller.abort();
+  }, [character.id, visibleSpecialNames]);
 
   return (
     <>
@@ -1985,30 +2098,40 @@ function MiniCharacterSheet({
               <MiniSection title="Special Abilities">
                 {specials.length > 0 ? (
                   <div className="grid gap-2 text-sm">
-                    {specials.slice(0, 8).map((special, index) => (
+                    {visibleSpecials.map((special, index) => (
                       <details key={`${special.name}-${index}`} className="rounded bg-muted/40 p-2">
                         <summary className="cursor-pointer font-semibold">
                           {special.name || `Ability ${index + 1}`}
                         </summary>
-                        <div className="mt-2 space-y-2 text-xs text-muted-foreground">
-                          {(special.type || special.source) && (
-                            <div className="flex flex-wrap gap-2">
-                              {special.type && (
-                                <span className="rounded-full border border-border bg-background/40 px-2 py-0.5">
-                                  {special.type}
-                                </span>
+                        {(() => {
+                          const libraryEntry = specialLibrary[featLookupKey(special.name)] ?? null;
+                          const { type, source, details, aonUrl, isOfficial } = formatSpecialAbility(
+                            special,
+                            libraryEntry
+                          );
+                          return (
+                            <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+                              {(type || source) && (
+                                <div className="flex flex-wrap gap-2">
+                                  {type && (
+                                    <span className="rounded-full border border-border bg-background/40 px-2 py-0.5 capitalize">
+                                      {type}
+                                    </span>
+                                  )}
+                                  {source && (
+                                    <span className="rounded-full border border-border bg-background/40 px-2 py-0.5">
+                                      {source}
+                                    </span>
+                                  )}
+                                </div>
                               )}
-                              {special.source && (
-                                <span className="rounded-full border border-border bg-background/40 px-2 py-0.5">
-                                  {special.source}
-                                </span>
-                              )}
+                              <AonLink name={special.name} url={aonUrl} isOfficial={isOfficial} />
+                              <p className="whitespace-pre-wrap leading-relaxed">
+                                {details || "No ability rules text saved yet."}
+                              </p>
                             </div>
-                          )}
-                          <p className="whitespace-pre-wrap leading-relaxed">
-                            {special.details || "No ability rules text saved yet."}
-                          </p>
-                        </div>
+                          );
+                        })()}
                       </details>
                     ))}
                   </div>
