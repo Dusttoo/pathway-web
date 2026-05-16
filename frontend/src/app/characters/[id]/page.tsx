@@ -3148,89 +3148,44 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
 }
 
 function GearTabPanel({ build, onSelect }: { build: PBBuild; onSelect: (name: string) => void }) {
-  const equipment = build.equipment ?? [];
+  const equipment = getEquipmentEntries(build);
 
   return (
     <div className="space-y-5">
-      {(build.deity || build.keyability || (build.languages && build.languages.length > 0)) && (
+      {equipment.length > 0 ? (
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Details
-          </h4>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            {build.deity && (
-              <>
-                <dt className="text-muted-foreground">Deity</dt>
-                <dd>{build.deity}</dd>
-              </>
-            )}
-            {build.keyability && (
-              <>
-                <dt className="text-muted-foreground">Key Ability</dt>
-                <dd className="capitalize">{build.keyability}</dd>
-              </>
-            )}
-            {build.languages && build.languages.length > 0 && (
-              <>
-                <dt className="text-muted-foreground">Languages</dt>
-                <dd>{build.languages.join(", ")}</dd>
-              </>
-            )}
-          </dl>
-        </div>
-      )}
-
-      {(equipment as unknown[]).length > 0 && (
-        <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Starting Equipment
+            Equipment
             <span className="ml-1.5 font-normal normal-case text-muted-foreground/60">
               (click for details)
             </span>
           </h4>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
-            {(equipment as unknown[]).map((item, i) => {
-              const name = Array.isArray(item)
-                ? (item[0] as string)
-                : ((item as { name: string }).name ?? String(item));
-              const qty = Array.isArray(item)
-                ? (item[1] as number)
-                : ((item as { qty: number }).qty ?? 1);
-              return (
-                <li
-                  key={i}
-                  className="text-sm py-1.5 px-3 bg-muted/40 rounded-md flex items-center justify-between"
+            {equipment.map((item, i) => (
+              <li
+                key={`${item.name}-${i}`}
+                className="text-sm py-1.5 px-3 bg-muted/40 rounded-md flex items-center justify-between"
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelect(item.name)}
+                  className="text-left hover:text-primary transition-colors flex-1"
                 >
-                  <button
-                    type="button"
-                    onClick={() => onSelect(name)}
-                    className="text-left hover:text-primary transition-colors flex-1"
-                  >
-                    {name}
-                  </button>
-                  {qty > 1 && (
-                    <span className="text-xs text-muted-foreground ml-3 shrink-0">×{qty}</span>
-                  )}
-                </li>
-              );
-            })}
+                  {item.name}
+                </button>
+                {item.qty > 1 && (
+                  <span className="text-xs text-muted-foreground ml-3 shrink-0">
+                    &times;{item.qty}
+                  </span>
+                )}
+              </li>
+            ))}
           </ul>
         </div>
-      )}
-
-      {build.spellCasters && build.spellCasters.length > 0 && (
-        <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Spell Casters
-          </h4>
-          <div className="space-y-2">
-            {build.spellCasters.map((sc, i) => (
-              <div key={i} className="py-2 px-3 bg-muted/40 rounded-md">
-                <p className="text-sm font-medium">{sc.name}</p>
-                <p className="text-xs text-muted-foreground">Per day: {sc.perDay.join(" / ")}</p>
-              </div>
-            ))}
-          </div>
+      ) : (
+        <div className="text-center py-8">
+          <Package size={32} className="mx-auto text-muted-foreground mb-3" />
+          <p className="text-sm text-muted-foreground">No equipment saved on this character.</p>
         </div>
       )}
     </div>
