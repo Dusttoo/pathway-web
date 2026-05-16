@@ -7,6 +7,7 @@ import {
   Trash2,
   Search,
   ChevronDown,
+  Info,
   Loader2,
   Wand2,
   AlertTriangle,
@@ -28,6 +29,8 @@ const SPELLCASTING_TYPES = [
   { value: "prepared", label: "Prepared Spellbook" },
   { value: "spontaneous", label: "Spontaneous Repertoire" },
 ] as const;
+const SPELL_RANKS = Array.from({ length: 10 }, (_, i) => i + 1);
+const CASTING_LEVELS = Array.from({ length: 20 }, (_, i) => i + 1);
 const SKILLS = [
   "acrobatics",
   "arcana",
@@ -185,6 +188,27 @@ function progressionSummary(progression: Record<string, number[]>): string {
     .filter(([, slots]) => slots.some((slot) => slot > 0))
     .map(([level, slots]) => `L${level}: ${slots.map((slot) => slot || "-").join("/")}`);
   return rows.slice(0, 2).join("; ") + (rows.length > 2 ? " ..." : "");
+}
+
+function maxSpellRankForLevel(level: number): number {
+  return Math.min(10, Math.max(1, Math.ceil(level / 2)));
+}
+
+function HelpTip({ children, label = "Help" }: { children: React.ReactNode; label?: string }) {
+  return (
+    <span className="group relative inline-flex">
+      <button
+        type="button"
+        className="inline-flex min-h-8 min-w-8 touch-manipulation items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground focus:outline-none"
+        aria-label={label}
+      >
+        <Info size={15} />
+      </button>
+      <span className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-72 rounded-md border border-border bg-background p-3 text-left text-xs leading-relaxed text-muted-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        {children}
+      </span>
+    </span>
+  );
 }
 
 function toItem(raw: Record<string, unknown>): ClassItem {
@@ -466,8 +490,8 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
       </div>
 
       {isSpell && (
-        <div className="rounded-md border border-border bg-muted/20 p-3 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="rounded-md border border-border bg-muted/20 p-3 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <div>
               <label className="block text-xs text-muted-foreground mb-1">Spell List Type</label>
               <div className="relative">
@@ -519,6 +543,22 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
               />
             </div>
             <div>
+              <div className="mb-1 flex items-center gap-1">
+                <label className="block text-xs text-muted-foreground">Rank 1 Slots at Level 1</label>
+                <HelpTip label="Rank 1 starting slots help">
+                  This is the number of 1st-rank spell slots the class starts with at character
+                  level 1. It writes directly to the level 1, rank 1 slot progression below.
+                </HelpTip>
+              </div>
+              <NumberStepper
+                className="w-full"
+                min={0}
+                max={9}
+                value={spellSlotProgression["1"]?.[0] ?? 0}
+                onCommit={(value) => setSlot(1, 1, value)}
+              />
+            </div>
+            <div>
               <label className="block text-xs text-muted-foreground mb-1">Focus Points</label>
               <NumberStepper
                 className="w-full"
@@ -533,9 +573,16 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
           <div>
             <div className="flex items-center justify-between gap-2 mb-2">
               <div>
-                <label className="block text-sm font-medium">Spell Slot Progression</label>
+                <div className="flex items-center gap-1">
+                  <label className="block text-sm font-medium">Spell Slot Progression</label>
+                  <HelpTip label="Spell slot progression help">
+                    Each level card shows the spell ranks a class can normally reach at that
+                    character level. Set how many slots per day the class receives for each rank.
+                    Use 0 for ranks the class does not cast yet.
+                  </HelpTip>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Enter slots per day by character level and spell rank.
+                  Slots per day, grouped by character level for easier mobile editing.
                 </p>
               </div>
               <div className="flex gap-1">
@@ -562,37 +609,31 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
                 </button>
               </div>
             </div>
-            <div className="max-h-72 overflow-auto rounded-md border border-border">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-background">
-                  <tr>
-                    <th className="px-2 py-1 text-left">Lvl</th>
-                    {Array.from({ length: 10 }, (_, i) => i + 1).map((rank) => (
-                      <th key={rank} className="px-1 py-1 text-center">
-                        R{rank}
-                      </th>
+            <div className="grid max-h-[28rem] gap-3 overflow-auto rounded-md border border-border p-3 md:grid-cols-2">
+              {CASTING_LEVELS.map((level) => (
+                <section key={level} className="rounded-md border border-border bg-background/70 p-3">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold">Level {level}</h4>
+                    <span className="text-xs text-muted-foreground">
+                      Up to rank {maxSpellRankForLevel(level)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {SPELL_RANKS.slice(0, maxSpellRankForLevel(level)).map((rank) => (
+                      <div key={rank} className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Rank {rank}</label>
+                        <NumberStepper
+                          className="w-full"
+                          min={0}
+                          max={9}
+                          value={spellSlotProgression[String(level)]?.[rank - 1] ?? 0}
+                          onCommit={(value) => setSlot(level, rank, value)}
+                        />
+                      </div>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: 20 }, (_, i) => i + 1).map((level) => (
-                    <tr key={level} className="border-t border-border">
-                      <td className="px-2 py-1 font-mono text-muted-foreground">{level}</td>
-                      {Array.from({ length: 10 }, (_, rankIndex) => rankIndex + 1).map((rank) => (
-                        <td key={rank} className="min-w-36 px-1 py-1">
-                          <NumberStepper
-                            className="w-full"
-                            min={0}
-                            max={9}
-                            value={spellSlotProgression[String(level)]?.[rank - 1] ?? 0}
-                            onCommit={(value) => setSlot(level, rank, value)}
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </div>
+                </section>
+              ))}
             </div>
           </div>
 
@@ -600,44 +641,45 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div>
-                  <label className="block text-sm font-medium">Repertoire Spells Known</label>
+                  <div className="flex items-center gap-1">
+                    <label className="block text-sm font-medium">Repertoire Spells Known</label>
+                    <HelpTip label="Repertoire progression help">
+                      This is the number of non-cantrip spells known by character level and spell
+                      rank. It is separate from slots per day: known spells define the menu, while
+                      spell slots define how often the character can cast.
+                    </HelpTip>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Enter how many non-cantrip spells this class knows by character level and spell
                     rank.
                   </p>
                 </div>
               </div>
-              <div className="max-h-72 overflow-auto rounded-md border border-border">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-background">
-                    <tr>
-                      <th className="px-2 py-1 text-left">Lvl</th>
-                      {Array.from({ length: 10 }, (_, i) => i + 1).map((rank) => (
-                        <th key={rank} className="px-1 py-1 text-center">
-                          R{rank}
-                        </th>
+              <div className="grid max-h-[28rem] gap-3 overflow-auto rounded-md border border-border p-3 md:grid-cols-2">
+                {CASTING_LEVELS.map((level) => (
+                  <section key={level} className="rounded-md border border-border bg-background/70 p-3">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <h4 className="text-sm font-semibold">Level {level}</h4>
+                      <span className="text-xs text-muted-foreground">
+                        Up to rank {maxSpellRankForLevel(level)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {SPELL_RANKS.slice(0, maxSpellRankForLevel(level)).map((rank) => (
+                        <div key={rank} className="space-y-1">
+                          <label className="text-xs text-muted-foreground">Rank {rank}</label>
+                          <NumberStepper
+                            className="w-full"
+                            min={0}
+                            max={20}
+                            value={spellsKnownProgression[String(level)]?.[rank - 1] ?? 0}
+                            onCommit={(value) => setKnownSpellCount(level, rank, value)}
+                          />
+                        </div>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: 20 }, (_, i) => i + 1).map((level) => (
-                      <tr key={level} className="border-t border-border">
-                        <td className="px-2 py-1 font-mono text-muted-foreground">{level}</td>
-                        {Array.from({ length: 10 }, (_, rankIndex) => rankIndex + 1).map((rank) => (
-                          <td key={rank} className="min-w-36 px-1 py-1">
-                            <NumberStepper
-                              className="w-full"
-                              min={0}
-                              max={20}
-                              value={spellsKnownProgression[String(level)]?.[rank - 1] ?? 0}
-                              onCommit={(value) => setKnownSpellCount(level, rank, value)}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </div>
+                  </section>
+                ))}
               </div>
             </div>
           )}
