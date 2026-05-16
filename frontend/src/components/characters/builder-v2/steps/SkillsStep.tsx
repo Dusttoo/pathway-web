@@ -94,6 +94,12 @@ export function SkillsStep({ state, update }: StepProps) {
     });
   }
 
+  function setAdditionalName(index: number, name: string) {
+    update({
+      additionalSkills: additionalSkills.map((s, i) => (i === index ? { ...s, name } : s)),
+    });
+  }
+
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
@@ -222,7 +228,14 @@ export function SkillsStep({ state, update }: StepProps) {
               >
                 <span className="flex min-w-0 flex-1 items-center gap-2">
                   <CheckCircle2 size={14} className="shrink-0 text-primary" />
-                  <span className="text-sm truncate">{s.name}</span>
+                  <input
+                    type="text"
+                    value={s.name}
+                    onChange={(e) => setAdditionalName(i, e.target.value)}
+                    placeholder="Skill name, e.g. Underworld Lore"
+                    className="input min-w-0 flex-1 text-sm"
+                    aria-label={`Additional skill ${i + 1} name`}
+                  />
                   <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                     {rankLabel(s.rank)}
                   </span>
