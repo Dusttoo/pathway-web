@@ -491,9 +491,11 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
 
       {isSpell && (
         <div className="rounded-md border border-border bg-muted/20 p-3 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Spell List Type</label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="min-w-0">
+              <label className="mb-2 flex h-8 items-center text-xs text-muted-foreground">
+                Spell List Type
+              </label>
               <div className="relative">
                 <select
                   className="input w-full appearance-none pr-8 text-sm"
@@ -512,8 +514,10 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Tradition</label>
+            <div className="min-w-0">
+              <label className="mb-2 flex h-8 items-center text-xs text-muted-foreground">
+                Tradition
+              </label>
               <div className="relative">
                 <select
                   className="input w-full appearance-none pr-8 text-sm capitalize"
@@ -532,8 +536,8 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">
+            <div className="min-w-0">
+              <label className="mb-2 flex h-8 items-center text-xs text-muted-foreground">
                 Cantrips Known at Level 1
               </label>
               <NumberStepper
@@ -544,9 +548,9 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
                 onCommit={setCantripsKnown}
               />
             </div>
-            <div>
-              <div className="mb-1 flex items-center gap-1">
-                <label className="block text-xs text-muted-foreground">Rank 1 Spells at Level 1</label>
+            <div className="min-w-0">
+              <div className="mb-2 flex h-8 items-center gap-1">
+                <label className="text-xs text-muted-foreground">Rank 1 Spells at Level 1</label>
                 <HelpTip label="Rank 1 starting spells help">
                   This is how many 1st-rank spells the class starts knowing or adding to its
                   spellbook at character level 1. It controls the spell selection budget, not the
@@ -561,8 +565,10 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
                 onCommit={(value) => setKnownSpellCount(1, 1, value)}
               />
             </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Focus Points</label>
+            <div className="min-w-0">
+              <label className="mb-2 flex h-8 items-center text-xs text-muted-foreground">
+                Focus Points
+              </label>
               <NumberStepper
                 className="w-full"
                 min={0}
