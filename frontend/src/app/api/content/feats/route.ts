@@ -21,12 +21,28 @@ type FeatRow = {
   updated_at: string | null;
 };
 
+type HomebrewRow = {
+  id: string;
+  name: string | null;
+  type: string | null;
+  data: Record<string, unknown> | null;
+  added_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 function featKey(row: FeatRow): string {
   return [
+    row.is_official ? "official" : "homebrew",
     row.name.trim().toLowerCase().replace(/\s+/g, " "),
     row.level,
     row.feat_type?.trim().toLowerCase() ?? "",
   ].join("|");
+}
+
+function virtualType(row: HomebrewRow): string {
+  const dataType = typeof row.data?._homebrew_type === "string" ? row.data._homebrew_type : null;
+  return dataType || row.type || "item";
 }
 
 function hasStructuredJson(value: unknown): boolean {
@@ -70,6 +86,82 @@ function listValues(value: unknown): string[] {
   }
   if (typeof value === "number" && Number.isFinite(value)) return [String(value)];
   return [];
+}
+
+function text(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function numberValue(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+function sourceText(data: Record<string, unknown>): string {
+  if (data.source && typeof data.source === "object") {
+    const source = data.source as Record<string, unknown>;
+    const sourceName = text(source.source_text) ?? text(source.book);
+    const page = text(source.page);
+    if (sourceName && page) return `${sourceName} pg. ${page}`;
+    if (sourceName) return sourceName;
+  }
+
+  return text(data.source) ?? text(data.source_book) ?? "Homebrew";
+}
+
+function normalizeFeatType(value: unknown): string | null {
+  const raw = text(value)?.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+  if (raw === "class feat" || raw === "class") return "class_feat";
+  if (raw === "skill feat" || raw === "skill") return "skill";
+  if (raw === "ancestry feat" || raw === "ancestry") return "ancestry";
+  if (raw === "general feat" || raw === "general") return "general";
+  if (raw === "archetype feat" || raw === "archetype") return "archetype";
+  if (raw === "heritage feat" || raw === "heritage") return "ancestry";
+  if (raw === "lineage feat" || raw === "lineage") return "ancestry";
+  if (raw === "bonus feat" || raw === "bonus") return "bonus";
+  return raw.replace(/\s+feat$/, "").replace(/\s+/g, "_");
+}
+
+function virtualFeat(row: HomebrewRow): FeatRow {
+  const data = row.data ?? {};
+  const name = text(data.name) ?? text(row.name) ?? "Unnamed Feat";
+  const source = sourceText(data);
+  const traits = listValues(data.traits);
+  const metadata =
+    data.feat_metadata && typeof data.feat_metadata === "object" && !Array.isArray(data.feat_metadata)
+      ? (data.feat_metadata as Record<string, unknown>)
+      : {};
+
+  return {
+    action_cost: text(data.action_cost),
+    created_at: row.created_at ?? null,
+    created_by_user_id: row.added_by ?? null,
+    description: text(data.description) ?? text(data.benefit) ?? "",
+    discord_guild_id: null,
+    feat_metadata: {
+      ...metadata,
+      homebrew_entry_id: row.id,
+      classes: listValues(data.classes ?? metadata.classes),
+      ancestry: listValues(data.ancestry ?? data.ancestries ?? metadata.ancestry),
+      archetype: listValues(data.archetype ?? data.archetypes ?? metadata.archetype),
+    },
+    feat_type: normalizeFeatType(data.feat_type),
+    id: row.id,
+    is_official: false,
+    level: numberValue(data.level, 1),
+    name,
+    prerequisites: text(data.prerequisites),
+    rarity: text(data.rarity) ?? "Common",
+    source,
+    traits,
+    trigger: text(data.trigger),
+    updated_at: row.updated_at ?? null,
+  };
 }
 
 const METADATA_KEY_ALIASES: Record<string, string[]> = {
@@ -145,6 +237,46 @@ function dedupeFeats(rows: FeatRow[]): FeatRow[] {
   return [...byFeat.values()].sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
 }
 
+function featMatchesRequest(
+  feat: FeatRow,
+  filters: {
+    q: string;
+    nameExact: string | null;
+    featType: string | null;
+    level: string | null;
+    levelMin: string | null;
+    levelMax: string | null;
+    rarity: string | null;
+    traits: string[];
+    className: string | null;
+    ancestryFilters: string[];
+    archetype: string | null;
+  }
+): boolean {
+  if (filters.nameExact && normalizeText(feat.name) !== normalizeText(filters.nameExact)) {
+    return false;
+  }
+  if (!filters.nameExact && filters.q && !normalizeText(feat.name).includes(normalizeText(filters.q))) {
+    return false;
+  }
+  if (filters.featType && feat.feat_type !== filters.featType) return false;
+  if (filters.level && feat.level !== parseInt(filters.level, 10)) return false;
+  if (filters.levelMin && feat.level < parseInt(filters.levelMin, 10)) return false;
+  if (filters.levelMax && feat.level > parseInt(filters.levelMax, 10)) return false;
+  if (filters.rarity && normalizeText(feat.rarity ?? "") !== normalizeText(filters.rarity)) {
+    return false;
+  }
+
+  const traitSet = new Set(listValues(feat.traits).map(normalizeText));
+  if (filters.traits.some((trait) => !traitSet.has(normalizeText(trait)))) return false;
+
+  return (
+    featMatches(feat, "classes", filters.className) &&
+    featMatchesAny(feat, "ancestry", filters.ancestryFilters) &&
+    featMatches(feat, "archetype", filters.archetype)
+  );
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") ?? "";
@@ -182,17 +314,43 @@ export async function GET(request: Request) {
   if (rarity) query = query.eq("rarity", rarity);
   if (traits.length > 0) query = query.contains("traits", traits);
 
-  const { data, error } = await query;
+  const [{ data, error }, { data: homebrewData, error: homebrewError }] = await Promise.all([
+    query,
+    supabase
+      .from("homebrew_entries")
+      .select("*")
+      .in("type", ["item", "feat"])
+      .order("name", { ascending: true }),
+  ]);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  if (homebrewError) {
+    return NextResponse.json({ error: homebrewError.message }, { status: 500 });
+  }
 
-  const filtered = ((data ?? []) as FeatRow[]).filter(
-    (feat) =>
-      featMatches(feat, "classes", className) &&
-      featMatchesAny(feat, "ancestry", ancestryFilters) &&
-      featMatches(feat, "archetype", archetype)
+  const filters = {
+    q,
+    nameExact,
+    featType,
+    level,
+    levelMin,
+    levelMax,
+    rarity,
+    traits,
+    className,
+    ancestryFilters,
+    archetype,
+  };
+
+  const officialRows = (data ?? []) as FeatRow[];
+  const homebrewRows = ((homebrewData ?? []) as HomebrewRow[])
+    .filter((row) => virtualType(row) === "feat")
+    .map(virtualFeat);
+
+  const filtered = [...officialRows, ...homebrewRows].filter((feat) =>
+    featMatchesRequest(feat, filters)
   );
   const deduped = dedupeFeats(filtered);
   const paged = deduped.slice(offset, offset + limit);
