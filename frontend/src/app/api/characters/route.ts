@@ -560,10 +560,6 @@ export async function POST(request: Request) {
 
   // ── Pathbuilder import path (existing) ───────────────────────────────────
 
-  if (!discord_guild_id) {
-    return NextResponse.json({ error: "discord_guild_id is required" }, { status: 400 });
-  }
-
   const { pathbuilder_data, pathbuilder_id } = body;
 
   if (!pathbuilder_data) {
@@ -579,7 +575,7 @@ export async function POST(request: Request) {
     .from("characters")
     .insert({
       user_id: ctx.appUserId,
-      discord_guild_id,
+      discord_guild_id: discord_guild_id ?? null,
       source: "pathbuilder",
       name: build.name,
       char_key: build.name.toLowerCase().replace(/\s+/g, "-"),

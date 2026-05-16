@@ -2,80 +2,20 @@
 
 import { MainLayout } from "@/components/layout";
 import { BuilderShell } from "@/components/characters/builder-v2/BuilderShell";
-import { useCreateCharacter, useDiscordGuilds } from "@/lib/hooks/use-characters";
+import { useCreateCharacter } from "@/lib/hooks/use-characters";
 import { useAuth } from "@/lib/providers/auth-provider";
-import { ArrowLeft, Upload, ChevronDown, AlertCircle } from "lucide-react";
+import { ArrowLeft, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 // ── Pathbuilder import form ───────────────────────────────────────────────────
 
-function GuildPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-  const { data: guilds, isLoading, error } = useDiscordGuilds();
-
-  if (isLoading) {
-    return (
-      <div className="input w-full flex items-center gap-2 text-muted-foreground">
-        <div className="spinner w-4 h-4" />
-        Loading your servers…
-      </div>
-    );
-  }
-
-  if (error || !guilds?.length) {
-    return (
-      <div className="space-y-2">
-        {error && (
-          <div className="flex items-center gap-2 text-xs text-amber-500">
-            <AlertCircle size={12} />
-            Couldn&apos;t load servers automatically — please paste your Server ID.
-          </div>
-        )}
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="e.g. 1234567890123456789"
-          className="input w-full font-mono"
-          required
-        />
-        <p className="text-xs text-muted-foreground">
-          Right-click your server icon in Discord → Copy Server ID (Developer Mode required).
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="input w-full appearance-none pr-8"
-        required
-      >
-        <option value="">Select a server…</option>
-        {guilds.map((g) => (
-          <option key={g.id} value={g.id}>
-            {g.name}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={14}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-      />
-    </div>
-  );
-}
-
 function PathbuilderImportForm() {
   const router = useRouter();
   const createMutation = useCreateCharacter();
 
   const [mode, setMode] = useState<"id" | "json">("id");
-  const [guildId, setGuildId] = useState("");
   const [pathbuilderId, setPathbuilderId] = useState("");
   const [jsonText, setJsonText] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -83,11 +23,6 @@ function PathbuilderImportForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-
-    if (!guildId.trim()) {
-      setFormError("Please select a Discord server.");
-      return;
-    }
 
     if (mode === "id") {
       const id = parseInt(pathbuilderId, 10);
@@ -115,7 +50,6 @@ function PathbuilderImportForm() {
       }
       try {
         const character = await createMutation.mutateAsync({
-          discord_guild_id: guildId,
           pathbuilder_data: pbJson,
           pathbuilder_id: id,
         });
@@ -133,7 +67,6 @@ function PathbuilderImportForm() {
       }
       try {
         const character = await createMutation.mutateAsync({
-          discord_guild_id: guildId,
           pathbuilder_data: parsed,
         });
         router.push(`/characters/${character.id}`);
@@ -168,11 +101,6 @@ function PathbuilderImportForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Discord Server</label>
-          <GuildPicker value={guildId} onChange={setGuildId} />
-        </div>
-
         {mode === "id" ? (
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="pathbuilder-id">

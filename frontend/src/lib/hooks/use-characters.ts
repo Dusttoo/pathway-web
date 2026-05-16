@@ -50,7 +50,7 @@ import type { NativeBuildInput } from "@/lib/types/character";
 
 type PathbuilderImport = {
   source?: "pathbuilder";
-  discord_guild_id: string;
+  discord_guild_id?: string;
   pathbuilder_id?: number;
   pathbuilder_data?: unknown; // full { success, build } or just build
 };
