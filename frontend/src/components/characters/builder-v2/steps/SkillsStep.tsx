@@ -224,40 +224,49 @@ export function SkillsStep({ state, update }: StepProps) {
             {additionalSkills.map((s, i) => (
               <div
                 key={`${s.name}-${i}`}
-                className="flex flex-col gap-2 p-2 rounded-md border border-border bg-card sm:flex-row sm:items-center"
+                className="grid grid-cols-[auto_1fr_auto] gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[auto_minmax(14rem,1fr)_10rem_auto] sm:items-end"
               >
-                <span className="flex min-w-0 flex-1 items-center gap-2">
-                  <CheckCircle2 size={14} className="shrink-0 text-primary" />
+                <CheckCircle2 size={14} className="mt-8 shrink-0 text-primary sm:mt-0 sm:mb-3" />
+                <label className="col-span-2 block min-w-0 sm:col-span-1">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Skill
+                  </span>
                   <input
                     type="text"
                     value={s.name}
                     onChange={(e) => setAdditionalName(i, e.target.value)}
                     placeholder="Skill name, e.g. Underworld Lore"
-                    className="input min-w-0 flex-1 text-sm"
+                    className="input text-sm"
                     aria-label={`Additional skill ${i + 1} name`}
                   />
-                  <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                    {rankLabel(s.rank)}
+                </label>
+                <label className="col-span-2 block sm:col-span-1">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Rank
                   </span>
-                </span>
-                <select
-                  value={s.rank}
-                  onChange={(e) => setAdditionalRank(i, parseInt(e.target.value))}
-                  className="input text-xs py-1 sm:w-32"
-                >
-                  <option value={2}>Trained</option>
-                  <option value={4}>Expert</option>
-                  <option value={6}>Master</option>
-                  <option value={8}>Legendary</option>
-                </select>
+                  <select
+                    value={s.rank}
+                    onChange={(e) => setAdditionalRank(i, parseInt(e.target.value))}
+                    className="input text-xs py-2"
+                    aria-label={`Additional skill ${i + 1} rank`}
+                  >
+                    <option value={2}>Trained</option>
+                    <option value={4}>Expert</option>
+                    <option value={6}>Master</option>
+                    <option value={8}>Legendary</option>
+                  </select>
+                </label>
                 <button
                   type="button"
                   onClick={() => removeAdditional(i)}
-                  className="self-end text-muted-foreground hover:text-destructive p-1 sm:self-auto"
+                  className="col-start-3 row-start-1 self-start p-1 text-muted-foreground hover:text-destructive sm:col-start-auto sm:row-start-auto sm:mb-2 sm:self-end"
                   aria-label={`Remove ${s.name}`}
                 >
                   <X size={14} />
                 </button>
+                <span className="col-span-full ml-6 text-xs text-muted-foreground sm:hidden">
+                  Current rank: {rankLabel(s.rank)}
+                </span>
               </div>
             ))}
           </div>
