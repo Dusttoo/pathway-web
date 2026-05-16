@@ -67,10 +67,35 @@ interface PBBuild {
   proficiencies?: Record<string, number>;
   feats?: Array<[string, string | null, string | null, string | null] | string[]>;
   specials?: string[];
-  custom_attacks?: { name: string; bonus: string; damage: string; traits: string }[];
+  custom_attacks?: {
+    name: string;
+    bonus: string | number;
+    damage: string;
+    traits: string | string[];
+    action?: string;
+    category?: string;
+    range?: string;
+    notes?: string;
+  }[];
+  weapons?: unknown[];
+  lores?: unknown[];
   equipment?: Array<[string, number]> | Array<{ name: string; qty: number }>;
   attributes?: { ancestryhp: number; classhp: number; bonushp: number; bonushpPerLevel: number };
   spellCasters?: Array<{ name: string; perDay: number[] }>;
+  ac?: number;
+  armorClass?: number;
+  armor_class?: number;
+  acTotal?: number | { acTotal?: number };
+  speed?: number;
+  speed_ft?: number;
+  senses?: string;
+  armor?: string;
+  shield?: string;
+  class_dc?: number;
+  classDC?: number;
+  spell_dc?: number;
+  spellDC?: number;
+  stats?: Record<string, unknown>;
 }
 
 type TabKey = "stats" | "feats" | "spells" | "gear" | "bag" | "notes" | "downtime" | "companions";
@@ -120,6 +145,40 @@ function abilityModStr(score: number): string {
 
 function profBonus(rank: number, level: number): number {
   return rank === 0 ? 0 : rank * 2 + level;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getNestedNumber(value: unknown, paths: string[][]): number | null {
+  for (const path of paths) {
+    let cursor: unknown = value;
+    for (const key of path) {
+      if (!isRecord(cursor)) {
+        cursor = null;
+        break;
+      }
+      cursor = cursor[key];
+    }
+    if (typeof cursor === "number" && Number.isFinite(cursor)) return cursor;
+  }
+  return null;
+}
+
+function getNestedString(value: unknown, paths: string[][]): string | null {
+  for (const path of paths) {
+    let cursor: unknown = value;
+    for (const key of path) {
+      if (!isRecord(cursor)) {
+        cursor = null;
+        break;
+      }
+      cursor = cursor[key];
+    }
+    if (typeof cursor === "string" && cursor.trim()) return cursor.trim();
+  }
+  return null;
 }
 
 function signedTotal(total: number): string {
@@ -184,12 +243,88 @@ function profLabel(key: string): string {
   return labels[canonical] ?? customLabel(key);
 }
 
+function usesPf2eProficiencyBonus(build: PBBuild, proficiencies: Record<string, number>): boolean {
+  if (
+    isRecord(build.acTotal) ||
+    Array.isArray(build.lores) ||
+    Array.isArray(build.weapons) ||
+    Object.values(proficiencies).some((value) => value > 4)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function proficiencyValueToBonus(value: number, level: number, usesRawBonus: boolean): number {
+  if (!value) return 0;
+  return level + (usesRawBonus ? value : value * 2);
+}
+
+function proficiencyValueToRank(value: number, usesRawBonus: boolean): number {
+  if (!value) return 0;
+  const rank = usesRawBonus ? value / 2 : value;
+  return Math.max(0, Math.min(4, Math.round(rank)));
+}
+
+function normalizedProfBonus(rankOrBonus: number, level: number, usesRawBonus: boolean): number {
+  return proficiencyValueToBonus(rankOrBonus, level, usesRawBonus);
+}
+
 function deriveMaxHp(build: PBBuild, level: number): number | null {
-  const attr = build.attributes;
-  if (!attr) return null;
+  const attr = build.attributes ?? {
+    ancestryhp: 8,
+    classhp: 8,
+    bonushp: 0,
+    bonushpPerLevel: 0,
+  };
   const conMod = Math.floor(((build.abilities?.con ?? 10) - 10) / 2);
   const perLevel = (attr.classhp ?? 0) + conMod + (attr.bonushpPerLevel ?? 0);
   return (attr.ancestryhp ?? 0) + perLevel * level + (attr.bonushp ?? 0);
+}
+
+function deriveAc(build: PBBuild, level: number, usesRawBonus: boolean): number {
+  const directAc = getNestedNumber(build, [
+    ["acTotal", "acTotal"],
+    ["ac"],
+    ["armorClass"],
+    ["armor_class"],
+    ["stats", "ac"],
+  ]);
+  if (directAc !== null) return directAc;
+  const abilities = build.abilities ?? { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+  const proficiencies = build.proficiencies ?? {};
+  const armorRank =
+    proficiencies.unarmored ??
+    proficiencies.light ??
+    proficiencies.light_armor ??
+    proficiencies.medium ??
+    proficiencies.medium_armor ??
+    proficiencies.heavy ??
+    proficiencies.heavy_armor ??
+    0;
+  return 10 + abilityModNum(abilities.dex) + normalizedProfBonus(armorRank, level, usesRawBonus);
+}
+
+function getDefenseDetails(build: PBBuild, level: number, usesRawBonus: boolean) {
+  const ac = deriveAc(build, level, usesRawBonus);
+  const speed =
+    getNestedNumber(build, [
+      ["speed"],
+      ["speed_ft"],
+      ["stats", "speed"],
+      ["attributes", "speed"],
+    ]) ?? null;
+  const classDc = getNestedNumber(build, [["class_dc"], ["classDC"], ["stats", "class_dc"]]);
+  const spellDc = getNestedNumber(build, [["spell_dc"], ["spellDC"], ["stats", "spell_dc"]]);
+  return {
+    ac,
+    armor: getNestedString(build, [["armor"], ["equipped_armor"], ["stats", "armor"]]) ?? "",
+    shield: getNestedString(build, [["shield"], ["equipped_shield"], ["stats", "shield"]]) ?? "",
+    speed: speed ? `${speed}` : "",
+    senses: getNestedString(build, [["senses"], ["stats", "senses"]]) ?? "",
+    classDc: classDc ? `${classDc}` : "",
+    spellDc: spellDc ? `${spellDc}` : "",
+  };
 }
 
 function formatPriceCp(cp: number | null): string {
@@ -368,6 +503,111 @@ function dedupeDisplayFeats(feats: DisplayFeat[]): DisplayFeat[] {
 
 function spellRankLabel(rank: number): string {
   return rank === 0 ? "Cantrip" : `Rank ${rank}`;
+}
+
+type SheetAttack = NonNullable<PBBuild["custom_attacks"]>[number];
+
+function formatAttackBonus(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) return signedTotal(value);
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return "";
+}
+
+function formatAttackTraits(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value
+      .map((trait) => (typeof trait === "string" ? trait.trim() : ""))
+      .filter(Boolean)
+      .join(", ");
+  }
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function damageTypeLabel(value: unknown): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  const labels: Record<string, string> = {
+    B: "Bludgeoning",
+    P: "Piercing",
+    S: "Slashing",
+  };
+  return labels[raw] ?? raw;
+}
+
+function normalizeWeaponAttack(value: unknown): SheetAttack | null {
+  if (!isRecord(value)) return null;
+  const name =
+    (typeof value.display === "string" && value.display.trim()) ||
+    (typeof value.name === "string" && value.name.trim());
+  if (!name) return null;
+  const die =
+    (typeof value.die === "string" && value.die.trim()) ||
+    (typeof value.damage === "string" && value.damage.trim());
+  const damageBonus =
+    typeof value.damageBonus === "number" && value.damageBonus !== 0
+      ? signedTotal(value.damageBonus)
+      : "";
+  const damageType = damageTypeLabel(value.damageType);
+  return {
+    name,
+    bonus: formatAttackBonus(value.attack ?? value.attackBonus),
+    damage: [die ? `${die}${damageBonus}` : "", damageType].filter(Boolean).join(" "),
+    traits: formatAttackTraits(value.traits),
+    category: typeof value.type === "string" ? value.type : undefined,
+    range: typeof value.range === "string" ? value.range : undefined,
+  };
+}
+
+function getCharacterAttacks(build: PBBuild): SheetAttack[] {
+  const attacks = new Map<string, SheetAttack>();
+  if (Array.isArray(build.weapons)) {
+    for (const attack of build.weapons
+      .map(normalizeWeaponAttack)
+      .filter((attack): attack is SheetAttack => !!attack)) {
+      attacks.set(attack.name.toLowerCase(), attack);
+    }
+  }
+  for (const attack of build.custom_attacks ?? []) {
+    if (!attack.name?.trim()) continue;
+    attacks.set(attack.name.toLowerCase(), {
+      ...attack,
+      bonus: formatAttackBonus(attack.bonus),
+      traits: formatAttackTraits(attack.traits),
+    });
+  }
+  return [...attacks.values()];
+}
+
+function getLoreSkills(build: PBBuild, level: number, usesRawBonus: boolean) {
+  const intMod = abilityModNum(build.abilities?.int ?? 10);
+  if (!Array.isArray(build.lores)) return [];
+  return build.lores
+    .map((lore): { skill: string; rank: number; total: number } | null => {
+      let name = "";
+      let rawRank = 0;
+      let totalOverride: number | null = null;
+      if (Array.isArray(lore) && typeof lore[0] === "string") {
+        name = lore[0];
+        rawRank = typeof lore[1] === "number" ? lore[1] : 0;
+        totalOverride = typeof lore[2] === "number" ? lore[2] : null;
+      } else if (isRecord(lore)) {
+        name =
+          (typeof lore.name === "string" && lore.name) ||
+          (typeof lore.skill === "string" && lore.skill) ||
+          "";
+        rawRank =
+          (typeof lore.rank === "number" && lore.rank) ||
+          (typeof lore.prof === "number" && lore.prof) ||
+          0;
+        totalOverride = typeof lore.total === "number" ? lore.total : null;
+      }
+      if (!name.trim()) return null;
+      return {
+        skill: name,
+        rank: proficiencyValueToRank(rawRank, usesRawBonus),
+        total: totalOverride ?? normalizedProfBonus(rawRank, level, usesRawBonus) + intMod,
+      };
+    })
+    .filter((lore): lore is { skill: string; rank: number; total: number } => !!lore);
 }
 
 // ── ContentModal — shared feat / item detail modal ────────────────────────────
@@ -653,16 +893,19 @@ function SaveBox({
   rank,
   abilityScore,
   level,
+  usesRawBonus,
 }: {
   label: string;
   rank: number;
   abilityScore: number;
   level: number;
+  usesRawBonus: boolean;
 }) {
-  const total = profBonus(rank, level) + abilityModNum(abilityScore);
+  const total = normalizedProfBonus(rank, level, usesRawBonus) + abilityModNum(abilityScore);
+  const displayRank = proficiencyValueToRank(rank, usesRawBonus);
   return (
     <div className="flex flex-col items-center p-2 bg-muted/40 rounded-lg">
-      <ProfBadge rank={rank} />
+      <ProfBadge rank={displayRank} />
       <span className="text-xl font-bold font-mono mt-1">{signedTotal(total)}</span>
       <span className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
         {label}
@@ -672,6 +915,15 @@ function SaveBox({
 }
 
 // ── Companion card ────────────────────────────────────────────────────────────
+
+function MiniDetail({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg bg-muted/40 px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-0.5 truncate text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
 
 function companionMaxHp(comp: BotCompanion, charLevel: number): number | null {
   if (comp.baseType !== "custom" || !comp.customStats) return null;
@@ -1230,6 +1482,7 @@ function StatsTabPanel({
   onSaveProficiencies,
   onSaveCustomAttacks,
   isSaving,
+  usesRawBonus,
 }: {
   build: PBBuild;
   level: number;
@@ -1238,10 +1491,13 @@ function StatsTabPanel({
     attacks: { name: string; bonus: string; damage: string; traits: string }[]
   ) => void;
   isSaving: boolean;
+  usesRawBonus: boolean;
 }) {
   const abs = build.abilities;
   const profs = build.proficiencies ?? {};
   const profEntries = Object.entries(profs).filter(([, rank]) => rank > 0);
+  const loreFromPathbuilder = getLoreSkills(build, level, usesRawBonus);
+  const pathbuilderLoreNames = new Set(loreFromPathbuilder.map((lore) => customKey(lore.skill)));
   const loreProfs = profEntries.filter(([key]) => canonicalProfKey(key).includes("lore"));
   const combatProfs = profEntries.filter(([key]) => COMBAT_PROF_KEYS.has(canonicalProfKey(key)));
   const spellDcProfs = profEntries.filter(([key]) => SPELL_DC_PROF_KEYS.has(canonicalProfKey(key)));
@@ -1254,6 +1510,7 @@ function StatsTabPanel({
       !SPELL_DC_PROF_KEYS.has(canonical)
     );
   });
+  const sheetAttacks = getCharacterAttacks(build);
   const customAttacks = build.custom_attacks ?? [];
   const [extraSkillName, setExtraSkillName] = useState("");
   const [extraSkillRank, setExtraSkillRank] = useState(2);
@@ -1278,7 +1535,12 @@ function StatsTabPanel({
     const name = attackName.trim();
     if (!name) return;
     onSaveCustomAttacks([
-      ...customAttacks,
+      ...customAttacks.map((attack) => ({
+        name: attack.name,
+        bonus: String(attack.bonus ?? ""),
+        damage: attack.damage,
+        traits: formatAttackTraits(attack.traits),
+      })),
       {
         name,
         bonus: attackBonus.trim(),
@@ -1293,7 +1555,16 @@ function StatsTabPanel({
   }
 
   function removeCustomAttack(index: number) {
-    onSaveCustomAttacks(customAttacks.filter((_, i) => i !== index));
+    onSaveCustomAttacks(
+      customAttacks
+        .filter((_, i) => i !== index)
+        .map((attack) => ({
+          name: attack.name,
+          bonus: String(attack.bonus ?? ""),
+          damage: attack.damage,
+          traits: formatAttackTraits(attack.traits),
+        }))
+    );
   }
 
   return (
@@ -1304,11 +1575,14 @@ function StatsTabPanel({
             Perception
           </h4>
           <div className="flex items-center gap-3 py-2 px-3 bg-muted/40 rounded-lg">
-            <ProfBadge rank={profs.perception ?? 2} />
+            <ProfBadge rank={proficiencyValueToRank(profs.perception ?? 2, usesRawBonus)} />
             <span className="flex-1 text-sm font-medium">Perception</span>
             <span className="text-xs text-muted-foreground">WIS {abilityModStr(abs.wis)}</span>
             <span className="font-mono font-bold text-sm w-10 text-right">
-              {signedTotal(profBonus(profs.perception ?? 2, level) + abilityModNum(abs.wis))}
+              {signedTotal(
+                normalizedProfBonus(profs.perception ?? 2, level, usesRawBonus) +
+                  abilityModNum(abs.wis)
+              )}
             </span>
           </div>
         </div>
@@ -1323,13 +1597,13 @@ function StatsTabPanel({
             const rank = profs[skill] ?? 0;
             const abilKey = SKILL_ABILITY_MAP[skill];
             const abilScore = abs ? (abs[abilKey] ?? 10) : 10;
-            const total = profBonus(rank, level) + abilityModNum(abilScore);
+            const total = normalizedProfBonus(rank, level, usesRawBonus) + abilityModNum(abilScore);
             return (
               <div
                 key={skill}
                 className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
               >
-                <ProfBadge rank={rank} />
+                <ProfBadge rank={proficiencyValueToRank(rank, usesRawBonus)} />
                 <span className="flex-1 text-sm capitalize">{skill}</span>
                 <span className="text-xs text-muted-foreground uppercase w-7">
                   {abilKey.slice(0, 3)}
@@ -1362,7 +1636,7 @@ function StatsTabPanel({
                   key={key}
                   className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
                 >
-                  <ProfBadge rank={rank} />
+                  <ProfBadge rank={proficiencyValueToRank(rank, usesRawBonus)} />
                   <span className="flex-1 text-sm">{profLabel(key)}</span>
                   <button
                     type="button"
@@ -1407,28 +1681,50 @@ function StatsTabPanel({
         </div>
       </div>
 
-      {loreProfs.length > 0 && (
+      {(loreProfs.length > 0 || loreFromPathbuilder.length > 0) && (
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
             Lore Skills
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
-            {loreProfs.map(([key, rank]) => (
+            {[
+              ...loreProfs.map(([key, rank]) => ({
+                key,
+                label: profLabel(key),
+                rank: proficiencyValueToRank(rank, usesRawBonus),
+                total: null as number | null,
+                removable: true,
+              })),
+              ...loreFromPathbuilder
+                .filter((lore) => !pathbuilderLoreNames.has(customKey(lore.skill)))
+                .map((lore) => ({
+                  key: `pathbuilder-${lore.skill}`,
+                  label: lore.skill,
+                  rank: lore.rank,
+                  total: lore.total,
+                  removable: false,
+                })),
+            ].map((lore) => (
               <div
-                key={key}
+                key={lore.key}
                 className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
               >
-                <ProfBadge rank={rank} />
-                <span className="text-sm flex-1">{profLabel(key)}</span>
-                <button
-                  type="button"
-                  onClick={() => removeExtraSkill(key)}
-                  disabled={isSaving}
-                  className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-                  title="Remove lore skill"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <ProfBadge rank={lore.rank} />
+                <span className="text-sm flex-1">{lore.label}</span>
+                {lore.total !== null && (
+                  <span className="font-mono text-sm font-semibold">{signedTotal(lore.total)}</span>
+                )}
+                {lore.removable && (
+                  <button
+                    type="button"
+                    onClick={() => removeExtraSkill(lore.key)}
+                    disabled={isSaving}
+                    className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                    title="Remove lore skill"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -1446,7 +1742,7 @@ function StatsTabPanel({
                 key={key}
                 className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
               >
-                <ProfBadge rank={rank} />
+                <ProfBadge rank={proficiencyValueToRank(rank, usesRawBonus)} />
                 <span className="text-sm flex-1">{profLabel(key)}</span>
               </div>
             ))}
@@ -1465,7 +1761,7 @@ function StatsTabPanel({
                 key={key}
                 className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
               >
-                <ProfBadge rank={rank} />
+                <ProfBadge rank={proficiencyValueToRank(rank, usesRawBonus)} />
                 <span className="text-sm flex-1">{profLabel(key)}</span>
               </div>
             ))}
@@ -1485,9 +1781,9 @@ function StatsTabPanel({
           </div>
         </div>
         <div className="space-y-2">
-          {customAttacks.length > 0 && (
+          {sheetAttacks.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {customAttacks.map((attack, index) => (
+              {sheetAttacks.map((attack, index) => (
                 <div
                   key={`${attack.name}-${index}`}
                   className="bg-muted/40 rounded-md p-3 flex items-start gap-3"
@@ -1498,19 +1794,31 @@ function StatsTabPanel({
                       {[attack.bonus, attack.damage].filter(Boolean).join(" · ") ||
                         "No attack details set"}
                     </p>
-                    {attack.traits && (
-                      <p className="text-xs text-muted-foreground/70 mt-1">{attack.traits}</p>
+                    {formatAttackTraits(attack.traits) && (
+                      <p className="text-xs text-muted-foreground/70 mt-1">
+                        {formatAttackTraits(attack.traits)}
+                      </p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeCustomAttack(index)}
-                    disabled={isSaving}
-                    className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-                    title="Remove attack"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {customAttacks.some(
+                    (custom) => custom.name.toLowerCase() === attack.name.toLowerCase()
+                  ) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        removeCustomAttack(
+                          customAttacks.findIndex(
+                            (custom) => custom.name.toLowerCase() === attack.name.toLowerCase()
+                          )
+                        )
+                      }
+                      disabled={isSaving}
+                      className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                      title="Remove attack"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -2448,6 +2756,8 @@ export default function CharacterDetailPage() {
   );
 
   const profs = build?.proficiencies ?? {};
+  const usesRawBonus = build ? usesPf2eProficiencyBonus(build, profs) : false;
+  const defenses = build ? getDefenseDetails(build, level, usesRawBonus) : null;
   // Companions come from the dedicated `companions` table via useCompanions()
   const hasCompanions = companions.length > 0;
 
@@ -2608,6 +2918,7 @@ export default function CharacterDetailPage() {
                 rank={profs.perception ?? 0}
                 abilityScore={abs.wis}
                 level={level}
+                usesRawBonus={usesRawBonus}
               />
               {(["fortitude", "reflex", "will"] as const).map((save) => (
                 <SaveBox
@@ -2616,10 +2927,30 @@ export default function CharacterDetailPage() {
                   rank={profs[save] ?? 0}
                   abilityScore={abs[SAVE_ABILITY[save]] ?? 10}
                   level={level}
+                  usesRawBonus={usesRawBonus}
                 />
               ))}
             </div>
           )}
+
+          {defenses &&
+            (defenses.ac ||
+              defenses.speed ||
+              defenses.armor ||
+              defenses.shield ||
+              defenses.senses ||
+              defenses.classDc ||
+              defenses.spellDc) && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-border">
+                <MiniDetail label="AC" value={defenses.ac} />
+                {defenses.speed && <MiniDetail label="Speed" value={`${defenses.speed} ft`} />}
+                {defenses.armor && <MiniDetail label="Armor" value={defenses.armor} />}
+                {defenses.shield && <MiniDetail label="Shield" value={defenses.shield} />}
+                {defenses.senses && <MiniDetail label="Senses" value={defenses.senses} />}
+                {defenses.classDc && <MiniDetail label="Class DC" value={defenses.classDc} />}
+                {defenses.spellDc && <MiniDetail label="Spell DC" value={defenses.spellDc} />}
+              </div>
+            )}
 
           <div className="space-y-2">
             {/* Hero points — each pip is a button to set the value */}
@@ -2724,6 +3055,7 @@ export default function CharacterDetailPage() {
                 <StatsTabPanel
                   build={build}
                   level={level}
+                  usesRawBonus={usesRawBonus}
                   isSaving={updateCharacter.isPending}
                   onSaveProficiencies={(proficiencies) =>
                     updateCharacter.mutate({ build_patch: { proficiencies } })
