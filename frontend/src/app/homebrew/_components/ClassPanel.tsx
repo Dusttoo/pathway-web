@@ -533,7 +533,9 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
               </div>
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Cantrips</label>
+              <label className="block text-xs text-muted-foreground mb-1">
+                Cantrips Known at Level 1
+              </label>
               <NumberStepper
                 className="w-full"
                 min={0}
