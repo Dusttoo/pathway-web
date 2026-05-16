@@ -97,6 +97,9 @@ interface PBBuild {
   classDC?: number;
   spell_dc?: number;
   spellDC?: number;
+  immunities?: string | string[];
+  resistances?: string | string[];
+  weaknesses?: string | string[];
   stats?: Record<string, unknown>;
 }
 
@@ -190,6 +193,28 @@ function getNestedString(value: unknown, paths: string[][]): string | null {
     if (typeof cursor === "string" && cursor.trim()) return cursor.trim();
   }
   return null;
+}
+
+function getNestedText(value: unknown, paths: string[][]): string {
+  for (const path of paths) {
+    let cursor: unknown = value;
+    for (const key of path) {
+      if (!isRecord(cursor)) {
+        cursor = null;
+        break;
+      }
+      cursor = cursor[key];
+    }
+    if (typeof cursor === "string" && cursor.trim()) return cursor.trim();
+    if (Array.isArray(cursor)) {
+      const text = cursor
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter(Boolean)
+        .join(", ");
+      if (text) return text;
+    }
+  }
+  return "";
 }
 
 function signedTotal(total: number): string {
@@ -335,6 +360,9 @@ function getDefenseDetails(build: PBBuild, level: number, usesRawBonus: boolean)
     senses: getNestedString(build, [["senses"], ["stats", "senses"]]) ?? "",
     classDc: classDc ? `${classDc}` : "",
     spellDc: spellDc ? `${spellDc}` : "",
+    immunities: getNestedText(build, [["immunities"], ["stats", "immunities"]]),
+    resistances: getNestedText(build, [["resistances"], ["stats", "resistances"]]),
+    weaknesses: getNestedText(build, [["weaknesses"], ["stats", "weaknesses"]]),
   };
 }
 
@@ -1602,6 +1630,7 @@ function StatsTabPanel({
   level,
   onSaveLevel,
   onSaveAbilities,
+  onSaveExtras,
   onSaveProficiencies,
   onSaveCustomAttacks,
   isSaving,
@@ -1611,6 +1640,7 @@ function StatsTabPanel({
   level: number;
   onSaveLevel: (level: number) => void;
   onSaveAbilities: (abilities: NonNullable<PBBuild["abilities"]>) => void;
+  onSaveExtras: (extras: Record<string, unknown>) => void;
   onSaveProficiencies: (proficiencies: Record<string, number>) => void;
   onSaveCustomAttacks: (
     attacks: { name: string; bonus: string; damage: string; traits: string }[]
@@ -1637,6 +1667,7 @@ function StatsTabPanel({
   });
   const sheetAttacks = getCharacterAttacks(build);
   const customAttacks = build.custom_attacks ?? [];
+  const defenses = getDefenseDetails(build, level, usesRawBonus);
   const [extraSkillName, setExtraSkillName] = useState("");
   const [extraSkillRank, setExtraSkillRank] = useState(1);
   const [loreSkillName, setLoreSkillName] = useState("");
@@ -1715,6 +1746,10 @@ function StatsTabPanel({
           traits: formatAttackTraits(attack.traits),
         }))
     );
+  }
+
+  function saveDefenseText(key: "immunities" | "resistances" | "weaknesses", value: string) {
+    onSaveExtras({ [key]: value.trim() || null });
   }
 
   return (
@@ -1804,6 +1839,40 @@ function StatsTabPanel({
           </div>
         </div>
       )}
+
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Defenses
+            </h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              Track immunities, resistances, and weaknesses from ancestry, class features, items, or
+              conditions.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {(["immunities", "resistances", "weaknesses"] as const).map((key) => (
+            <div key={key}>
+              <label className="text-xs text-muted-foreground mb-1 block capitalize">{key}</label>
+              <textarea
+                className="input min-h-24 resize-y text-sm"
+                defaultValue={defenses[key]}
+                placeholder={
+                  key === "resistances"
+                    ? "e.g. fire 5, mental 2"
+                    : key === "weaknesses"
+                      ? "e.g. vitality 3, silver 5"
+                      : "e.g. disease, poison"
+                }
+                disabled={isSaving}
+                onBlur={(event) => saveDefenseText(key, event.currentTarget.value)}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
@@ -2375,6 +2444,13 @@ function OfficialSheetPanel({
                   <OfficialSheetField label="Shield" value={defenses?.shield ?? ""} />
                   <OfficialSheetField label="Class DC" value={defenses?.classDc ?? ""} />
                   <OfficialSheetField label="Spell DC" value={defenses?.spellDc ?? ""} />
+                  <OfficialSheetField label="Immunities" value={defenses?.immunities ?? ""} tall />
+                  <OfficialSheetField
+                    label="Resistances"
+                    value={defenses?.resistances ?? ""}
+                    tall
+                  />
+                  <OfficialSheetField label="Weaknesses" value={defenses?.weaknesses ?? ""} tall />
                 </div>
               </div>
 
@@ -3684,7 +3760,10 @@ export default function CharacterDetailPage() {
               defenses.shield ||
               defenses.senses ||
               defenses.classDc ||
-              defenses.spellDc) && (
+              defenses.spellDc ||
+              defenses.immunities ||
+              defenses.resistances ||
+              defenses.weaknesses) && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-border">
                 <MiniDetail label="AC" value={defenses.ac} />
                 {defenses.speed && <MiniDetail label="Speed" value={`${defenses.speed} ft`} />}
@@ -3693,6 +3772,15 @@ export default function CharacterDetailPage() {
                 {defenses.senses && <MiniDetail label="Senses" value={defenses.senses} />}
                 {defenses.classDc && <MiniDetail label="Class DC" value={defenses.classDc} />}
                 {defenses.spellDc && <MiniDetail label="Spell DC" value={defenses.spellDc} />}
+                {defenses.immunities && (
+                  <MiniDetail label="Immunities" value={defenses.immunities} />
+                )}
+                {defenses.resistances && (
+                  <MiniDetail label="Resistances" value={defenses.resistances} />
+                )}
+                {defenses.weaknesses && (
+                  <MiniDetail label="Weaknesses" value={defenses.weaknesses} />
+                )}
               </div>
             )}
 
@@ -3810,6 +3898,7 @@ export default function CharacterDetailPage() {
                   onSaveAbilities={(abilities) =>
                     updateCharacter.mutate({ build_patch: { abilities } })
                   }
+                  onSaveExtras={(extras) => updateCharacter.mutate({ build_patch: { extras } })}
                   onSaveProficiencies={(proficiencies) =>
                     updateCharacter.mutate({ build_patch: { proficiencies } })
                   }
