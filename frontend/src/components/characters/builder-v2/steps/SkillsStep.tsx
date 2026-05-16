@@ -27,6 +27,14 @@ function intMod(intScore: number): number {
   return Math.floor((intScore - 10) / 2);
 }
 
+function rankLabel(rank: number): string {
+  if (rank >= 8) return "Legendary";
+  if (rank >= 6) return "Master";
+  if (rank >= 4) return "Expert";
+  if (rank >= 2) return "Trained";
+  return "Untrained";
+}
+
 export function SkillsStep({ state, update }: StepProps) {
   const {
     classInitialProfs,
@@ -49,8 +57,10 @@ export function SkillsStep({ state, update }: StepProps) {
 
   // Free pick budget: class's trained_skill_count + INT modifier.
   const freePicks = Math.max(0, classTrainedCount + intMod(abilities.int));
-  const userPicked = trainedSkills.filter((s) => !lockedSkills.has(s));
-  const remaining = freePicks - userPicked.length;
+  const standardPicked = trainedSkills.filter((s) => !lockedSkills.has(s));
+  const additionalPicked = additionalSkills.filter((s) => s.name.trim() && s.rank >= 2);
+  const usedPicks = standardPicked.length + additionalPicked.length;
+  const remaining = freePicks - usedPicks;
 
   function toggleSkill(key: string) {
     if (lockedSkills.has(key)) return;
@@ -63,12 +73,15 @@ export function SkillsStep({ state, update }: StepProps) {
 
   // ── additional skills (custom rank, e.g. lore, raised by feats) ──
   const [newSkillName, setNewSkillName] = useState("");
+  const [newSkillRank, setNewSkillRank] = useState(2);
 
   function addAdditional() {
     const name = newSkillName.trim();
     if (!name) return;
-    update({ additionalSkills: [...additionalSkills, { name, rank: 2 }] });
+    if (newSkillRank >= 2 && remaining <= 0) return;
+    update({ additionalSkills: [...additionalSkills, { name, rank: newSkillRank }] });
     setNewSkillName("");
+    setNewSkillRank(2);
   }
 
   function removeAdditional(index: number) {
@@ -84,19 +97,24 @@ export function SkillsStep({ state, update }: StepProps) {
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Pick {freePicks} trained skill{freePicks === 1 ? "" : "s"}. Skills locked-on come from your
-        class
+        Pick {freePicks} trained skill{freePicks === 1 ? "" : "s"}. Additional Lore/custom skills
+        count as picks when set to Trained or higher. Skills locked-on come from your class
         {state.className ? ` (${state.className})` : ""}
         {bgSkill ? ` and background (${bgSkill})` : ""}.
       </p>
 
       <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-center justify-between text-sm">
         <span>
-          <span className="font-semibold">{userPicked.length}</span> of{" "}
+          <span className="font-semibold">{usedPicks}</span> of{" "}
           <span className="font-semibold">{freePicks}</span> free picks used
           {state.classId && (
             <span className="text-xs text-muted-foreground ml-2">
               ({state.classTrainedCount} class + {intMod(abilities.int)} INT mod)
+            </span>
+          )}
+          {additionalPicked.length > 0 && (
+            <span className="text-xs text-muted-foreground ml-2">
+              ({standardPicked.length} standard + {additionalPicked.length} additional)
             </span>
           )}
         </span>
@@ -153,7 +171,7 @@ export function SkillsStep({ state, update }: StepProps) {
           Each is stored with its rank (Trained=2, Expert=4, Master=6, Legendary=8).
         </p>
 
-        <div className="flex gap-2 mb-3">
+        <div className="grid grid-cols-1 gap-2 mb-3 sm:grid-cols-[1fr_10rem_auto]">
           <input
             type="text"
             placeholder="e.g. Heraldry Lore, Underworld Lore"
@@ -167,23 +185,52 @@ export function SkillsStep({ state, update }: StepProps) {
               }
             }}
           />
-          <button type="button" onClick={addAdditional} className="btn-outline px-3">
+          <select
+            value={newSkillRank}
+            onChange={(e) => setNewSkillRank(parseInt(e.target.value, 10))}
+            className="input text-sm"
+            aria-label="Additional skill rank"
+          >
+            <option value={2}>Trained</option>
+            <option value={4}>Expert</option>
+            <option value={6}>Master</option>
+            <option value={8}>Legendary</option>
+          </select>
+          <button
+            type="button"
+            onClick={addAdditional}
+            disabled={!newSkillName.trim() || (newSkillRank >= 2 && remaining <= 0)}
+            className="btn-outline px-3 disabled:cursor-not-allowed disabled:opacity-40"
+          >
             <Plus size={14} />
           </button>
         </div>
+        {newSkillName.trim() && (
+          <p className="mb-3 text-xs text-muted-foreground">
+            Adding <span className="font-semibold text-foreground">{newSkillName.trim()}</span> as{" "}
+            <span className="font-semibold text-foreground">{rankLabel(newSkillRank)}</span> will
+            use 1 free pick.
+          </p>
+        )}
 
-        {additionalSkills.length > 0 && (
-          <div className="space-y-1.5">
+        {additionalSkills.length > 0 ? (
+          <div className="space-y-2">
             {additionalSkills.map((s, i) => (
               <div
                 key={`${s.name}-${i}`}
-                className="flex items-center gap-2 p-2 rounded-md border border-border"
+                className="flex flex-col gap-2 p-2 rounded-md border border-border bg-card sm:flex-row sm:items-center"
               >
-                <span className="text-sm flex-1 truncate">{s.name}</span>
+                <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <CheckCircle2 size={14} className="shrink-0 text-primary" />
+                  <span className="text-sm truncate">{s.name}</span>
+                  <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                    {rankLabel(s.rank)}
+                  </span>
+                </span>
                 <select
                   value={s.rank}
                   onChange={(e) => setAdditionalRank(i, parseInt(e.target.value))}
-                  className="input text-xs py-1"
+                  className="input text-xs py-1 sm:w-32"
                 >
                   <option value={2}>Trained</option>
                   <option value={4}>Expert</option>
@@ -193,7 +240,7 @@ export function SkillsStep({ state, update }: StepProps) {
                 <button
                   type="button"
                   onClick={() => removeAdditional(i)}
-                  className="text-muted-foreground hover:text-destructive p-1"
+                  className="self-end text-muted-foreground hover:text-destructive p-1 sm:self-auto"
                   aria-label={`Remove ${s.name}`}
                 >
                   <X size={14} />
@@ -201,6 +248,10 @@ export function SkillsStep({ state, update }: StepProps) {
               </div>
             ))}
           </div>
+        ) : (
+          <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+            No additional skills added yet.
+          </p>
         )}
       </section>
     </div>
