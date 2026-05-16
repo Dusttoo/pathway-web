@@ -105,13 +105,13 @@ interface PBBuild {
 
 type TabKey =
   | "stats"
-  | "official"
   | "feats"
   | "spells"
   | "gear"
   | "bag"
   | "notes"
   | "downtime"
+  | "official"
   | "companions";
 type ContentType = "feat" | "item";
 
@@ -3538,13 +3538,13 @@ export default function CharacterDetailPage() {
   type TabDef = { key: TabKey; label: string };
   const tabs: TabDef[] = [
     { key: "stats", label: "Stats" },
-    { key: "official", label: "Official Sheet" },
     { key: "feats", label: "Feats" },
     { key: "spells", label: "Spells" },
     { key: "gear", label: "Gear" },
     { key: "bag", label: "Bag" },
     { key: "notes", label: "Notes" },
     { key: "downtime", label: "Downtime" },
+    { key: "official", label: "Official Sheet" },
     ...(hasCompanions ? [{ key: "companions" as TabKey, label: "Companions" }] : []),
   ];
 
