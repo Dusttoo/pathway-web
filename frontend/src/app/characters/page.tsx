@@ -2,6 +2,7 @@
 
 import { MainLayout } from "@/components/layout";
 import { NumberStepper } from "@/components/characters/NumberStepper";
+import { AonLink, aonUrlFromMetadata } from "@/components/library/AonLink";
 import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import {
   useCharacterImages,
@@ -95,6 +96,20 @@ type DefenseDetails = {
 };
 
 type FeatTuple = [string, string | null, string | null, string | null];
+
+type FeatLibraryEntry = Pick<
+  Tables<"feats">,
+  | "action_cost"
+  | "description"
+  | "feat_metadata"
+  | "feat_type"
+  | "is_official"
+  | "level"
+  | "name"
+  | "prerequisites"
+  | "source"
+  | "trigger"
+>;
 type EquipmentTuple = [string, number];
 type SpecialAbilityEntry = {
   name: string;
@@ -464,9 +479,59 @@ function proficiencyLabel(rank: number) {
   return PROFICIENCY_OPTIONS.find(([value]) => Number(value) === rank)?.[1] ?? "Untrained";
 }
 
-function formatFeat(feat: FeatTuple) {
+function featLookupKey(name: string) {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function displayFeatType(value: string | null | undefined) {
+  if (!value) return null;
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .replace(/\bFeat Feat\b/g, "Feat");
+}
+
+function normalizeFeatTypeForMatch(value: string | null | undefined) {
+  return value?.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ") ?? "";
+}
+
+function chooseFeatLibraryEntry(feat: FeatTuple, candidates: FeatLibraryEntry[]) {
+  const [name, featType] = feat;
+  const normalizedName = featLookupKey(name);
+  const exact = candidates.filter((candidate) => featLookupKey(candidate.name) === normalizedName);
+  const pool = exact.length ? exact : candidates;
+  const requestedType = normalizeFeatTypeForMatch(featType);
+  if (requestedType) {
+    const typeMatch = pool.find((candidate) => {
+      const candidateType = normalizeFeatTypeForMatch(candidate.feat_type);
+      return candidateType === requestedType || `${candidateType} feat` === requestedType;
+    });
+    if (typeMatch) return typeMatch;
+  }
+  return pool.find((candidate) => candidate.is_official) ?? pool[0] ?? null;
+}
+
+function libraryFeatRulesText(entry: FeatLibraryEntry | null) {
+  if (!entry) return "";
+  return [
+    entry.action_cost ? `Action: ${entry.action_cost}` : null,
+    entry.prerequisites ? `Prerequisites: ${entry.prerequisites}` : null,
+    entry.trigger ? `Trigger: ${entry.trigger}` : null,
+    entry.description,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function formatFeat(feat: FeatTuple, libraryEntry: FeatLibraryEntry | null = null) {
   const [, featType, source, detail] = feat;
-  return { featType, source, detail };
+  return {
+    featType: featType ?? displayFeatType(libraryEntry?.feat_type),
+    source: source ?? libraryEntry?.source ?? (libraryEntry ? `Level ${libraryEntry.level}` : null),
+    detail: detail || libraryFeatRulesText(libraryEntry),
+    aonUrl: libraryEntry ? aonUrlFromMetadata(libraryEntry.feat_metadata) : null,
+    isOfficial: libraryEntry?.is_official ?? null,
+  };
 }
 
 function deriveMaxHp(character: Character) {
@@ -1625,6 +1690,9 @@ function MiniCharacterSheet({
   const attributes = getHpAttributes(character);
   const proficiencies = getProficiencies(character);
   const feats = getFeats(character);
+  const visibleFeats = feats.slice(0, 10);
+  const visibleFeatNames = visibleFeats.map(([name]) => featLookupKey(name)).join("|");
+  const [featLibrary, setFeatLibrary] = useState<Record<string, FeatLibraryEntry>>({});
   const equipment = getEquipment(character);
   const specials = getSpecialAbilityEntries(character);
   const attacks = getCharacterAttacks(character);
@@ -1654,6 +1722,43 @@ function MiniCharacterSheet({
       total: proficiencyValueToBonus(rank, level, usesRawBonus),
     }));
   const loreSkills = getLoreSkills(character, usesRawBonus);
+
+  useEffect(() => {
+    const featList = visibleFeats.filter((feat) => !feat[3]?.trim());
+    if (!featList.length) {
+      setFeatLibrary({});
+      return;
+    }
+
+    const controller = new AbortController();
+    async function loadFeatDetails() {
+      const entries = await Promise.all(
+        featList.map(async (feat) => {
+          const [name] = feat;
+          try {
+            const response = await fetch(
+              `/api/content/feats?name=${encodeURIComponent(name)}&limit=10`,
+              { signal: controller.signal }
+            );
+            if (!response.ok) return null;
+            const payload = (await response.json()) as { data?: FeatLibraryEntry[] };
+            const match = chooseFeatLibraryEntry(feat, payload.data ?? []);
+            return match ? ([featLookupKey(name), match] as const) : null;
+          } catch (error) {
+            if ((error as Error).name === "AbortError") return null;
+            return null;
+          }
+        })
+      );
+
+      if (!controller.signal.aborted) {
+        setFeatLibrary(Object.fromEntries(entries.filter(Boolean) as [string, FeatLibraryEntry][]));
+      }
+    }
+
+    void loadFeatDetails();
+    return () => controller.abort();
+  }, [character.id, visibleFeatNames]);
 
   return (
     <>
@@ -1837,11 +1942,15 @@ function MiniCharacterSheet({
               <MiniSection title="Feats">
                 {feats.length > 0 ? (
                   <div className="grid gap-2 text-sm">
-                    {feats.slice(0, 10).map((feat, index) => (
+                    {visibleFeats.map((feat, index) => (
                       <details key={`${feat[0]}-${index}`} className="rounded bg-muted/40 p-2">
                         <summary className="cursor-pointer font-semibold">{feat[0]}</summary>
                         {(() => {
-                          const { featType, source, detail } = formatFeat(feat);
+                          const libraryEntry = featLibrary[featLookupKey(feat[0])] ?? null;
+                          const { featType, source, detail, aonUrl, isOfficial } = formatFeat(
+                            feat,
+                            libraryEntry
+                          );
                           return (
                             <div className="mt-2 space-y-2 text-xs text-muted-foreground">
                               {(featType || source) && (
@@ -1858,6 +1967,7 @@ function MiniCharacterSheet({
                                   )}
                                 </div>
                               )}
+                              <AonLink name={feat[0]} url={aonUrl} isOfficial={isOfficial} />
                               <p className="whitespace-pre-wrap leading-relaxed">
                                 {detail || "No feat rules text saved yet."}
                               </p>
