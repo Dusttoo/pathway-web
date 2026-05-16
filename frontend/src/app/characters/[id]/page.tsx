@@ -130,6 +130,52 @@ function customLabel(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function canonicalProfKey(key: string): string {
+  const normalized = customKey(key);
+  const aliases: Record<string, string> = {
+    light: "light_armor",
+    medium: "medium_armor",
+    heavy: "heavy_armor",
+    simple: "simple_weapons",
+    martial: "martial_weapons",
+    advanced: "advanced_weapons",
+    classdc: "class_dc",
+    class_dc: "class_dc",
+    spelldc: "spell_dc",
+    spell_dc: "spell_dc",
+    castingarcane: "casting_arcane",
+    casting_arcane: "casting_arcane",
+    castingdivine: "casting_divine",
+    casting_divine: "casting_divine",
+    castingoccult: "casting_occult",
+    casting_occult: "casting_occult",
+    castingprimal: "casting_primal",
+    casting_primal: "casting_primal",
+  };
+  return aliases[normalized] ?? normalized;
+}
+
+function profLabel(key: string): string {
+  const canonical = canonicalProfKey(key);
+  const labels: Record<string, string> = {
+    light_armor: "Light Armor",
+    medium_armor: "Medium Armor",
+    heavy_armor: "Heavy Armor",
+    unarmored: "Unarmored",
+    simple_weapons: "Simple Weapons",
+    martial_weapons: "Martial Weapons",
+    advanced_weapons: "Advanced Weapons",
+    unarmed: "Unarmed",
+    class_dc: "Class DC",
+    spell_dc: "Spell DC",
+    casting_arcane: "Arcane Spellcasting",
+    casting_divine: "Divine Spellcasting",
+    casting_occult: "Occult Spellcasting",
+    casting_primal: "Primal Spellcasting",
+  };
+  return labels[canonical] ?? customLabel(key);
+}
+
 function deriveMaxHp(build: PBBuild, level: number): number | null {
   const attr = build.attributes;
   if (!attr) return null;
@@ -207,13 +253,20 @@ const COMBAT_PROF_KEYS = new Set([
   "advanced_weapons",
   "unarmed",
 ]);
+const SPELL_DC_PROF_KEYS = new Set([
+  "class_dc",
+  "spell_dc",
+  "casting_arcane",
+  "casting_divine",
+  "casting_occult",
+  "casting_primal",
+]);
 const NON_SKILL_PROF_KEYS = new Set([
   ...SKILL_ORDER,
   ...Object.keys(SAVE_LABELS),
   ...COMBAT_PROF_KEYS,
+  ...SPELL_DC_PROF_KEYS,
   "perception",
-  "class_dc",
-  "spell_dc",
 ]);
 
 // ── Content modal helpers ─────────────────────────────────────────────────────
@@ -1116,9 +1169,19 @@ function StatsTabPanel({
 }) {
   const abs = build.abilities;
   const profs = build.proficiencies ?? {};
-  const extraProfs = Object.entries(profs).filter(
-    ([key, rank]) => !NON_SKILL_PROF_KEYS.has(key) && rank > 0
-  );
+  const profEntries = Object.entries(profs).filter(([, rank]) => rank > 0);
+  const loreProfs = profEntries.filter(([key]) => canonicalProfKey(key).includes("lore"));
+  const combatProfs = profEntries.filter(([key]) => COMBAT_PROF_KEYS.has(canonicalProfKey(key)));
+  const spellDcProfs = profEntries.filter(([key]) => SPELL_DC_PROF_KEYS.has(canonicalProfKey(key)));
+  const extraProfs = profEntries.filter(([key]) => {
+    const canonical = canonicalProfKey(key);
+    return (
+      !NON_SKILL_PROF_KEYS.has(canonical) &&
+      !canonical.includes("lore") &&
+      !COMBAT_PROF_KEYS.has(canonical) &&
+      !SPELL_DC_PROF_KEYS.has(canonical)
+    );
+  });
   const customAttacks = build.custom_attacks ?? [];
   const [extraSkillName, setExtraSkillName] = useState("");
   const [extraSkillRank, setExtraSkillRank] = useState(2);
@@ -1215,7 +1278,7 @@ function StatsTabPanel({
               Additional Skills
             </h4>
             <p className="text-xs text-muted-foreground mt-1">
-              Add or remove unlimited homebrew, lore, and campaign skills.
+              Add or remove unlimited homebrew and campaign skills.
             </p>
           </div>
         </div>
@@ -1228,7 +1291,7 @@ function StatsTabPanel({
                   className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
                 >
                   <ProfBadge rank={rank} />
-                  <span className="flex-1 text-sm">{customLabel(key)}</span>
+                  <span className="flex-1 text-sm">{profLabel(key)}</span>
                   <button
                     type="button"
                     onClick={() => removeExtraSkill(key)}
@@ -1247,7 +1310,7 @@ function StatsTabPanel({
               className="input text-sm"
               value={extraSkillName}
               onChange={(e) => setExtraSkillName(e.target.value)}
-              placeholder="e.g. Airship Lore, Piloting, Dragonmark Lore"
+              placeholder="e.g. Piloting, Dragonmark Training"
             />
             <select
               className="input text-sm"
@@ -1272,28 +1335,71 @@ function StatsTabPanel({
         </div>
       </div>
 
-      {(() => {
-        const combatProfs = Object.entries(profs).filter(([k]) => COMBAT_PROF_KEYS.has(k));
-        if (combatProfs.length === 0) return null;
-        return (
-          <div>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              Armor & Weapons
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
-              {combatProfs.map(([key, rank]) => (
-                <div
-                  key={key}
-                  className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
+      {loreProfs.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Lore Skills
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
+            {loreProfs.map(([key, rank]) => (
+              <div
+                key={key}
+                className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
+              >
+                <ProfBadge rank={rank} />
+                <span className="text-sm flex-1">{profLabel(key)}</span>
+                <button
+                  type="button"
+                  onClick={() => removeExtraSkill(key)}
+                  disabled={isSaving}
+                  className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                  title="Remove lore skill"
                 >
-                  <ProfBadge rank={rank} />
-                  <span className="text-sm capitalize flex-1">{key.replace(/_/g, " ")}</span>
-                </div>
-              ))}
-            </div>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
           </div>
-        );
-      })()}
+        </div>
+      )}
+
+      {spellDcProfs.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Spells & DCs
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
+            {spellDcProfs.map(([key, rank]) => (
+              <div
+                key={key}
+                className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
+              >
+                <ProfBadge rank={rank} />
+                <span className="text-sm flex-1">{profLabel(key)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {combatProfs.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Armor & Weapons
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
+            {combatProfs.map(([key, rank]) => (
+              <div
+                key={key}
+                className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
+              >
+                <ProfBadge rank={rank} />
+                <span className="text-sm flex-1">{profLabel(key)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <div className="flex items-center justify-between gap-3 mb-2">

@@ -85,7 +85,8 @@ function progressionOverride(classDetail: unknown, level: number, rank: number):
 
   const value = row[rank - 1];
   const parsed = typeof value === "number" ? value : parseInt(String(value ?? ""), 10);
-  return Number.isFinite(parsed) ? Math.max(0, Math.min(20, parsed)) : null;
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.max(0, Math.min(20, parsed));
 }
 
 function allowedSpellCountForClass(
