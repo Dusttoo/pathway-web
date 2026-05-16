@@ -204,7 +204,7 @@ function HelpTip({ children, label = "Help" }: { children: React.ReactNode; labe
       >
         <Info size={15} />
       </button>
-      <span className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-72 rounded-md border border-border bg-background p-3 text-left text-xs leading-relaxed text-muted-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 whitespace-normal rounded-md border border-border bg-background p-3 text-left text-xs leading-relaxed text-muted-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         {children}
       </span>
     </span>
