@@ -544,18 +544,19 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
             </div>
             <div>
               <div className="mb-1 flex items-center gap-1">
-                <label className="block text-xs text-muted-foreground">Rank 1 Slots at Level 1</label>
-                <HelpTip label="Rank 1 starting slots help">
-                  This is the number of 1st-rank spell slots the class starts with at character
-                  level 1. It writes directly to the level 1, rank 1 slot progression below.
+                <label className="block text-xs text-muted-foreground">Rank 1 Spells at Level 1</label>
+                <HelpTip label="Rank 1 starting spells help">
+                  This is how many 1st-rank spells the class starts knowing or adding to its
+                  spellbook at character level 1. It controls the spell selection budget, not the
+                  number of slots the character can cast per day.
                 </HelpTip>
               </div>
               <NumberStepper
                 className="w-full"
                 min={0}
-                max={9}
-                value={spellSlotProgression["1"]?.[0] ?? 0}
-                onCommit={(value) => setSlot(1, 1, value)}
+                max={20}
+                value={spellsKnownProgression["1"]?.[0] ?? 0}
+                onCommit={(value) => setKnownSpellCount(1, 1, value)}
               />
             </div>
             <div>
@@ -578,7 +579,7 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
                   <HelpTip label="Spell slot progression help">
                     Each level card shows the spell ranks a class can normally reach at that
                     character level. Set how many slots per day the class receives for each rank.
-                    Use 0 for ranks the class does not cast yet.
+                    These are castings per day, not spells known or spellbook entries.
                   </HelpTip>
                 </div>
                 <p className="text-xs text-muted-foreground">
