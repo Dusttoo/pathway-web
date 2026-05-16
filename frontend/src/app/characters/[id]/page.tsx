@@ -17,6 +17,14 @@ import {
 } from "@/lib/hooks/use-notes";
 import { useCompanions, useUpdateCompanion } from "@/lib/hooks/use-companions";
 import { useUpdateCharacter } from "@/lib/hooks/use-characters";
+import { useCharacterFeats } from "@/lib/hooks/use-feats";
+import {
+  useAddKnownSpell,
+  useCharacterKnownSpells,
+  useRemoveKnownSpell,
+  type CharacterKnownSpell,
+} from "@/lib/hooks/use-character-spells";
+import { useSpells } from "@/lib/hooks/use-spells";
 import { NumberStepper, InlineSelect, InlineTextarea } from "@/components/characters";
 import { useBag, bagKeys, type BagCategories, type BagItem } from "@/lib/hooks/use-bag";
 import { useAuth } from "@/lib/providers/auth-provider";
@@ -65,7 +73,7 @@ interface PBBuild {
   spellCasters?: Array<{ name: string; perDay: number[] }>;
 }
 
-type TabKey = "stats" | "feats" | "gear" | "bag" | "notes" | "downtime" | "companions";
+type TabKey = "stats" | "feats" | "spells" | "gear" | "bag" | "notes" | "downtime" | "companions";
 type ContentType = "feat" | "item";
 
 // Shapes returned by /api/content/feats and /api/content/items
@@ -296,6 +304,70 @@ function TraitBadge({ trait }: { trait: string }) {
       {trait}
     </span>
   );
+}
+
+type DisplayFeat = {
+  key: string;
+  name: string;
+  type: string;
+  level: number | null;
+  source: string | null;
+  description: string | null;
+  rowId?: string;
+};
+
+const FEAT_GROUP_ORDER = ["General", "General (Skill)", "Class", "Archetype", "Ancestry", "Other"];
+
+function displayFeatType(raw: string | null | undefined, slot?: string | null): string {
+  const value = (raw ?? slot ?? "").toLowerCase().replace(/[_-]+/g, " ").trim();
+  if (value.includes("skill")) return "General (Skill)";
+  if (value.includes("class")) return "Class";
+  if (value.includes("archetype")) return "Archetype";
+  if (value.includes("ancestry") || value.includes("heritage") || value.includes("lineage")) {
+    return "Ancestry";
+  }
+  if (value.includes("general")) return "General";
+  return "Other";
+}
+
+function normalizeBuildFeat(
+  feat: [string, string | null, string | null, string | null] | string[],
+  index: number
+): DisplayFeat {
+  const name = Array.isArray(feat) ? String(feat[0] ?? "") : String(feat);
+  const maybeType = Array.isArray(feat) ? (feat[1] ?? feat[2]) : null;
+  const maybeLevel = Array.isArray(feat) ? (feat[3] ?? null) : null;
+  const levelMatch = typeof maybeLevel === "string" ? maybeLevel.match(/\d+/) : null;
+  return {
+    key: `build-${index}-${name}`,
+    name,
+    type: displayFeatType(maybeType),
+    level: levelMatch ? Number(levelMatch[0]) : null,
+    source: Array.isArray(feat) ? (feat[2] ?? null) : null,
+    description: null,
+  };
+}
+
+function dedupeDisplayFeats(feats: DisplayFeat[]): DisplayFeat[] {
+  const byKey = new Map<string, DisplayFeat>();
+  for (const feat of feats) {
+    const key = `${feat.name.trim().toLowerCase()}|${feat.type}`;
+    const existing = byKey.get(key);
+    if (
+      !existing ||
+      (!existing.description && feat.description) ||
+      (!existing.rowId && feat.rowId)
+    ) {
+      byKey.set(key, feat);
+    }
+  }
+  return [...byKey.values()].sort(
+    (a, b) => (a.level ?? 999) - (b.level ?? 999) || a.name.localeCompare(b.name)
+  );
+}
+
+function spellRankLabel(rank: number): string {
+  return rank === 0 ? "Cantrip" : `Rank ${rank}`;
 }
 
 // ── ContentModal — shared feat / item detail modal ────────────────────────────
@@ -1486,18 +1558,21 @@ function StatsTabPanel({
 
 // onSelect receives a feat name — parent opens the detail modal
 function FeatsTabPanel({
+  characterId,
   build,
   onSelect,
   onSaveFeats,
   onSaveSpecials,
   isSaving,
 }: {
+  characterId: string;
   build: PBBuild;
   onSelect: (name: string) => void;
   onSaveFeats: (feats: Array<[string, string | null, string | null, string | null]>) => void;
   onSaveSpecials: (specials: string[]) => void;
   isSaving: boolean;
 }) {
+  const { data: characterFeatRows, isLoading: featsLoading } = useCharacterFeats(characterId);
   const feats = build.feats ?? [];
   const specials = build.specials ?? [];
   const [featName, setFeatName] = useState("");
@@ -1505,30 +1580,41 @@ function FeatsTabPanel({
   const [featLevel, setFeatLevel] = useState(String(build.level ?? 1));
   const [specialText, setSpecialText] = useState("");
 
-  const normalizedFeats = feats.map(
-    (feat): [string, string | null, string | null, string | null] => {
-      const name = Array.isArray(feat) ? (feat[0] as string) : String(feat);
-      const type = (Array.isArray(feat) ? (feat[2] as string | null) : null) ?? "Other";
-      const levelText = Array.isArray(feat) ? (feat[3] as string | null) : null;
-      return [name, null, type, levelText];
-    }
+  const tableFeats: DisplayFeat[] = (characterFeatRows?.data ?? [])
+    .filter((row) => row.feat)
+    .map((row) => ({
+      key: row.id,
+      name: row.feat.name,
+      type: displayFeatType(row.feat.feat_type, row.feat_slot),
+      level: row.level_acquired ?? row.feat.level ?? null,
+      source: row.feat.source ?? null,
+      description: row.feat.description ?? row.notes ?? null,
+      rowId: row.id,
+    }));
+  const buildFeats = feats.map(normalizeBuildFeat).filter((feat) => feat.name.trim());
+  const displayFeats = dedupeDisplayFeats([...tableFeats, ...buildFeats]);
+  const grouped = displayFeats.reduce<Record<string, DisplayFeat[]>>((acc, feat) => {
+    (acc[feat.type] ??= []).push(feat);
+    return acc;
+  }, {});
+  const groupedKeys = [
+    ...FEAT_GROUP_ORDER,
+    ...Object.keys(grouped).filter((type) => !FEAT_GROUP_ORDER.includes(type)),
+  ];
+  const normalizedBuildFeats = buildFeats.map(
+    (feat): [string, string | null, string | null, string | null] => [
+      feat.name,
+      null,
+      feat.type,
+      feat.level ? `Level ${feat.level}` : null,
+    ]
   );
-
-  const grouped: Record<string, { name: string; index: number }[]> = {};
-  normalizedFeats.forEach((feat, index) => {
-    const name = feat[0];
-    const type = feat[2] ?? "Other";
-    if (!grouped[type]) grouped[type] = [];
-    grouped[type].push({ name, index });
-  });
-
-  const TYPE_ORDER = ["Class", "Ancestry", "Skill", "General", "Archetype", "Other"];
 
   function addFeat() {
     const name = featName.trim();
     if (!name) return;
     onSaveFeats([
-      ...normalizedFeats,
+      ...normalizedBuildFeats,
       [name, null, featType, featLevel ? `Level ${featLevel}` : null],
     ]);
     setFeatName("");
@@ -1536,8 +1622,8 @@ function FeatsTabPanel({
     setFeatLevel(String(build.level ?? 1));
   }
 
-  function removeFeat(index: number) {
-    onSaveFeats(normalizedFeats.filter((_, i) => i !== index));
+  function removeBuildFeat(featNameToRemove: string) {
+    onSaveFeats(normalizedBuildFeats.filter(([name]) => name !== featNameToRemove));
   }
 
   function addSpecial() {
@@ -1554,7 +1640,7 @@ function FeatsTabPanel({
   return (
     <div className="space-y-5">
       <p className="text-xs text-muted-foreground">
-        Click a feat to see its description and details.
+        Click a feat to see its description and details. Builder-selected feats are grouped by type.
       </p>
 
       <div className="card p-4 bg-muted/20 space-y-3">
@@ -1573,9 +1659,11 @@ function FeatsTabPanel({
             value={featType}
             onChange={(e) => setFeatType(e.target.value)}
           >
-            {["Ancestry", "Class", "Skill", "General", "Archetype", "Other"].map((type) => (
-              <option key={type}>{type}</option>
-            ))}
+            {["Ancestry", "Class", "General (Skill)", "General", "Archetype", "Other"].map(
+              (type) => (
+                <option key={type}>{type}</option>
+              )
+            )}
           </select>
           <input
             className="input text-sm"
@@ -1599,41 +1687,59 @@ function FeatsTabPanel({
         </div>
       </div>
 
-      {[...TYPE_ORDER, ...Object.keys(grouped).filter((t) => !TYPE_ORDER.includes(t))].map(
-        (type) => {
-          const list = grouped[type];
-          if (!list || list.length === 0) return null;
-          return (
-            <div key={type}>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                {type} Feats
-              </h4>
-              <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                {list.map((feat) => (
-                  <li key={`${feat.name}-${feat.index}`} className="flex items-center gap-1">
+      {featsLoading && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="spinner" />
+          Loading saved feats...
+        </div>
+      )}
+
+      {!featsLoading && displayFeats.length === 0 && (
+        <div className="text-center py-8">
+          <BookOpen size={32} className="mx-auto text-muted-foreground mb-3" />
+          <p className="text-sm text-muted-foreground">No feats saved yet.</p>
+        </div>
+      )}
+
+      {groupedKeys.map((type) => {
+        const list = grouped[type];
+        if (!list || list.length === 0) return null;
+        return (
+          <div key={type}>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              {type} Feats
+            </h4>
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
+              {list.map((feat) => (
+                <li key={feat.key} className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(feat.name)}
+                    className="flex-1 text-left text-sm py-1.5 px-3 bg-muted/40 rounded-md hover:bg-muted/70 hover:text-primary transition-colors"
+                  >
+                    <span className="font-medium">{feat.name}</span>
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">
+                      {feat.level ? `Level ${feat.level}` : "Level unknown"}
+                      {feat.source ? ` - ${feat.source}` : ""}
+                    </span>
+                  </button>
+                  {!feat.rowId && (
                     <button
                       type="button"
-                      onClick={() => onSelect(feat.name)}
-                      className="flex-1 text-left text-sm py-1.5 px-3 bg-muted/40 rounded-md hover:bg-muted/70 hover:text-primary transition-colors"
-                    >
-                      {feat.name}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeFeat(feat.index)}
+                      onClick={() => removeBuildFeat(feat.name)}
                       disabled={isSaving}
                       className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                      title="Remove feat"
+                      title="Remove custom feat"
                     >
                       <Trash2 size={14} />
                     </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        }
-      )}
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
 
       <div>
         <div className="flex items-center justify-between gap-3 mb-2">
@@ -1693,6 +1799,227 @@ function FeatsTabPanel({
 }
 
 // onSelect receives an item name — parent opens the detail modal
+function SpellsTabPanel({ characterId }: { characterId: string }) {
+  const { data: knownSpells, isLoading } = useCharacterKnownSpells(characterId);
+  const addKnownSpell = useAddKnownSpell(characterId);
+  const removeKnownSpell = useRemoveKnownSpell(characterId);
+  const [tradition, setTradition] = useState("arcane");
+  const [rank, setRank] = useState(0);
+  const [spellSource, setSpellSource] = useState("repertoire");
+  const [query, setQuery] = useState("");
+  const [signature, setSignature] = useState(false);
+  const [notes, setNotes] = useState("");
+
+  const { data: spellResults, isFetching } = useSpells({
+    q: query.trim(),
+    tradition,
+    level: rank,
+    limit: 15,
+  });
+
+  const rows = knownSpells?.data ?? [];
+  const grouped = rows.reduce<Record<string, CharacterKnownSpell[]>>((acc, row) => {
+    const key = `${row.spell_source} - ${spellRankLabel(row.rank)}`;
+    (acc[key] ??= []).push(row);
+    return acc;
+  }, {});
+
+  async function addSpell(spellId: string) {
+    await addKnownSpell.mutateAsync({
+      spell_id: spellId,
+      tradition,
+      rank,
+      spell_source: spellSource,
+      is_signature: signature,
+      notes: notes.trim() || null,
+    });
+    setNotes("");
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Known & Prepared Spells
+        </h4>
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="spinner" />
+            Loading spells...
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="text-center py-8">
+            <BookOpen size={32} className="mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">No spells saved yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(grouped)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([group, list]) => (
+                <div key={group}>
+                  <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 capitalize">
+                    {group}
+                  </h5>
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {list
+                      .slice()
+                      .sort((a, b) => a.spell.name.localeCompare(b.spell.name))
+                      .map((row) => (
+                        <li
+                          key={row.id}
+                          className="bg-muted/40 rounded-md p-3 flex items-start gap-3"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-medium">{row.spell.name}</p>
+                              {row.is_signature && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">
+                                  Signature
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                              {row.tradition} - {spellRankLabel(row.rank)}
+                              {row.spell.source ? ` - ${row.spell.source}` : ""}
+                            </p>
+                            {row.notes && (
+                              <p className="text-xs text-muted-foreground/80 mt-1">{row.notes}</p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeKnownSpell.mutate(row.id)}
+                            disabled={removeKnownSpell.isPending}
+                            className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                            title="Remove spell"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+
+      <div className="card p-4 bg-muted/20 space-y-3">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Add Spell
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-[140px_120px_150px_1fr] gap-2">
+          <select
+            className="input text-sm capitalize"
+            value={tradition}
+            onChange={(e) => setTradition(e.target.value)}
+          >
+            {["arcane", "divine", "occult", "primal"].map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+          <select
+            className="input text-sm"
+            value={rank}
+            onChange={(e) => setRank(Number(e.target.value))}
+          >
+            {Array.from({ length: 11 }).map((_, value) => (
+              <option key={value} value={value}>
+                {spellRankLabel(value)}
+              </option>
+            ))}
+          </select>
+          <select
+            className="input text-sm capitalize"
+            value={spellSource}
+            onChange={(e) => setSpellSource(e.target.value)}
+          >
+            {["repertoire", "spellbook", "innate", "focus", "staff", "scroll"].map((value) => (
+              <option key={value} value={value}>
+                {value.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+          <input
+            className="input text-sm"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search spells..."
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-2 items-center">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={signature}
+              onChange={(e) => setSignature(e.target.checked)}
+            />
+            Signature spell
+          </label>
+          <input
+            className="input text-sm"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Notes, prepared day, source details..."
+          />
+        </div>
+
+        {addKnownSpell.error && (
+          <p className="text-xs text-destructive">{addKnownSpell.error.message}</p>
+        )}
+
+        <div className="border border-border rounded-lg overflow-hidden">
+          {isFetching && (
+            <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+              <div className="spinner" />
+              Searching...
+            </div>
+          )}
+          {!isFetching && (spellResults?.data ?? []).length === 0 && (
+            <p className="p-3 text-sm text-muted-foreground">
+              No spells found for this tradition and rank.
+            </p>
+          )}
+          {(spellResults?.data ?? []).map((spell) => {
+            const alreadyKnown = rows.some(
+              (row) =>
+                row.spell_id === spell.id &&
+                row.tradition === tradition &&
+                row.rank === rank &&
+                row.spell_source === spellSource
+            );
+            return (
+              <div
+                key={spell.id}
+                className="flex items-center justify-between gap-3 p-3 border-b border-border last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{spell.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {spellRankLabel(spell.level)} - {spell.source}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => addSpell(spell.id)}
+                  disabled={addKnownSpell.isPending || alreadyKnown}
+                  className="btn-outline btn-sm flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Plus size={14} />
+                  {alreadyKnown ? "Added" : "Add"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GearTabPanel({ build, onSelect }: { build: PBBuild; onSelect: (name: string) => void }) {
   const equipment = build.equipment ?? [];
 
@@ -2128,6 +2455,7 @@ export default function CharacterDetailPage() {
   const tabs: TabDef[] = [
     { key: "stats", label: "Stats" },
     { key: "feats", label: "Feats" },
+    { key: "spells", label: "Spells" },
     { key: "gear", label: "Gear" },
     { key: "bag", label: "Bag" },
     { key: "notes", label: "Notes" },
@@ -2412,6 +2740,7 @@ export default function CharacterDetailPage() {
             {tab === "feats" &&
               (build ? (
                 <FeatsTabPanel
+                  characterId={characterId}
                   build={build}
                   isSaving={updateCharacter.isPending}
                   onSaveFeats={(feats) => updateCharacter.mutate({ build_patch: { feats } })}
@@ -2425,6 +2754,7 @@ export default function CharacterDetailPage() {
                   No Pathbuilder data available.
                 </p>
               ))}
+            {tab === "spells" && <SpellsTabPanel characterId={characterId} />}
             {tab === "gear" &&
               (build ? (
                 <GearTabPanel build={build} onSelect={(name) => setModal({ type: "item", name })} />

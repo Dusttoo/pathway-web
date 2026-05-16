@@ -133,7 +133,9 @@ function virtualFeat(row: HomebrewRow): FeatRow {
   const source = sourceText(data);
   const traits = listValues(data.traits);
   const metadata =
-    data.feat_metadata && typeof data.feat_metadata === "object" && !Array.isArray(data.feat_metadata)
+    data.feat_metadata &&
+    typeof data.feat_metadata === "object" &&
+    !Array.isArray(data.feat_metadata)
       ? (data.feat_metadata as Record<string, unknown>)
       : {};
 
@@ -205,6 +207,26 @@ function featMatchesAny(row: FeatRow, key: string, expected: string[]): boolean 
   return rowMatchValues(row, key).some((value) => expectedSet.has(normalizeText(value)));
 }
 
+function scopedFeatMatches(row: FeatRow, key: string, expected: string | null): boolean {
+  if (!expected) return true;
+  const matchValues = rowMatchValues(row, key);
+
+  // Homebrew class/ancestry/archetype feats are often intentionally unscoped.
+  // If the creator did not pin them to a specific class or ancestry, show them
+  // in the matching feat slot and let the table decide whether the feat fits.
+  if (row.is_official === false && matchValues.length === 0) return true;
+
+  return featMatches(row, key, expected);
+}
+
+function scopedFeatMatchesAny(row: FeatRow, key: string, expected: string[]): boolean {
+  const expectedSet = expected.map((value) => value.trim()).filter(Boolean);
+  if (expectedSet.length === 0) return true;
+  const matchValues = rowMatchValues(row, key);
+  if (row.is_official === false && matchValues.length === 0) return true;
+  return featMatchesAny(row, key, expected);
+}
+
 function completenessScore(row: FeatRow): number {
   const rarity = row.rarity?.toLowerCase();
   const descriptionLength = row.description?.trim().length ?? 0;
@@ -256,7 +278,11 @@ function featMatchesRequest(
   if (filters.nameExact && normalizeText(feat.name) !== normalizeText(filters.nameExact)) {
     return false;
   }
-  if (!filters.nameExact && filters.q && !normalizeText(feat.name).includes(normalizeText(filters.q))) {
+  if (
+    !filters.nameExact &&
+    filters.q &&
+    !normalizeText(feat.name).includes(normalizeText(filters.q))
+  ) {
     return false;
   }
   if (filters.featType && feat.feat_type !== filters.featType) return false;
@@ -271,9 +297,9 @@ function featMatchesRequest(
   if (filters.traits.some((trait) => !traitSet.has(normalizeText(trait)))) return false;
 
   return (
-    featMatches(feat, "classes", filters.className) &&
-    featMatchesAny(feat, "ancestry", filters.ancestryFilters) &&
-    featMatches(feat, "archetype", filters.archetype)
+    scopedFeatMatches(feat, "classes", filters.className) &&
+    scopedFeatMatchesAny(feat, "ancestry", filters.ancestryFilters) &&
+    scopedFeatMatches(feat, "archetype", filters.archetype)
   );
 }
 
