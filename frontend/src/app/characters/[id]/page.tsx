@@ -412,6 +412,54 @@ const NON_SKILL_PROF_KEYS = new Set([
   "perception",
 ]);
 
+const PROFICIENCY_RANK_OPTIONS = [
+  { value: 0, label: "Untrained" },
+  { value: 1, label: "Trained" },
+  { value: 2, label: "Expert" },
+  { value: 3, label: "Master" },
+  { value: 4, label: "Legendary" },
+];
+
+const ADDABLE_COMBAT_PROFS = [
+  "unarmored",
+  "light_armor",
+  "medium_armor",
+  "heavy_armor",
+  "unarmed",
+  "simple_weapons",
+  "martial_weapons",
+  "advanced_weapons",
+];
+
+const ADDABLE_SPELL_PROFS = [
+  "class_dc",
+  "spell_dc",
+  "casting_arcane",
+  "casting_divine",
+  "casting_occult",
+  "casting_primal",
+];
+
+const ADDABLE_SAVE_PROFS = ["fortitude", "reflex", "will", "perception"];
+const ADDABLE_MANAGED_PROFS = [
+  ...ADDABLE_SAVE_PROFS,
+  ...ADDABLE_SPELL_PROFS,
+  ...ADDABLE_COMBAT_PROFS,
+];
+
+function rankToStoredProficiency(rank: number, usesRawBonus: boolean): number {
+  return usesRawBonus ? rank * 2 : rank;
+}
+
+function abilityBoostedScore(score: number, direction: 1 | -1): number {
+  if (direction > 0) return Math.min(30, score + (score >= 18 ? 1 : 2));
+  return Math.max(8, score - (score > 18 ? 1 : 2));
+}
+
+function isEditableBuildKey(key: string): key is keyof NonNullable<PBBuild["abilities"]> {
+  return ["str", "dex", "con", "int", "wis", "cha"].includes(key);
+}
+
 // ── Content modal helpers ─────────────────────────────────────────────────────
 
 const RARITY_STYLES: Record<string, string> = {
@@ -1476,9 +1524,36 @@ function AddItemForm({
 
 // ── Tab panels ────────────────────────────────────────────────────────────────
 
+function ProficiencyEditor({
+  rank,
+  disabled,
+  onChange,
+}: {
+  rank: number;
+  disabled: boolean;
+  onChange: (rank: number) => void;
+}) {
+  return (
+    <select
+      className="input h-8 w-28 px-2 py-1 text-xs"
+      value={rank}
+      onChange={(e) => onChange(Number(e.target.value))}
+      disabled={disabled}
+    >
+      {PROFICIENCY_RANK_OPTIONS.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function StatsTabPanel({
   build,
   level,
+  onSaveLevel,
+  onSaveAbilities,
   onSaveProficiencies,
   onSaveCustomAttacks,
   isSaving,
@@ -1486,6 +1561,8 @@ function StatsTabPanel({
 }: {
   build: PBBuild;
   level: number;
+  onSaveLevel: (level: number) => void;
+  onSaveAbilities: (abilities: NonNullable<PBBuild["abilities"]>) => void;
   onSaveProficiencies: (proficiencies: Record<string, number>) => void;
   onSaveCustomAttacks: (
     attacks: { name: string; bonus: string; damage: string; traits: string }[]
@@ -1513,7 +1590,11 @@ function StatsTabPanel({
   const sheetAttacks = getCharacterAttacks(build);
   const customAttacks = build.custom_attacks ?? [];
   const [extraSkillName, setExtraSkillName] = useState("");
-  const [extraSkillRank, setExtraSkillRank] = useState(2);
+  const [extraSkillRank, setExtraSkillRank] = useState(1);
+  const [loreSkillName, setLoreSkillName] = useState("");
+  const [loreSkillRank, setLoreSkillRank] = useState(1);
+  const [profToAdd, setProfToAdd] = useState("light_armor");
+  const [profToAddRank, setProfToAddRank] = useState(1);
   const [attackName, setAttackName] = useState("");
   const [attackBonus, setAttackBonus] = useState("");
   const [attackDamage, setAttackDamage] = useState("");
@@ -1522,9 +1603,30 @@ function StatsTabPanel({
   function addExtraSkill() {
     const key = customKey(extraSkillName);
     if (!key) return;
-    onSaveProficiencies({ [key]: extraSkillRank });
+    onSaveProficiencies({ [key]: rankToStoredProficiency(extraSkillRank, usesRawBonus) });
     setExtraSkillName("");
-    setExtraSkillRank(2);
+    setExtraSkillRank(1);
+  }
+
+  function addLoreSkill() {
+    const label = loreSkillName.trim().replace(/\s+lore$/i, "");
+    const key = customKey(`${label} Lore`);
+    if (!key) return;
+    onSaveProficiencies({ [key]: rankToStoredProficiency(loreSkillRank, usesRawBonus) });
+    setLoreSkillName("");
+    setLoreSkillRank(1);
+  }
+
+  function addManagedProficiency() {
+    if (!profToAdd) return;
+    onSaveProficiencies({
+      [profToAdd]: rankToStoredProficiency(profToAddRank, usesRawBonus),
+    });
+    setProfToAddRank(1);
+  }
+
+  function setProficiencyRank(key: string, rank: number) {
+    onSaveProficiencies({ [key]: rankToStoredProficiency(rank, usesRawBonus) });
   }
 
   function removeExtraSkill(key: string) {
@@ -1569,6 +1671,68 @@ function StatsTabPanel({
 
   return (
     <div className="space-y-5">
+      <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Level & Ability Scores
+          </h4>
+          <p className="text-xs text-muted-foreground">
+            Ability Boost uses PF2e&apos;s +2 below 18 and +1 at 18 or higher.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-4">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Level</label>
+            <NumberStepper
+              value={level}
+              min={1}
+              max={20}
+              onCommit={(nextLevel) => onSaveLevel(nextLevel)}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Max HP recalculates from ancestry HP, class HP, CON, and level.
+            </p>
+          </div>
+          {abs && (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
+              {Object.keys(abs)
+                .filter(isEditableBuildKey)
+                .map((key) => (
+                  <div key={key} className="rounded-lg border border-border bg-background/40 p-2">
+                    <div className="text-xs text-muted-foreground uppercase">{key}</div>
+                    <div className="text-lg font-bold">{abs[key]}</div>
+                    <div className="text-xs text-muted-foreground mb-2">
+                      {abilityModStr(abs[key])}
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      <button
+                        type="button"
+                        className="btn-outline px-2 py-1 text-xs"
+                        disabled={isSaving}
+                        onClick={() =>
+                          onSaveAbilities({ ...abs, [key]: abilityBoostedScore(abs[key], -1) })
+                        }
+                      >
+                        - Boost
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-outline px-2 py-1 text-xs"
+                        disabled={isSaving}
+                        onClick={() =>
+                          onSaveAbilities({ ...abs, [key]: abilityBoostedScore(abs[key], 1) })
+                        }
+                      >
+                        + Boost
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {abs && (
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
@@ -1584,6 +1748,11 @@ function StatsTabPanel({
                   abilityModNum(abs.wis)
               )}
             </span>
+            <ProficiencyEditor
+              rank={proficiencyValueToRank(profs.perception ?? 2, usesRawBonus)}
+              disabled={isSaving}
+              onChange={(rank) => setProficiencyRank("perception", rank)}
+            />
           </div>
         </div>
       )}
@@ -1611,6 +1780,11 @@ function StatsTabPanel({
                 <span className="font-mono font-bold text-sm w-10 text-right">
                   {signedTotal(total)}
                 </span>
+                <ProficiencyEditor
+                  rank={proficiencyValueToRank(rank, usesRawBonus)}
+                  disabled={isSaving}
+                  onChange={(nextRank) => setProficiencyRank(skill, nextRank)}
+                />
               </div>
             );
           })}
@@ -1638,6 +1812,11 @@ function StatsTabPanel({
                 >
                   <ProfBadge rank={proficiencyValueToRank(rank, usesRawBonus)} />
                   <span className="flex-1 text-sm">{profLabel(key)}</span>
+                  <ProficiencyEditor
+                    rank={proficiencyValueToRank(rank, usesRawBonus)}
+                    disabled={isSaving}
+                    onChange={(nextRank) => setProficiencyRank(key, nextRank)}
+                  />
                   <button
                     type="button"
                     onClick={() => removeExtraSkill(key)}
@@ -1663,10 +1842,10 @@ function StatsTabPanel({
               value={extraSkillRank}
               onChange={(e) => setExtraSkillRank(Number(e.target.value))}
             >
-              <option value={2}>Trained</option>
-              <option value={3}>Expert</option>
-              <option value={4}>Master</option>
-              <option value={5}>Legendary</option>
+              <option value={1}>Trained</option>
+              <option value={2}>Expert</option>
+              <option value={3}>Master</option>
+              <option value={4}>Legendary</option>
             </select>
             <button
               type="button"
@@ -1681,61 +1860,104 @@ function StatsTabPanel({
         </div>
       </div>
 
-      {(loreProfs.length > 0 || loreFromPathbuilder.length > 0) && (
-        <div>
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
             Lore Skills
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
-            {[
-              ...loreProfs.map(([key, rank]) => ({
-                key,
-                label: profLabel(key),
-                rank: proficiencyValueToRank(rank, usesRawBonus),
-                total: null as number | null,
-                removable: true,
-              })),
-              ...loreFromPathbuilder
-                .filter((lore) => !pathbuilderLoreNames.has(customKey(lore.skill)))
-                .map((lore) => ({
-                  key: `pathbuilder-${lore.skill}`,
-                  label: lore.skill,
-                  rank: lore.rank,
-                  total: lore.total,
-                  removable: false,
+          <p className="sr-only">Add, increase, decrease, or remove Lore skills.</p>
+        </div>
+        <div className="space-y-2">
+          {(loreProfs.length > 0 || loreFromPathbuilder.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
+              {[
+                ...loreProfs.map(([key, rank]) => ({
+                  key,
+                  label: profLabel(key),
+                  rank: proficiencyValueToRank(rank, usesRawBonus),
+                  total: null as number | null,
+                  removable: true,
                 })),
-            ].map((lore) => (
-              <div
-                key={lore.key}
-                className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
-              >
-                <ProfBadge rank={lore.rank} />
-                <span className="text-sm flex-1">{lore.label}</span>
-                {lore.total !== null && (
-                  <span className="font-mono text-sm font-semibold">{signedTotal(lore.total)}</span>
-                )}
-                {lore.removable && (
-                  <button
-                    type="button"
-                    onClick={() => removeExtraSkill(lore.key)}
-                    disabled={isSaving}
-                    className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-                    title="Remove lore skill"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </div>
-            ))}
+                ...loreFromPathbuilder
+                  .filter((lore) => !pathbuilderLoreNames.has(customKey(lore.skill)))
+                  .map((lore) => ({
+                    key: `pathbuilder-${lore.skill}`,
+                    label: lore.skill,
+                    rank: lore.rank,
+                    total: lore.total,
+                    removable: false,
+                  })),
+              ].map((lore) => (
+                <div
+                  key={lore.key}
+                  className="flex items-center gap-3 py-1.5 px-3 rounded-md hover:bg-muted/40 transition-colors"
+                >
+                  <ProfBadge rank={lore.rank} />
+                  <span className="text-sm flex-1">{lore.label}</span>
+                  {lore.total !== null && (
+                    <span className="font-mono text-sm font-semibold">
+                      {signedTotal(lore.total)}
+                    </span>
+                  )}
+                  {lore.removable && (
+                    <ProficiencyEditor
+                      rank={lore.rank}
+                      disabled={isSaving}
+                      onChange={(nextRank) => setProficiencyRank(lore.key, nextRank)}
+                    />
+                  )}
+                  {lore.removable && (
+                    <button
+                      type="button"
+                      onClick={() => removeExtraSkill(lore.key)}
+                      disabled={isSaving}
+                      className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                      title="Remove lore skill"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_150px_auto] gap-2">
+            <input
+              className="input text-sm"
+              value={loreSkillName}
+              onChange={(e) => setLoreSkillName(e.target.value)}
+              placeholder="e.g. Warfare, Airship, Undead"
+            />
+            <select
+              className="input text-sm"
+              value={loreSkillRank}
+              onChange={(e) => setLoreSkillRank(Number(e.target.value))}
+            >
+              <option value={1}>Trained</option>
+              <option value={2}>Expert</option>
+              <option value={3}>Master</option>
+              <option value={4}>Legendary</option>
+            </select>
+            <button
+              type="button"
+              onClick={addLoreSkill}
+              disabled={isSaving || !loreSkillName.trim()}
+              className="btn-outline text-sm flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Plus size={14} />
+              Add Lore
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
-      {spellDcProfs.length > 0 && (
-        <div>
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
             Spells & DCs
           </h4>
+        </div>
+        {spellDcProfs.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
             {spellDcProfs.map(([key, rank]) => (
               <div
@@ -1744,17 +1966,33 @@ function StatsTabPanel({
               >
                 <ProfBadge rank={proficiencyValueToRank(rank, usesRawBonus)} />
                 <span className="text-sm flex-1">{profLabel(key)}</span>
+                <ProficiencyEditor
+                  rank={proficiencyValueToRank(rank, usesRawBonus)}
+                  disabled={isSaving}
+                  onChange={(nextRank) => setProficiencyRank(key, nextRank)}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeExtraSkill(key)}
+                  disabled={isSaving}
+                  className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                  title="Remove proficiency"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {combatProfs.length > 0 && (
-        <div>
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
             Armor & Weapons
           </h4>
+        </div>
+        {combatProfs.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
             {combatProfs.map(([key, rank]) => (
               <div
@@ -1763,11 +2001,63 @@ function StatsTabPanel({
               >
                 <ProfBadge rank={proficiencyValueToRank(rank, usesRawBonus)} />
                 <span className="text-sm flex-1">{profLabel(key)}</span>
+                <ProficiencyEditor
+                  rank={proficiencyValueToRank(rank, usesRawBonus)}
+                  disabled={isSaving}
+                  onChange={(nextRank) => setProficiencyRank(key, nextRank)}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeExtraSkill(key)}
+                  disabled={isSaving}
+                  className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                  title="Remove proficiency"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      <div>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Add Proficiency
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_150px_auto] gap-2">
+          <select
+            className="input text-sm"
+            value={profToAdd}
+            onChange={(e) => setProfToAdd(e.target.value)}
+          >
+            {ADDABLE_MANAGED_PROFS.map((key) => (
+              <option key={key} value={key}>
+                {profLabel(key)}
+              </option>
+            ))}
+          </select>
+          <select
+            className="input text-sm"
+            value={profToAddRank}
+            onChange={(e) => setProfToAddRank(Number(e.target.value))}
+          >
+            <option value={1}>Trained</option>
+            <option value={2}>Expert</option>
+            <option value={3}>Master</option>
+            <option value={4}>Legendary</option>
+          </select>
+          <button
+            type="button"
+            onClick={addManagedProficiency}
+            disabled={isSaving || !profToAdd}
+            className="btn-outline text-sm flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <Plus size={14} />
+            Add
+          </button>
         </div>
-      )}
+      </div>
 
       <div>
         <div className="flex items-center justify-between gap-3 mb-2">
@@ -2117,11 +2407,14 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
   const [query, setQuery] = useState("");
   const [signature, setSignature] = useState(false);
   const [notes, setNotes] = useState("");
+  const isFocusMode = spellSource === "focus";
+  const effectiveTradition = isFocusMode ? "focus" : tradition;
 
   const { data: spellResults, isFetching } = useSpells({
     q: query.trim(),
-    tradition,
+    tradition: isFocusMode ? undefined : tradition,
     level: rank,
+    is_focus: isFocusMode ? true : undefined,
     limit: 15,
   });
 
@@ -2135,7 +2428,7 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
   async function addSpell(spellId: string) {
     await addKnownSpell.mutateAsync({
       spell_id: spellId,
-      tradition,
+      tradition: effectiveTradition,
       rank,
       spell_source: spellSource,
       is_signature: signature,
@@ -2218,17 +2511,21 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
           Add Spell
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-[140px_120px_150px_1fr] gap-2">
-          <select
-            className="input text-sm capitalize"
-            value={tradition}
-            onChange={(e) => setTradition(e.target.value)}
-          >
-            {["arcane", "divine", "occult", "primal"].map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
+          {isFocusMode ? (
+            <div className="input text-sm flex items-center text-muted-foreground">Focus spell</div>
+          ) : (
+            <select
+              className="input text-sm capitalize"
+              value={tradition}
+              onChange={(e) => setTradition(e.target.value)}
+            >
+              {["arcane", "divine", "occult", "primal"].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             className="input text-sm"
             value={rank}
@@ -2288,14 +2585,14 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
           )}
           {!isFetching && (spellResults?.data ?? []).length === 0 && (
             <p className="p-3 text-sm text-muted-foreground">
-              No spells found for this tradition and rank.
+              No spells found for this {isFocusMode ? "focus category" : "tradition"} and rank.
             </p>
           )}
           {(spellResults?.data ?? []).map((spell) => {
             const alreadyKnown = rows.some(
               (row) =>
                 row.spell_id === spell.id &&
-                row.tradition === tradition &&
+                row.tradition === effectiveTradition &&
                 row.rank === rank &&
                 row.spell_source === spellSource
             );
@@ -3057,6 +3354,15 @@ export default function CharacterDetailPage() {
                   level={level}
                   usesRawBonus={usesRawBonus}
                   isSaving={updateCharacter.isPending}
+                  onSaveLevel={(nextLevel) =>
+                    updateCharacter.mutate({
+                      level: nextLevel,
+                      build_patch: { level: nextLevel },
+                    })
+                  }
+                  onSaveAbilities={(abilities) =>
+                    updateCharacter.mutate({ build_patch: { abilities } })
+                  }
                   onSaveProficiencies={(proficiencies) =>
                     updateCharacter.mutate({ build_patch: { proficiencies } })
                   }

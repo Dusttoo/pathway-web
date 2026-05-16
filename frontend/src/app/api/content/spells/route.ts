@@ -23,6 +23,16 @@ type SpellRow = {
   traits: unknown;
 };
 
+type HomebrewRow = {
+  id: string;
+  name: string | null;
+  type: string | null;
+  data: Record<string, unknown> | null;
+  added_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 function listValues(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap((item) => listValues(item));
   if (typeof value === "string") {
@@ -32,6 +42,28 @@ function listValues(value: unknown): string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+function text(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function numberValue(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+function booleanValue(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = normalize(value);
+    return normalized === "true" || normalized === "yes" || normalized === "focus";
+  }
+  return false;
 }
 
 function normalize(value: string): string {
@@ -92,7 +124,53 @@ function dedupeSpells(rows: SpellRow[]): SpellRow[] {
 function matchesTradition(row: SpellRow, tradition: string | null): boolean {
   if (!tradition) return true;
   const expected = normalize(tradition);
+  if (expected === "focus") return !!row.is_focus_spell;
   return listValues(row.traditions).some((value) => normalize(value) === expected);
+}
+
+function sourceText(data: Record<string, unknown>): string {
+  if (data.source && typeof data.source === "object" && !Array.isArray(data.source)) {
+    const source = data.source as Record<string, unknown>;
+    const sourceName = text(source.source_text) ?? text(source.book);
+    const page = text(source.page);
+    if (sourceName && page) return `${sourceName} pg. ${page}`;
+    if (sourceName) return sourceName;
+  }
+
+  return text(data.source) ?? text(data.source_book) ?? "Homebrew";
+}
+
+function virtualType(row: HomebrewRow): string {
+  const dataType = typeof row.data?._homebrew_type === "string" ? row.data._homebrew_type : null;
+  return dataType || row.type || "";
+}
+
+function virtualSpell(row: HomebrewRow): SpellRow {
+  const data = row.data ?? {};
+  const spellType = normalize(text(data.type) ?? "");
+  const isFocus = spellType === "focus" || booleanValue(data.is_focus_spell);
+  const isRitual = spellType === "ritual" || booleanValue(data.is_ritual);
+  return {
+    area: text(data.area),
+    cast_actions: text(data.cast_actions) ?? text(data.cast),
+    classes: listValues(data.classes),
+    defense: text(data.defense),
+    description: text(data.description) ?? text(data.summary) ?? "",
+    duration: text(data.duration) ?? "",
+    heightening: data.heightening ?? data.heightened ?? null,
+    id: row.id,
+    is_focus_spell: isFocus,
+    is_official: false,
+    is_ritual: isRitual,
+    level: spellType === "cantrip" ? 0 : numberValue(data.level, 1),
+    name: text(data.name) ?? text(row.name) ?? "Unnamed Spell",
+    range_text: text(data.range_text) ?? text(data.range) ?? "",
+    rarity: text(data.rarity) ?? "Common",
+    source: sourceText(data),
+    spell_metadata: { homebrew_entry_id: row.id },
+    traditions: listValues(data.traditions),
+    traits: listValues(data.traits),
+  };
 }
 
 export async function GET(request: Request) {
@@ -119,14 +197,32 @@ export async function GET(request: Request) {
   if (isFocus === "true") query = query.eq("is_focus_spell", true);
   if (isRitual === "true") query = query.eq("is_ritual", true);
 
-  const { data, error } = await query;
+  const [{ data, error }, { data: homebrewData, error: homebrewError }] = await Promise.all([
+    query,
+    supabase
+      .from("homebrew_entries")
+      .select("*")
+      .eq("type", "spell")
+      .order("name", { ascending: true }),
+  ]);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  if (homebrewError) {
+    return NextResponse.json({ error: homebrewError.message }, { status: 500 });
+  }
 
-  const filtered = ((data ?? []) as SpellRow[]).filter((spell) =>
-    matchesTradition(spell, tradition)
+  const homebrewRows = ((homebrewData ?? []) as HomebrewRow[])
+    .filter((row) => virtualType(row) === "spell")
+    .map(virtualSpell);
+  const filtered = [...((data ?? []) as SpellRow[]), ...homebrewRows].filter(
+    (spell) =>
+      matchesTradition(spell, isFocus === "true" ? null : tradition) &&
+      (!q || normalize(spell.name).includes(normalize(q))) &&
+      (!level || spell.level === parseInt(level, 10)) &&
+      (isFocus !== "true" || !!spell.is_focus_spell) &&
+      (isRitual !== "true" || !!spell.is_ritual)
   );
   const deduped = dedupeSpells(filtered);
   const paged = deduped.slice(offset, offset + limit);
