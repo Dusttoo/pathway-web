@@ -94,7 +94,7 @@ export const STEPS: StepDef[] = [
   { key: "languages", label: "Languages", icon: Languages, shouldShow: () => true },
   { key: "skills", label: "Skills", icon: CheckCircle2, shouldShow: () => true },
   { key: "feats", label: "Feats", icon: Award, shouldShow: () => true },
-  { key: "description", label: "Description & Personality", icon: Heart, shouldShow: () => true },
+  { key: "description", label: "Description", icon: Heart, shouldShow: () => true },
   { key: "equipment", label: "Equipment", icon: Backpack, shouldShow: () => true },
   {
     key: "spells",
