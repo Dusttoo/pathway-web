@@ -2052,8 +2052,7 @@ function MiniCharacterSheet({
               <MiniStat label="HP" value={maxHp} sub={`${attributes.classhp} class hp`} />
               <MiniStat
                 label="Speed"
-                value={defenses.speed ? `${defenses.speed} ft` : "—"}
-                sub={defenses.size || undefined}
+                value={defenses.speed ? `${defenses.speed} ft${defenses.size ? ` · ${defenses.size}` : ""}` : "—"}
               />
               <MiniStat label="Perception" value={signed(perception)} sub={perceptionLabel} />
               {SAVE_KEYS.map(([key, label]) => {
@@ -2297,6 +2296,7 @@ function CharacterCard({
   const [isUploading, setIsUploading] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isFullEditorOpen, setIsFullEditorOpen] = useState(initiallyOpenEditor);
+  const defenses = getDefenseDetails(character);
 
   // Reset error state whenever the resolved image URL changes (e.g. after upload).
   useEffect(() => {
@@ -2388,6 +2388,12 @@ function CharacterCard({
             {character.background_name && (
               <p className="mt-1 text-xs text-muted-foreground">
                 {character.background_name} background
+              </p>
+            )}
+            {(defenses.speed || defenses.size) && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Speed {defenses.speed ? `${defenses.speed} ft` : "—"}
+                {defenses.size ? ` · ${defenses.size}` : ""}
               </p>
             )}
           </div>
