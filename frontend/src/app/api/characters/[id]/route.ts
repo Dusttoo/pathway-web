@@ -242,10 +242,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         };
       } | null
     )?.attributes;
+    const abilities = (
+      build as {
+        abilities?: {
+          con?: number;
+        };
+      } | null
+    )?.abilities;
     const level = (build as { level?: number } | null)?.level ?? 1;
+    const conMod =
+      typeof abilities?.con === "number" ? Math.floor((abilities.con - 10) / 2) : 0;
     const maxHp = attrs
       ? (attrs.ancestryhp ?? 0) +
-        ((attrs.classhp ?? 0) + (attrs.bonushpPerLevel ?? 0)) * level +
+        ((attrs.classhp ?? 0) + (attrs.bonushpPerLevel ?? 0) + conMod) * level +
         (attrs.bonushp ?? 0)
       : null;
     updates.current_hp =
