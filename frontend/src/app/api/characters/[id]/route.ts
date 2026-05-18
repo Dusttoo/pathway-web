@@ -290,22 +290,31 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       : {};
 
     if (body.build_patch.name !== undefined) {
-      build.name = body.build_patch.name.trim();
+      const name = body.build_patch.name.trim();
+      if (!name) return NextResponse.json({ error: "Character name is required" }, { status: 400 });
+      build.name = name;
+      updates.name = name;
     }
     if (body.build_patch.ancestry !== undefined) {
       build.ancestry = body.build_patch.ancestry?.trim() || null;
+      updates.ancestry_name = body.build_patch.ancestry?.trim() || null;
     }
     if (body.build_patch.heritage !== undefined) {
       build.heritage = body.build_patch.heritage?.trim() || null;
+      updates.heritage_name = body.build_patch.heritage?.trim() || null;
     }
     if (body.build_patch.class !== undefined) {
       build.class = body.build_patch.class?.trim() || null;
+      updates.class_name = body.build_patch.class?.trim() || null;
     }
     if (body.build_patch.background !== undefined) {
       build.background = body.build_patch.background?.trim() || null;
+      updates.background_name = body.build_patch.background?.trim() || null;
     }
     if (body.build_patch.level !== undefined) {
-      build.level = Math.max(1, Math.min(20, Math.round(body.build_patch.level)));
+      const level = Math.max(1, Math.min(20, Math.round(body.build_patch.level)));
+      build.level = level;
+      updates.level = level;
     }
     if (body.build_patch.deity !== undefined) {
       build.deity = body.build_patch.deity?.trim() || null;

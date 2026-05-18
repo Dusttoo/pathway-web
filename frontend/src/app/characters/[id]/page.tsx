@@ -83,7 +83,7 @@ interface PBBuild {
   lores?: unknown[];
   equipment?: Array<[string, number]> | Array<{ name: string; qty: number }>;
   attributes?: { ancestryhp: number; classhp: number; bonushp: number; bonushpPerLevel: number };
-  spellCasters?: Array<{ name: string; perDay: number[] }>;
+  spellCasters?: Array<{ name: string; perDay: number[]; ability?: string; magicTradition?: string }>;
   ac?: number;
   armorClass?: number;
   armor_class?: number;
@@ -149,6 +149,17 @@ interface ItemData {
 
 function abilityModNum(score: number): number {
   return Math.floor((score - 10) / 2);
+}
+
+function abilityKey(value: unknown, fallback: keyof NonNullable<PBBuild["abilities"]> = "str") {
+  return value === "str" ||
+    value === "dex" ||
+    value === "con" ||
+    value === "int" ||
+    value === "wis" ||
+    value === "cha"
+    ? value
+    : fallback;
 }
 
 function abilityModStr(score: number): string {
@@ -279,15 +290,7 @@ function profLabel(key: string): string {
 }
 
 function usesPf2eProficiencyBonus(build: PBBuild, proficiencies: Record<string, number>): boolean {
-  if (
-    isRecord(build.acTotal) ||
-    Array.isArray(build.lores) ||
-    Array.isArray(build.weapons) ||
-    Object.values(proficiencies).some((value) => value > 4)
-  ) {
-    return true;
-  }
-  return false;
+  return Object.values(proficiencies).some((value) => value > 4);
 }
 
 function proficiencyValueToBonus(value: number, level: number, usesRawBonus: boolean): number {
@@ -342,6 +345,8 @@ function deriveAc(build: PBBuild, level: number, usesRawBonus: boolean): number 
 
 function getDefenseDetails(build: PBBuild, level: number, usesRawBonus: boolean) {
   const ac = deriveAc(build, level, usesRawBonus);
+  const abilities = build.abilities ?? { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+  const proficiencies = build.proficiencies ?? {};
   const speed =
     getNestedNumber(build, [
       ["speed"],
@@ -349,8 +354,26 @@ function getDefenseDetails(build: PBBuild, level: number, usesRawBonus: boolean)
       ["stats", "speed"],
       ["attributes", "speed"],
     ]) ?? null;
-  const classDc = getNestedNumber(build, [["class_dc"], ["classDC"], ["stats", "class_dc"]]);
-  const spellDc = getNestedNumber(build, [["spell_dc"], ["spellDC"], ["stats", "spell_dc"]]);
+  const classRank = proficiencies.class_dc ?? proficiencies.classDC ?? 0;
+  const classAbility = abilityKey(build.keyability, "str");
+  const classDc =
+    getNestedNumber(build, [["class_dc"], ["classDC"], ["stats", "class_dc"]]) ??
+    (classRank > 0
+      ? 10 + abilityModNum(abilities[classAbility] ?? 10) + normalizedProfBonus(classRank, level, usesRawBonus)
+      : null);
+  const spellRank =
+    proficiencies.spell_dc ??
+    proficiencies.casting_arcane ??
+    proficiencies.casting_divine ??
+    proficiencies.casting_occult ??
+    proficiencies.casting_primal ??
+    0;
+  const spellAbility = abilityKey(build.spellCasters?.[0]?.ability?.toLowerCase?.() ?? build.keyability, "int");
+  const spellDc =
+    getNestedNumber(build, [["spell_dc"], ["spellDC"], ["stats", "spell_dc"]]) ??
+    (spellRank > 0
+      ? 10 + abilityModNum(abilities[spellAbility] ?? 10) + normalizedProfBonus(spellRank, level, usesRawBonus)
+      : null);
   return {
     ac,
     armor: getNestedString(build, [["armor"], ["equipped_armor"], ["stats", "armor"]]) ?? "",
@@ -3570,6 +3593,9 @@ export default function CharacterDetailPage() {
                   .filter(Boolean)
                   .join(" ")}
               </p>
+              <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                Pathway JSON ID: {character.id}
+              </p>
               {character.background_name && (
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {character.background_name} background
@@ -3582,6 +3608,12 @@ export default function CharacterDetailPage() {
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              <Link
+                href={`/characters?edit=${character.id}`}
+                className="btn-outline flex items-center gap-2 text-sm"
+              >
+                Edit Full Sheet
+              </Link>
               {(character as unknown as { pathbuilder_id: number | null }).pathbuilder_id && (
                 <button
                   onClick={async () => {

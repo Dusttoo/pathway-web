@@ -66,6 +66,7 @@ type CharacterBuild = {
   custom_attacks?: unknown;
   lores?: unknown;
   weapons?: unknown;
+  spellCasters?: unknown;
   build?: CharacterBuild;
 };
 
@@ -77,6 +78,17 @@ type AbilityScores = {
   wis: number;
   cha: number;
 };
+
+function abilityKey(value: unknown, fallback: keyof AbilityScores = "str"): keyof AbilityScores {
+  return value === "str" ||
+    value === "dex" ||
+    value === "con" ||
+    value === "int" ||
+    value === "wis" ||
+    value === "cha"
+    ? value
+    : fallback;
+}
 
 type HpAttributes = {
   ancestryhp: number;
@@ -323,6 +335,10 @@ function getHpAttributes(character: Character): HpAttributes {
 
 function getDefenseDetails(character: Character): DefenseDetails {
   const build = getCharacterBuild(character);
+  const level = character.level ?? getBuildNumber(build, "level", 1);
+  const proficiencies = getProficiencies(character);
+  const usesRawBonus = usesPf2eProficiencyBonus(character, proficiencies);
+  const abilities = getAbilityScores(character);
   const ac =
     getNestedNumber(build, [
       ["acTotal", "acTotal"],
@@ -338,9 +354,33 @@ function getDefenseDetails(character: Character): DefenseDetails {
   const classDc =
     getNestedNumber(build, [["class_dc"], ["classDC"], ["stats", "class_dc"]]) ??
     getNestedNumber(character.pathbuilder_data, [["class_dc"], ["build", "class_dc"]]);
+  const classRank = proficiencies.class_dc ?? proficiencies.classDC ?? 0;
   const spellDc =
     getNestedNumber(build, [["spell_dc"], ["spellDC"], ["stats", "spell_dc"]]) ??
     getNestedNumber(character.pathbuilder_data, [["spell_dc"], ["build", "spell_dc"]]);
+  const spellRank =
+    proficiencies.spell_dc ??
+    proficiencies.casting_arcane ??
+    proficiencies.casting_divine ??
+    proficiencies.casting_occult ??
+    proficiencies.casting_primal ??
+    0;
+  const firstCaster =
+    Array.isArray(build.spellCasters) && isRecord(build.spellCasters[0])
+      ? build.spellCasters[0]
+      : null;
+  const spellAbility = abilityKey(
+    typeof firstCaster?.ability === "string"
+      ? firstCaster.ability.toLowerCase()
+      : typeof build.keyability === "string"
+        ? build.keyability.toLowerCase()
+        : null,
+    "int"
+  );
+  const classAbility = abilityKey(
+    typeof build.keyability === "string" ? build.keyability.toLowerCase() : null,
+    "str"
+  );
 
   return {
     ac: ac ? String(ac) : "",
@@ -351,8 +391,16 @@ function getDefenseDetails(character: Character): DefenseDetails {
       getNestedString(build, [["senses"], ["stats", "senses"]]) ??
       getNestedString(character.pathbuilder_data, [["senses"], ["build", "senses"]]) ??
       "",
-    classDc: classDc ? String(classDc) : "",
-    spellDc: spellDc ? String(spellDc) : "",
+    classDc:
+      classDc ? String(classDc)
+      : classRank > 0
+        ? String(10 + abilityMod(abilities[classAbility] ?? 10) + proficiencyValueToBonus(classRank, level, usesRawBonus))
+        : "",
+    spellDc:
+      spellDc ? String(spellDc)
+      : spellRank > 0
+        ? String(10 + abilityMod(abilities[spellAbility] ?? 10) + proficiencyValueToBonus(spellRank, level, usesRawBonus))
+        : "",
   };
 }
 
@@ -520,11 +568,6 @@ function signed(value: number) {
 }
 
 function usesPf2eProficiencyBonus(character: Character, proficiencies: Record<string, number>) {
-  if (character.source === "pathbuilder" || character.pathbuilder_id) return true;
-  const build = getCharacterBuild(character);
-  if (isRecord(build.acTotal) || Array.isArray(build.lores) || Array.isArray(build.weapons)) {
-    return true;
-  }
   return Object.values(proficiencies).some((value) => value > 4);
 }
 
@@ -1800,11 +1843,13 @@ function MiniSection({ title, children }: { title: string; children: React.React
 function MiniCharacterSheet({
   character,
   storedImage,
+  initiallyOpenEditor = false,
 }: {
   character: Character;
   storedImage?: string | null;
+  initiallyOpenEditor?: boolean;
 }) {
-  const [isFullEditorOpen, setIsFullEditorOpen] = useState(false);
+  const [isFullEditorOpen, setIsFullEditorOpen] = useState(initiallyOpenEditor);
   const build = getCharacterBuild(character);
   const image = getCharacterImage(character, storedImage);
   const abilities = getAbilityScores(character);
@@ -1848,6 +1893,10 @@ function MiniCharacterSheet({
       total: proficiencyValueToBonus(rank, level, usesRawBonus),
     }));
   const loreSkills = getLoreSkills(character, usesRawBonus);
+
+  useEffect(() => {
+    if (initiallyOpenEditor) setIsFullEditorOpen(true);
+  }, [initiallyOpenEditor]);
 
   useEffect(() => {
     const featList = visibleFeats.filter((feat) => !feat[3]?.trim());
@@ -2227,11 +2276,13 @@ function CharacterCard({
   storedImage,
   onDelete,
   isDeleting,
+  initiallyOpenEditor = false,
 }: {
   character: Character;
   storedImage?: string | null;
   onDelete: (id: string, name: string) => void;
   isDeleting: boolean;
+  initiallyOpenEditor?: boolean;
 }) {
   const customImage = storedImage ?? getCustomCharacterImage(character);
   const image = getCharacterImage(character, storedImage);
@@ -2241,12 +2292,16 @@ function CharacterCard({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [isFullEditorOpen, setIsFullEditorOpen] = useState(false);
+  const [isFullEditorOpen, setIsFullEditorOpen] = useState(initiallyOpenEditor);
 
   // Reset error state whenever the resolved image URL changes (e.g. after upload).
   useEffect(() => {
     setImageError(false);
   }, [image]);
+
+  useEffect(() => {
+    if (initiallyOpenEditor) setIsFullEditorOpen(true);
+  }, [initiallyOpenEditor]);
 
   const subtitle = [character.ancestry_name, character.heritage_name, character.class_name]
     .filter(Boolean)
@@ -2438,10 +2493,15 @@ export default function CharactersPage() {
   const { user } = useAuth();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"cards" | "sheets">("cards");
+  const [editorCharacterId, setEditorCharacterId] = useState<string | null>(null);
 
   const { data: characters, isLoading, error } = useCharacters({}, { enabled: !!user });
   const { data: characterImages = {} } = useCharacterImages({ enabled: !!user });
   const deleteMutation = useDeleteCharacter();
+
+  useEffect(() => {
+    setEditorCharacterId(new URLSearchParams(window.location.search).get("edit"));
+  }, []);
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
@@ -2522,6 +2582,7 @@ export default function CharactersPage() {
               storedImage={characterImages[character.id]}
               onDelete={handleDelete}
               isDeleting={deletingId === character.id}
+              initiallyOpenEditor={editorCharacterId === character.id}
             />
           ))}
         </div>
@@ -2534,6 +2595,7 @@ export default function CharactersPage() {
               key={character.id}
               character={character}
               storedImage={characterImages[character.id]}
+              initiallyOpenEditor={editorCharacterId === character.id}
             />
           ))}
         </div>
