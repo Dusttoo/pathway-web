@@ -90,6 +90,7 @@ interface PBBuild {
   acTotal?: number | { acTotal?: number };
   speed?: number;
   speed_ft?: number;
+  size?: string;
   senses?: string;
   armor?: string;
   shield?: string;
@@ -289,7 +290,12 @@ function profLabel(key: string): string {
   return labels[canonical] ?? customLabel(key);
 }
 
-function usesPf2eProficiencyBonus(build: PBBuild, proficiencies: Record<string, number>): boolean {
+function usesPf2eProficiencyBonus(
+  build: PBBuild,
+  proficiencies: Record<string, number>,
+  isPathbuilderImport = false
+): boolean {
+  if (isPathbuilderImport) return true;
   return Object.values(proficiencies).some((value) => value > 4);
 }
 
@@ -379,6 +385,7 @@ function getDefenseDetails(build: PBBuild, level: number, usesRawBonus: boolean)
     armor: getNestedString(build, [["armor"], ["equipped_armor"], ["stats", "armor"]]) ?? "",
     shield: getNestedString(build, [["shield"], ["equipped_shield"], ["stats", "shield"]]) ?? "",
     speed: speed ? `${speed}` : "",
+    size: getNestedString(build, [["size"], ["stats", "size"]]) ?? "",
     senses: getNestedString(build, [["senses"], ["stats", "senses"]]) ?? "",
     classDc: classDc ? `${classDc}` : "",
     spellDc: spellDc ? `${spellDc}` : "",
@@ -3549,7 +3556,14 @@ export default function CharacterDetailPage() {
   );
 
   const profs = build?.proficiencies ?? {};
-  const usesRawBonus = build ? usesPf2eProficiencyBonus(build, profs) : false;
+  const usesRawBonus = build
+    ? usesPf2eProficiencyBonus(
+        build,
+        profs,
+        character.source === "pathbuilder" ||
+          Boolean((character as unknown as { pathbuilder_id: number | null }).pathbuilder_id)
+      )
+    : false;
   const defenses = build ? getDefenseDetails(build, level, usesRawBonus) : null;
   // Companions come from the dedicated `companions` table via useCompanions()
   const hasCompanions = companions.length > 0;
@@ -3748,7 +3762,12 @@ export default function CharacterDetailPage() {
               defenses.weaknesses) && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-border">
                 <MiniDetail label="AC" value={defenses.ac} />
-                {defenses.speed && <MiniDetail label="Speed" value={`${defenses.speed} ft`} />}
+                {defenses.speed && (
+                  <MiniDetail
+                    label="Speed"
+                    value={`${defenses.speed} ft${defenses.size ? ` · ${defenses.size}` : ""}`}
+                  />
+                )}
                 {defenses.armor && <MiniDetail label="Armor" value={defenses.armor} />}
                 {defenses.shield && <MiniDetail label="Shield" value={defenses.shield} />}
                 {defenses.senses && <MiniDetail label="Senses" value={defenses.senses} />}

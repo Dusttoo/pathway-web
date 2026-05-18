@@ -55,6 +55,7 @@ type CharacterBuild = {
   armor?: unknown;
   shield?: unknown;
   speed?: unknown;
+  size?: unknown;
   senses?: unknown;
   acTotal?: unknown;
   class_dc?: unknown;
@@ -102,6 +103,7 @@ type DefenseDetails = {
   armor: string;
   shield: string;
   speed: string;
+  size: string;
   senses: string;
   classDc: string;
   spellDc: string;
@@ -387,6 +389,7 @@ function getDefenseDetails(character: Character): DefenseDetails {
     armor: getNestedString(build, [["armor"], ["equipped_armor"], ["stats", "armor"]]) ?? "",
     shield: getNestedString(build, [["shield"], ["equipped_shield"], ["stats", "shield"]]) ?? "",
     speed: speed ? String(speed) : "",
+    size: getNestedString(build, [["size"], ["stats", "size"]]) ?? "",
     senses:
       getNestedString(build, [["senses"], ["stats", "senses"]]) ??
       getNestedString(character.pathbuilder_data, [["senses"], ["build", "senses"]]) ??
@@ -568,6 +571,7 @@ function signed(value: number) {
 }
 
 function usesPf2eProficiencyBonus(character: Character, proficiencies: Record<string, number>) {
+  if (character.source === "pathbuilder" || character.pathbuilder_id) return true;
   return Object.values(proficiencies).some((value) => value > 4);
 }
 
@@ -2048,8 +2052,8 @@ function MiniCharacterSheet({
               <MiniStat label="HP" value={maxHp} sub={`${attributes.classhp} class hp`} />
               <MiniStat
                 label="Speed"
-                value={defenses.speed || "—"}
-                sub={defenses.speed ? "feet" : undefined}
+                value={defenses.speed ? `${defenses.speed} ft` : "—"}
+                sub={defenses.size || undefined}
               />
               <MiniStat label="Perception" value={signed(perception)} sub={perceptionLabel} />
               {SAVE_KEYS.map(([key, label]) => {
