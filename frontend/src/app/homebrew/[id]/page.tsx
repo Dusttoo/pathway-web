@@ -88,6 +88,7 @@ function num(v: unknown): number | null {
 
 function SpellDetail({ entry }: { entry: HomebrewEntry }) {
   const d = entry.data as Record<string, unknown>;
+  const automation = (d.automation ?? {}) as Record<string, unknown>;
   const traits = str(d.traits).split(",").map((t) => t.trim()).filter(Boolean);
   const traditions = str(d.traditions).split(",").map((t) => t.trim()).filter(Boolean);
   const spellType = str(d.type);
@@ -131,6 +132,20 @@ function SpellDetail({ entry }: { entry: HomebrewEntry }) {
       {d.heightened ? (
         <SectionCard title="Heightened">
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{str(d.heightened)}</p>
+        </SectionCard>
+      ) : null}
+
+      {automation.mode && automation.mode !== "none" ? (
+        <SectionCard title="Bot Automation">
+          <div className="space-y-2">
+            <Row label="Mode" value={str(automation.mode).replace(/_/g, " ")} />
+            <Row label="Damage" value={str(automation.damage_formula)} />
+            <Row label="Damage Type" value={str(automation.damage_type)} />
+            <Row label="Healing" value={str(automation.heal_formula)} />
+            <Row label="Save" value={str(automation.saving_throw)} />
+            <Row label="Basic Save" value={automation.basic_save ? "Yes" : ""} />
+            <Row label="Spell Attack" value={automation.spell_attack ? "Yes" : ""} />
+          </div>
         </SectionCard>
       ) : null}
     </div>

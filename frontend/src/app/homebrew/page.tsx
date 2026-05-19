@@ -27,6 +27,7 @@ import {
   Users,
   GraduationCap,
   BookOpen,
+  Boxes,
 } from "lucide-react";
 import { AncestryPanel } from "./_components/AncestryPanel";
 import { ClassPanel } from "./_components/ClassPanel";
@@ -364,15 +365,21 @@ function HomebrewContent() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div>
-        <h1 className="font-heading text-4xl font-bold mb-2 flex items-center gap-3">
-          <Wand2 className="text-primary" size={36} />
-          Homebrew
-        </h1>
-        <p className="text-muted-foreground">
-          Custom spells, monsters, items, feats, heritages, ancestries, classes, and
-          backgrounds — all in one place.
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="font-heading text-4xl font-bold mb-2 flex items-center gap-3">
+            <Wand2 className="text-primary" size={36} />
+            Homebrew
+          </h1>
+          <p className="text-muted-foreground">
+            Custom spells, monsters, items, feats, heritages, ancestries, classes, and
+            backgrounds — all in one place.
+          </p>
+        </div>
+        <Link href="/homebrew/packs" className="btn-primary inline-flex items-center gap-2">
+          <Boxes size={16} />
+          Homebrew Packs
+        </Link>
       </div>
 
       {/* Info banners */}

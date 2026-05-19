@@ -12,6 +12,7 @@ import { ArrowLeft, Sparkles } from "lucide-react";
 
 type SpellType = "Spell" | "Cantrip" | "Focus" | "Ritual";
 type Rarity = "Common" | "Uncommon" | "Rare" | "Unique";
+type RollMode = "none" | "spell_attack" | "saving_throw" | "heal" | "flat_roll";
 
 const TRADITIONS = ["arcane", "divine", "occult", "primal"] as const;
 type Tradition = (typeof TRADITIONS)[number];
@@ -101,6 +102,15 @@ export default function NewSpellPage() {
   const [heightened, setHeightened] = useState("");
   const [source, setSource] = useState("Homebrew");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [rollMode, setRollMode] = useState<RollMode>("none");
+  const [damageFormula, setDamageFormula] = useState("");
+  const [damageType, setDamageType] = useState("");
+  const [healFormula, setHealFormula] = useState("");
+  const [attackTrait, setAttackTrait] = useState(false);
+  const [basicSave, setBasicSave] = useState(false);
+  const [successText, setSuccessText] = useState("");
+  const [failureText, setFailureText] = useState("");
+  const [criticalFailureText, setCriticalFailureText] = useState("");
 
   function toggleTradition(t: Tradition) {
     setTraditions((prev) => {
@@ -135,6 +145,38 @@ export default function NewSpellPage() {
       return;
     }
 
+    const automation = {
+      mode: rollMode,
+      spell_attack: rollMode === "spell_attack",
+      saving_throw: rollMode === "saving_throw" ? defense || null : null,
+      basic_save: rollMode === "saving_throw" ? basicSave : false,
+      attack_trait: attackTrait,
+      damage_formula: damageFormula.trim() || null,
+      damage_type: damageType.trim() || null,
+      heal_formula: healFormula.trim() || null,
+      success_text: successText.trim() || null,
+      failure_text: failureText.trim() || null,
+      critical_failure_text: criticalFailureText.trim() || null,
+    };
+
+    const rolls =
+      rollMode === "none"
+        ? []
+        : [
+            {
+              type: rollMode,
+              formula:
+                rollMode === "heal"
+                  ? healFormula.trim()
+                  : rollMode === "flat_roll"
+                    ? damageFormula.trim()
+                    : damageFormula.trim(),
+              damage_type: damageType.trim() || null,
+              save: rollMode === "saving_throw" ? defense || null : null,
+              basic: rollMode === "saving_throw" ? basicSave : false,
+            },
+          ];
+
     const spellData = {
       name: name.trim(),
       source,
@@ -156,7 +198,8 @@ export default function NewSpellPage() {
       defense,
       damage: { base: "", type: "", extra: "" },
       heightening: null,
-      rolls: [],
+      automation,
+      rolls,
       image_url: imageUrl,
     };
 
@@ -426,6 +469,106 @@ export default function NewSpellPage() {
                 placeholder="+2 The damage increases by 2d6."
               />
             </Field>
+          </div>
+
+          {/* Bot automation */}
+          <div className="card p-6 space-y-4">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Bot Automation
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              These fields save structured roll data for Pathway so a homebrew spell can later cast
+              like a normal spell instead of only displaying text.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Roll Behavior">
+                <Select
+                  value={rollMode}
+                  onChange={(v) => setRollMode(v as RollMode)}
+                  options={[
+                    "none",
+                    "spell_attack",
+                    "saving_throw",
+                    "heal",
+                    "flat_roll",
+                  ]}
+                />
+              </Field>
+              <Field label="Damage / Roll Formula" hint="Examples: 2d6, 1d8+4, 4d10">
+                <input
+                  type="text"
+                  className="input"
+                  value={damageFormula}
+                  onChange={(e) => setDamageFormula(e.target.value)}
+                  placeholder="2d6"
+                />
+              </Field>
+              <Field label="Damage Type">
+                <input
+                  type="text"
+                  className="input"
+                  value={damageType}
+                  onChange={(e) => setDamageType(e.target.value)}
+                  placeholder="fire"
+                />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Healing Formula">
+                <input
+                  type="text"
+                  className="input"
+                  value={healFormula}
+                  onChange={(e) => setHealFormula(e.target.value)}
+                  placeholder="1d8+8"
+                />
+              </Field>
+              <label className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={attackTrait}
+                  onChange={(e) => setAttackTrait(e.target.checked)}
+                />
+                Uses spell attack roll
+              </label>
+              <label className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={basicSave}
+                  onChange={(e) => setBasicSave(e.target.checked)}
+                />
+                Basic saving throw
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Success Text">
+                <textarea
+                  className="input min-h-[80px] resize-y"
+                  value={successText}
+                  onChange={(e) => setSuccessText(e.target.value)}
+                  placeholder="Target takes half damage."
+                />
+              </Field>
+              <Field label="Failure Text">
+                <textarea
+                  className="input min-h-[80px] resize-y"
+                  value={failureText}
+                  onChange={(e) => setFailureText(e.target.value)}
+                  placeholder="Target takes full damage."
+                />
+              </Field>
+              <Field label="Critical Failure Text">
+                <textarea
+                  className="input min-h-[80px] resize-y"
+                  value={criticalFailureText}
+                  onChange={(e) => setCriticalFailureText(e.target.value)}
+                  placeholder="Target takes double damage."
+                />
+              </Field>
+            </div>
           </div>
 
           {/* Submit */}
