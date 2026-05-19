@@ -14,6 +14,13 @@ export function aonSearchUrl(name: string): string {
 }
 
 export function valueFromMetadata(metadata: unknown, key: string): string | null {
+  if (typeof metadata === "string" && metadata.trim().startsWith("{")) {
+    try {
+      return valueFromMetadata(JSON.parse(metadata), key);
+    } catch {
+      return null;
+    }
+  }
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
   const value = (metadata as Record<string, unknown>)[key];
   if (typeof value === "string" && value.trim()) return value.trim();

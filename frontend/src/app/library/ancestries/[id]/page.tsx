@@ -22,6 +22,51 @@ function asList(value: unknown): string[] {
   return [];
 }
 
+function objectFromJson(value: unknown): Record<string, unknown> {
+  if (typeof value === "string" && value.trim().startsWith("{")) {
+    try {
+      return objectFromJson(JSON.parse(value));
+    } catch {
+      return {};
+    }
+  }
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function cleanContentText(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value !== "string") {
+    const obj = objectFromJson(value);
+    return cleanContentText(
+      obj.summary ?? obj.summary_markdown ?? obj.description ?? obj.text ?? obj.benefits
+    );
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("{")) {
+    try {
+      return cleanContentText(JSON.parse(trimmed));
+    } catch {
+      // Clean as plain text below.
+    }
+  }
+
+  return trimmed
+    .replace(/<title[^>]*>[\s\S]*?<\/title>/gi, " ")
+    .replace(/<traits>[\s\S]*?<\/traits>/gi, " ")
+    .replace(/<additional-info>[\s\S]*?<\/additional-info>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\/[A-Za-z]+\.aspx\?[^)\s]+/g, "$1")
+    .replace(/\*\*/g, "")
+    .replace(/\\n/g, "\n")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function asAbilities(value: unknown): Array<{ name: string; description?: string }> {
   if (!Array.isArray(value)) return [];
   return value
@@ -57,9 +102,7 @@ function HeritageList({ title, heritages }: { title: string; heritages?: Heritag
             </div>
             {heritage.benefits && (
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {typeof heritage.benefits === "string"
-                  ? heritage.benefits
-                  : JSON.stringify(heritage.benefits)}
+                {cleanContentText(heritage.benefits)}
               </p>
             )}
             {heritage.source && (

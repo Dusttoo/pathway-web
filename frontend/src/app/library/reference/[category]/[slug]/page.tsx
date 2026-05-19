@@ -12,23 +12,71 @@ import {
 } from "@/lib/hooks/use-gamedata";
 
 function dataObject(data: unknown): Record<string, unknown> {
+  if (typeof data === "string" && data.trim().startsWith("{")) {
+    try {
+      return dataObject(JSON.parse(data));
+    } catch {
+      return {};
+    }
+  }
   return data && typeof data === "object" && !Array.isArray(data)
     ? (data as Record<string, unknown>)
     : {};
+}
+
+function cleanContentText(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value !== "string") {
+    const obj = dataObject(value);
+    return cleanContentText(
+      obj.summary ?? obj.summary_markdown ?? obj.description ?? obj.text ?? obj.markdown
+    );
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("{")) {
+    try {
+      return cleanContentText(JSON.parse(trimmed));
+    } catch {
+      // Clean as plain text below.
+    }
+  }
+
+  return trimmed
+    .replace(/<title[^>]*>[\s\S]*?<\/title>/gi, " ")
+    .replace(/<traits>[\s\S]*?<\/traits>/gi, " ")
+    .replace(/<additional-info>[\s\S]*?<\/additional-info>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\/[A-Za-z]+\.aspx\?[^)\s]+/g, "$1")
+    .replace(/\*\*/g, "")
+    .replace(/\\n/g, "\n")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function displayValue(value: unknown): string {
   if (value == null || value === "") return "-";
   if (Array.isArray(value)) return value.map(String).join(", ");
   if (typeof value === "object") return JSON.stringify(value, null, 2);
-  return String(value);
+  return cleanContentText(value) || String(value);
 }
 
 function descriptionFromData(data: unknown): string {
   const obj = dataObject(data);
-  for (const key of ["description", "text", "summary", "effect", "details", "flavor"]) {
-    const value = obj[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
+  for (const key of [
+    "description",
+    "text",
+    "summary",
+    "summary_markdown",
+    "effect",
+    "details",
+    "flavor",
+    "markdown",
+  ]) {
+    const cleaned = cleanContentText(obj[key]);
+    if (cleaned) return cleaned;
   }
   return "";
 }
@@ -89,9 +137,11 @@ export default function ReferenceDetailPage() {
         "description",
         "text",
         "summary",
+        "summary_markdown",
         "effect",
         "details",
         "flavor",
+        "markdown",
         "aon_url",
         "aonUrl",
         "url",

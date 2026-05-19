@@ -160,16 +160,65 @@ function list(value: unknown): string[] {
 }
 
 function dataObject(data: unknown): Record<string, unknown> {
+  if (typeof data === "string" && data.trim().startsWith("{")) {
+    try {
+      return dataObject(JSON.parse(data));
+    } catch {
+      return {};
+    }
+  }
   return data && typeof data === "object" && !Array.isArray(data)
     ? (data as Record<string, unknown>)
     : {};
 }
 
+function cleanContentText(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value !== "string") {
+    const obj = dataObject(value);
+    return cleanContentText(
+      obj.summary ?? obj.summary_markdown ?? obj.description ?? obj.text ?? obj.markdown
+    );
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("{")) {
+    try {
+      return cleanContentText(JSON.parse(trimmed));
+    } catch {
+      // Clean as plain text below.
+    }
+  }
+
+  return trimmed
+    .replace(/<title[^>]*>[\s\S]*?<\/title>/gi, " ")
+    .replace(/<traits>[\s\S]*?<\/traits>/gi, " ")
+    .replace(/<additional-info>[\s\S]*?<\/additional-info>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\/[A-Za-z]+\.aspx\?[^)\s]+/g, "$1")
+    .replace(/\*\*/g, "")
+    .replace(/\\n/g, "\n")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function contentDescription(data: unknown): string {
   const obj = dataObject(data);
-  const candidates = [obj.description, obj.text, obj.summary, obj.effect, obj.details, obj.flavor];
+  const candidates = [
+    obj.description,
+    obj.text,
+    obj.summary,
+    obj.summary_markdown,
+    obj.effect,
+    obj.details,
+    obj.flavor,
+    obj.markdown,
+  ];
   for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+    const cleaned = cleanContentText(candidate);
+    if (cleaned) return cleaned;
   }
   return "";
 }
@@ -289,7 +338,9 @@ function LegacyCard({ item, tab }: { item: Row; tab: LegacyTab }) {
         </p>
       )}
 
-      <p className="line-clamp-2 text-sm text-muted-foreground">{str(item.description) || "—"}</p>
+      <p className="line-clamp-2 text-sm text-muted-foreground">
+        {cleanContentText(item.description) || "—"}
+      </p>
       <AonLink
         name={str(item.name)}
         url={aonUrlFromMetadata(metadata)}
@@ -349,7 +400,9 @@ function ItemCard({ item }: { item: ItemRow }) {
         {item.item_type ? ` · ${str(item.item_type).replace(/_/g, " ")}` : ""}
         {item.bulk ? ` · ${item.bulk} bulk` : ""}
       </p>
-      <p className="line-clamp-2 text-sm text-muted-foreground">{str(item.description) || "—"}</p>
+      <p className="line-clamp-2 text-sm text-muted-foreground">
+        {cleanContentText(item.description) || "—"}
+      </p>
       <AonLink
         name={item.name}
         url={aonUrlFromMetadata(metadata)}
