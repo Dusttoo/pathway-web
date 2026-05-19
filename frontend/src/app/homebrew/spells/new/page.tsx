@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout";
@@ -81,6 +81,7 @@ export default function NewSpellPage() {
   const router = useRouter();
   const createHomebrew = useCreateHomebrew();
   const [formError, setFormError] = useState<string | null>(null);
+  const [packId, setPackId] = useState<string | null>(null);
 
   // Form fields
   const [name, setName] = useState("");
@@ -111,6 +112,10 @@ export default function NewSpellPage() {
   const [successText, setSuccessText] = useState("");
   const [failureText, setFailureText] = useState("");
   const [criticalFailureText, setCriticalFailureText] = useState("");
+
+  useEffect(() => {
+    setPackId(new URLSearchParams(window.location.search).get("packId"));
+  }, []);
 
   function toggleTradition(t: Tradition) {
     setTraditions((prev) => {
@@ -204,12 +209,20 @@ export default function NewSpellPage() {
     };
 
     try {
-      await createHomebrew.mutateAsync({
+      const created = await createHomebrew.mutateAsync({
         type: "spell",
         name: name.trim(),
         data: spellData,
       });
-      router.push("/homebrew?tab=spell");
+      if (packId) {
+        const packRes = await fetch(`/api/homebrew/packs/${packId}/entries`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ homebrew_entry_id: created.data.id }),
+        });
+        if (!packRes.ok) throw new Error(await packRes.text());
+      }
+      router.push(packId ? `/homebrew/packs/${packId}` : "/homebrew?tab=spell");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Failed to create spell.");
     }
@@ -220,11 +233,11 @@ export default function NewSpellPage() {
       <div className="max-w-3xl space-y-6">
         {/* Back */}
         <Link
-          href="/homebrew?tab=spell"
+          href={packId ? `/homebrew/packs/${packId}` : "/homebrew?tab=spell"}
           className="inline-flex items-center gap-2 text-primary hover:text-primary/80 text-sm"
         >
           <ArrowLeft size={14} />
-          Back to Homebrew
+          {packId ? "Back to Pack" : "Back to Homebrew"}
         </Link>
 
         {/* Header */}
@@ -234,7 +247,9 @@ export default function NewSpellPage() {
             New Homebrew Spell
           </h1>
           <p className="text-muted-foreground text-sm">
-            Creates a spell the Pathway bot can look up in any Discord server.
+            {packId
+              ? "Creates a spell and adds it to this homebrew pack."
+              : "Creates a spell the Pathway bot can look up in any Discord server."}
           </p>
         </div>
 
@@ -594,7 +609,7 @@ export default function NewSpellPage() {
                 </>
               )}
             </button>
-            <Link href="/homebrew?tab=spell" className="btn-outline">
+            <Link href={packId ? `/homebrew/packs/${packId}` : "/homebrew?tab=spell"} className="btn-outline">
               Cancel
             </Link>
           </div>

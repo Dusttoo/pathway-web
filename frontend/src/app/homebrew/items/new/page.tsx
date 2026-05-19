@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout";
@@ -88,6 +88,7 @@ export default function NewItemPage() {
   const router = useRouter();
   const createHomebrew = useCreateHomebrew();
   const [formError, setFormError] = useState<string | null>(null);
+  const [packId, setPackId] = useState<string | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -103,6 +104,10 @@ export default function NewItemPage() {
   const [sourceBook, setSourceBook] = useState("Homebrew");
   const [sourcePage, setSourcePage] = useState("");
   const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    setPackId(new URLSearchParams(window.location.search).get("packId"));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -145,12 +150,20 @@ export default function NewItemPage() {
     };
 
     try {
-      await createHomebrew.mutateAsync({
+      const created = await createHomebrew.mutateAsync({
         type: "item",
         name: name.trim(),
         data: itemData,
       });
-      router.push("/homebrew?tab=item");
+      if (packId) {
+        const packRes = await fetch(`/api/homebrew/packs/${packId}/entries`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ homebrew_entry_id: created.data.id }),
+        });
+        if (!packRes.ok) throw new Error(await packRes.text());
+      }
+      router.push(packId ? `/homebrew/packs/${packId}` : "/homebrew?tab=item");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Failed to create item.");
     }
@@ -161,11 +174,11 @@ export default function NewItemPage() {
       <div className="max-w-3xl space-y-6">
         {/* Back */}
         <Link
-          href="/homebrew?tab=item"
+          href={packId ? `/homebrew/packs/${packId}` : "/homebrew?tab=item"}
           className="inline-flex items-center gap-2 text-primary hover:text-primary/80 text-sm"
         >
           <ArrowLeft size={14} />
-          Back to Homebrew
+          {packId ? "Back to Pack" : "Back to Homebrew"}
         </Link>
 
         {/* Header */}
@@ -175,7 +188,9 @@ export default function NewItemPage() {
             New Homebrew Item
           </h1>
           <p className="text-muted-foreground text-sm">
-            Creates an item the Pathway bot can look up in any Discord server.
+            {packId
+              ? "Creates an item and adds it to this homebrew pack."
+              : "Creates an item the Pathway bot can look up in any Discord server."}
           </p>
         </div>
 
@@ -390,7 +405,7 @@ export default function NewItemPage() {
                 </>
               )}
             </button>
-            <Link href="/homebrew?tab=item" className="btn-outline">
+            <Link href={packId ? `/homebrew/packs/${packId}` : "/homebrew?tab=item"} className="btn-outline">
               Cancel
             </Link>
           </div>

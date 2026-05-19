@@ -264,6 +264,26 @@ export default function HomebrewPackDetailPage() {
                 <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Add Spell or Item
                 </h2>
+                <div className="flex flex-wrap gap-2">
+                  {pack.content_types.includes("spell") && (
+                    <Link
+                      href={`/homebrew/spells/new?packId=${pack.id}`}
+                      className="btn-outline inline-flex items-center gap-2"
+                    >
+                      <Sparkles size={16} />
+                      Create Spell in Pack
+                    </Link>
+                  )}
+                  {pack.content_types.includes("item") && (
+                    <Link
+                      href={`/homebrew/items/new?packId=${pack.id}`}
+                      className="btn-outline inline-flex items-center gap-2"
+                    >
+                      <Package size={16} />
+                      Create Item in Pack
+                    </Link>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-[180px_1fr_auto]">
                   <select
                     className="input"
@@ -303,7 +323,7 @@ export default function HomebrewPackDetailPage() {
                 </div>
                 {addError && <p className="text-sm font-medium text-destructive">{addError}</p>}
                 <p className="text-xs text-muted-foreground">
-                  Create spells or items first in Homebrew, then add them to this pack.
+                  Build a new entry directly in this pack, or add an existing homebrew spell or item.
                 </p>
               </div>
             )}
