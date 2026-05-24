@@ -44,20 +44,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sha
     public_share_id: character.public_share_id,
   };
 
+  type QueryResult = Promise<{ data: unknown; error: { message: string } | null }>;
+  type QueryBuilder = QueryResult & {
+    eq: (column: string, value: string) => QueryBuilder;
+    order: (column: string, options?: { ascending?: boolean }) => QueryResult;
+  };
   const untyped = service as never as {
-    from: (table: string) => {
-      select: (columns: string) => {
-        eq: (
-          column: string,
-          value: string
-        ) => {
-          order: (
-            column: string,
-            options?: { ascending?: boolean }
-          ) => Promise<{ data: unknown; error: { message: string } | null }>;
-        };
-      };
-    };
+    from: (table: string) => { select: (columns: string) => QueryBuilder };
   };
 
   const [featsResult, spellsResult] = await Promise.all([
@@ -73,8 +66,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sha
       .select(
         "id, tradition, rank, spell_source, is_signature, notes, spell:spells(name, description, source, rank, traditions)"
       )
-      .eq("character_id", character.id)
-      .order("rank", { ascending: true }),
+      .eq("character_id", character.id),
   ]);
 
   if (featsResult.error) {
@@ -87,6 +79,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sha
   return NextResponse.json({
     character: safeCharacter,
     feats: featsResult.data ?? [],
-    known_spells: spellsResult.data ?? [],
+    known_spells: Array.isArray(spellsResult.data)
+      ? [...spellsResult.data].sort((a, b) => {
+          const left = typeof a === "object" && a && "rank" in a ? Number(a.rank) : 0;
+          const right = typeof b === "object" && b && "rank" in b ? Number(b.rank) : 0;
+          return left - right;
+        })
+      : [],
   });
 }
