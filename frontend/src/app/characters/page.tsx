@@ -965,6 +965,8 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
     proficienciesToText(getProficiencies(character))
   );
   const [featEntries, setFeatEntries] = useState<FeatTuple[]>(() => getFeats(character));
+  const [pendingFeatFocusIndex, setPendingFeatFocusIndex] = useState<number | null>(null);
+  const featNameRefs = useRef<Array<HTMLInputElement | null>>([]);
   const [equipmentText, setEquipmentText] = useState(() =>
     equipmentToText(getEquipment(character))
   );
@@ -974,6 +976,23 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
     getSpecialAbilityEntries(character)
   );
   const [attacks, setAttacks] = useState<CustomAttack[]>(() => getCustomAttacks(character));
+
+  useEffect(() => {
+    if (pendingFeatFocusIndex === null) return;
+    const input = featNameRefs.current[pendingFeatFocusIndex];
+    if (!input) return;
+
+    input.scrollIntoView({ block: "center", behavior: "smooth" });
+    input.focus();
+    setPendingFeatFocusIndex(null);
+  }, [featEntries.length, pendingFeatFocusIndex]);
+
+  function addFeatEntry() {
+    setFeatEntries((current) => {
+      setPendingFeatFocusIndex(current.length);
+      return [...current, ["", null, null, null]];
+    });
+  }
 
   async function saveSheet(event: React.FormEvent) {
     event.preventDefault();
@@ -1422,9 +1441,7 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                     <span className="text-sm">Feats</span>
                     <button
                       type="button"
-                      onClick={() =>
-                        setFeatEntries((current) => [...current, ["", null, null, null]])
-                      }
+                      onClick={addFeatEntry}
                       className="btn-outline text-sm"
                     >
                       Add Feat
@@ -1441,6 +1458,9 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                             <label className="space-y-1 text-sm">
                               <span>Feat Name</span>
                               <input
+                                ref={(node) => {
+                                  featNameRefs.current[index] = node;
+                                }}
                                 value={feat[0]}
                                 onChange={(e) =>
                                   setFeatEntries((current) =>

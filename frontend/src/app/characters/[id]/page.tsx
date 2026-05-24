@@ -2808,7 +2808,7 @@ function FeatsTabPanel({
 
       <div className="card p-4 bg-muted/20 space-y-3">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Add Custom Feat
+          Add Feat
         </h4>
         <div className="grid grid-cols-[1fr_150px_100px_auto] gap-2">
           <input
