@@ -2973,7 +2973,7 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
   const [signature, setSignature] = useState(false);
   const [notes, setNotes] = useState("");
   const isFocusMode = spellSource === "focus";
-  const effectiveTradition = isFocusMode ? "focus" : tradition;
+  const effectiveTradition = isFocusMode ? "arcane" : tradition;
 
   const { data: spellResults, isFetching } = useSpells({
     q: query.trim(),
@@ -3046,7 +3046,7 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5 capitalize">
-                              {row.tradition} - {spellRankLabel(row.rank)}
+                              {row.spell_source === "focus" ? "focus" : row.tradition} - {spellRankLabel(row.rank)}
                               {row.spell.source ? ` - ${row.spell.source}` : ""}
                             </p>
                             {row.notes && (
@@ -3157,7 +3157,7 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
             const alreadyKnown = rows.some(
               (row) =>
                 row.spell_id === spell.id &&
-                row.tradition === effectiveTradition &&
+                (row.tradition === effectiveTradition || (isFocusMode && row.spell_source === "focus")) &&
                 row.rank === rank &&
                 row.spell_source === spellSource
             );

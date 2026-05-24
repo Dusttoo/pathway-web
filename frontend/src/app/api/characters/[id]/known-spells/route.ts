@@ -7,7 +7,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 type UntypedClient = SupabaseClient;
 
 const TRADITIONS = new Set(["arcane", "divine", "occult", "primal", "focus"]);
+const SPELLCASTING_TRADITIONS = new Set(["arcane", "divine", "occult", "primal"]);
 const SOURCES = new Set(["spellbook", "repertoire", "innate", "focus", "staff", "scroll"]);
+const FOCUS_STORAGE_TRADITION = "arcane";
 
 type HomebrewSpellRow = {
   id: string;
@@ -212,6 +214,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!SOURCES.has(spellSource)) {
     return NextResponse.json({ error: `Invalid spell_source: ${spellSource}` }, { status: 400 });
   }
+  const storageTradition =
+    spellSource === "focus" || body.tradition === "focus"
+      ? FOCUS_STORAGE_TRADITION
+      : body.tradition;
+  if (!SPELLCASTING_TRADITIONS.has(storageTradition)) {
+    return NextResponse.json({ error: `Invalid spellcasting tradition: ${body.tradition}` }, { status: 400 });
+  }
   const rank = Math.max(0, Math.min(10, Math.round(body.rank ?? 1)));
 
   const service = createServiceClient() as unknown as UntypedClient;
@@ -223,7 +232,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .insert({
       character_id: id,
       spell_id: body.spell_id,
-      tradition: body.tradition,
+      tradition: storageTradition,
       rank,
       spell_source: spellSource,
       is_signature: body.is_signature ?? false,
