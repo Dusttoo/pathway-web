@@ -3717,11 +3717,11 @@ export default function CharacterDetailPage() {
           )}
         </div>
 
-        {/* ── Vitals ─────────────────────────────────────────────────────── */}
+        {/* ── Core Stats ─────────────────────────────────────────────────── */}
         <div className="card p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Vitals
+              Core Stats
             </h2>
             {hasLiveHp && <LiveBadge />}
           </div>
