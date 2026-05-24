@@ -275,6 +275,19 @@ function loreLabel(name: string): string {
   return `${customLabel(cleaned)} Lore`;
 }
 
+function loreNameFromEntry(lore: unknown): string {
+  if (Array.isArray(lore)) return typeof lore[0] === "string" ? lore[0] : "";
+  if (isRecord(lore)) {
+    return (
+      (typeof lore.name === "string" && lore.name) ||
+      (typeof lore.skill === "string" && lore.skill) ||
+      (typeof lore.topic === "string" && lore.topic) ||
+      ""
+    );
+  }
+  return "";
+}
+
 function canonicalProfKey(key: string): string {
   const normalized = customKey(key);
   const aliases: Record<string, string> = {
@@ -1755,6 +1768,7 @@ function StatsTabPanel({
   onSaveAbilities,
   onSaveExtras,
   onSaveProficiencies,
+  onSaveLores,
   onSaveCustomAttacks,
   isSaving,
   usesRawBonus,
@@ -1765,6 +1779,7 @@ function StatsTabPanel({
   onSaveAbilities: (abilities: NonNullable<PBBuild["abilities"]>) => void;
   onSaveExtras: (extras: Record<string, unknown>) => void;
   onSaveProficiencies: (proficiencies: Record<string, number>) => void;
+  onSaveLores: (lores: unknown[], proficiencies?: Record<string, number>) => void;
   onSaveCustomAttacks: (
     attacks: { name: string; bonus: string; damage: string; traits: string }[]
   ) => void;
@@ -1779,6 +1794,12 @@ function StatsTabPanel({
     profEntries
       .filter(([key]) => canonicalProfKey(key).includes("lore"))
       .map(([key]) => loreKey(key))
+  );
+  const sourceLoreKeys = new Set(
+    (build.lores ?? [])
+      .map((lore) => loreNameFromEntry(lore))
+      .filter(Boolean)
+      .map((name) => loreKey(name))
   );
   const loreProfs = profEntries.filter(([key]) => canonicalProfKey(key).includes("lore"));
   const combatProfs = profEntries.filter(([key]) => COMBAT_PROF_KEYS.has(canonicalProfKey(key)));
@@ -1869,6 +1890,15 @@ function StatsTabPanel({
 
   function removeExtraSkill(key: string) {
     onSaveProficiencies({ [key]: 0 });
+  }
+
+  function removeLoreSkill(key: string, sourceBacked: boolean) {
+    if (!sourceBacked) {
+      onSaveProficiencies({ [key]: 0 });
+      return;
+    }
+    const nextLores = (build.lores ?? []).filter((lore) => loreKey(loreNameFromEntry(lore)) !== key);
+    onSaveLores(nextLores, { [key]: 0 });
   }
 
   function addCustomAttack() {
@@ -2155,16 +2185,18 @@ function StatsTabPanel({
                   label: profLabel(key),
                   rank: editableProficiencyToRank(rank),
                   total: null as number | null,
+                  sourceBacked: sourceLoreKeys.has(loreKey(key)),
                   removable: true,
                 })),
                 ...loreFromPathbuilder
                   .filter((lore) => !loreProfKeys.has(lore.key))
                   .map((lore) => ({
-                    key: `pathbuilder-${lore.skill}`,
+                    key: lore.key,
                     label: lore.skill,
                     rank: lore.rank,
                     total: lore.total,
-                    removable: false,
+                    sourceBacked: true,
+                    removable: true,
                   })),
               ].map((lore) => (
                 <div
@@ -2190,7 +2222,7 @@ function StatsTabPanel({
                   {lore.removable && (
                     <button
                       type="button"
-                      onClick={() => removeExtraSkill(lore.key)}
+                      onClick={() => removeLoreSkill(lore.key, lore.sourceBacked)}
                       disabled={isSaving}
                       className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
                       title="Remove lore skill"
@@ -4083,6 +4115,11 @@ export default function CharacterDetailPage() {
                   onSaveExtras={(extras) => updateCharacter.mutate({ build_patch: { extras } })}
                   onSaveProficiencies={(proficiencies) =>
                     updateCharacter.mutate({ build_patch: { proficiencies } })
+                  }
+                  onSaveLores={(lores, proficiencies) =>
+                    updateCharacter.mutate({
+                      build_patch: { extras: { lores }, ...(proficiencies ? { proficiencies } : {}) },
+                    })
                   }
                   onSaveCustomAttacks={(custom_attacks) =>
                     updateCharacter.mutate({ build_patch: { custom_attacks } })
