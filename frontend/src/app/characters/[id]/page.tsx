@@ -1721,6 +1721,37 @@ function StatsTabPanel({
   const [attackBonus, setAttackBonus] = useState("");
   const [attackDamage, setAttackDamage] = useState("");
   const [attackTraits, setAttackTraits] = useState("");
+  const classDcAbility = abilityKey(build.keyability, "str");
+  const spellcastingAbility = abilityKey(
+    build.spellCasters?.[0]?.ability?.toLowerCase?.() ?? build.keyability,
+    "int"
+  );
+
+  function storedProfBonus(rankOrBonus: number): number {
+    return normalizedProfBonus(rankOrBonus, level, usesRawBonus);
+  }
+
+  function customLoreTotal(rankOrBonus: number): number {
+    return storedProfBonus(rankOrBonus) + abilityModNum(abs?.int ?? 10);
+  }
+
+  function classDcTotal(rankOrBonus: number): number {
+    return 10 + storedProfBonus(rankOrBonus) + abilityModNum(abs?.[classDcAbility] ?? 10);
+  }
+
+  function spellAttackTotal(rankOrBonus: number): number {
+    return storedProfBonus(rankOrBonus) + abilityModNum(abs?.[spellcastingAbility] ?? 10);
+  }
+
+  function spellDcTotal(rankOrBonus: number): number {
+    return 10 + spellAttackTotal(rankOrBonus);
+  }
+
+  function spellcastingSummary(key: string, rankOrBonus: number): string {
+    return canonicalProfKey(key) === "class_dc"
+      ? `DC ${classDcTotal(rankOrBonus)}`
+      : `${signedTotal(spellAttackTotal(rankOrBonus))} / DC ${spellDcTotal(rankOrBonus)}`;
+  }
 
   function addExtraSkill() {
     const key = customKey(extraSkillName);
@@ -1972,6 +2003,9 @@ function StatsTabPanel({
                 >
                   <ProfBadge rank={proficiencyValueToRank(rank, usesRawBonus)} />
                   <span className="flex-1 text-sm">{profLabel(key)}</span>
+                  <span className="font-mono font-bold text-sm w-10 text-right">
+                    {signedTotal(customLoreTotal(rank))}
+                  </span>
                   <ProficiencyEditor
                     rank={proficiencyValueToRank(rank, usesRawBonus)}
                     disabled={isSaving}
@@ -2054,11 +2088,9 @@ function StatsTabPanel({
                 >
                   <ProfBadge rank={lore.rank} />
                   <span className="text-sm flex-1">{lore.label}</span>
-                  {lore.total !== null && (
-                    <span className="font-mono text-sm font-semibold">
-                      {signedTotal(lore.total)}
-                    </span>
-                  )}
+                  <span className="font-mono text-sm font-semibold w-10 text-right">
+                    {signedTotal(lore.total ?? customLoreTotal(profs[lore.key] ?? 0))}
+                  </span>
                   {lore.removable && (
                     <ProficiencyEditor
                       rank={lore.rank}
@@ -2126,6 +2158,9 @@ function StatsTabPanel({
               >
                 <ProfBadge rank={proficiencyValueToRank(rank, usesRawBonus)} />
                 <span className="text-sm flex-1">{profLabel(key)}</span>
+                <span className="font-mono font-bold text-sm whitespace-nowrap">
+                  {spellcastingSummary(key, rank)}
+                </span>
                 <ProficiencyEditor
                   rank={proficiencyValueToRank(rank, usesRawBonus)}
                   disabled={isSaving}
@@ -2161,6 +2196,9 @@ function StatsTabPanel({
               >
                 <ProfBadge rank={proficiencyValueToRank(rank, usesRawBonus)} />
                 <span className="text-sm flex-1">{profLabel(key)}</span>
+                <span className="font-mono font-bold text-sm w-10 text-right">
+                  {signedTotal(storedProfBonus(rank))}
+                </span>
                 <ProficiencyEditor
                   rank={proficiencyValueToRank(rank, usesRawBonus)}
                   disabled={isSaving}
