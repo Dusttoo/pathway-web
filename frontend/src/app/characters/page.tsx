@@ -590,6 +590,44 @@ function signed(value: number) {
   return value >= 0 ? `+${value}` : `${value}`;
 }
 
+function customKey(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+
+function customLabel(key: string): string {
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function loreKey(name: string): string {
+  const cleaned = name
+    .trim()
+    .replace(/^lore:\s*/i, "")
+    .replace(/\s+lore$/i, "");
+  return customKey(`${cleaned} Lore`);
+}
+
+function loreLabel(name: string): string {
+  const cleaned = name
+    .trim()
+    .replace(/^lore:\s*/i, "")
+    .replace(/\s+lore$/i, "");
+  return `${customLabel(cleaned)} Lore`;
+}
+
+function isLoreProficiencyKey(name: string): boolean {
+  const normalized = customKey(name);
+  return (
+    normalized === "lore" ||
+    normalized.startsWith("lore_") ||
+    normalized.endsWith("_lore") ||
+    normalized.includes("_lore_")
+  );
+}
+
 function usesPf2eProficiencyBonus(character: Character, proficiencies: Record<string, number>) {
   if (character.source === "pathbuilder" || character.pathbuilder_id) return true;
   return Object.values(proficiencies).some((value) => value > 4);
@@ -603,6 +641,17 @@ function proficiencyValueToBonus(value: number, level: number, usesRawBonus: boo
 function proficiencyValueToRank(value: number, usesRawBonus: boolean) {
   if (!value) return 0;
   const rank = usesRawBonus ? value / 2 : value;
+  return Math.max(0, Math.min(4, Math.round(rank)));
+}
+
+function editableProficiencyToBonus(rankOrBonus: number, level: number): number {
+  if (!rankOrBonus) return 0;
+  return level + (rankOrBonus > 4 ? rankOrBonus : rankOrBonus * 2);
+}
+
+function editableProficiencyToRank(rankOrBonus: number): number {
+  if (!rankOrBonus) return 0;
+  const rank = rankOrBonus > 4 ? rankOrBonus / 2 : rankOrBonus;
   return Math.max(0, Math.min(4, Math.round(rank)));
 }
 
@@ -922,14 +971,18 @@ function getCharacterAttacks(character: Character) {
   return [...attacks.values()];
 }
 
-function getLoreSkills(character: Character, usesRawBonus: boolean) {
+function getLoreSkills(
+  character: Character,
+  usesRawBonus: boolean,
+  proficiencies: Record<string, number> = getProficiencies(character)
+) {
   const build = getCharacterBuild(character);
   const level = character.level ?? getBuildNumber(build, "level", 1);
   const intMod = abilityMod(getAbilityScores(character).int);
-  if (!Array.isArray(build.lores)) return [];
+  const loreByKey = new Map<string, { skill: string; rank: number; total: number }>();
 
-  return build.lores
-    .map((lore): { skill: string; rank: number; total: number } | null => {
+  if (Array.isArray(build.lores)) {
+    for (const lore of build.lores) {
       let name = "";
       let rawRank = 0;
       let totalOverride: number | null = null;
@@ -952,14 +1005,25 @@ function getLoreSkills(character: Character, usesRawBonus: boolean) {
         totalOverride = typeof lore.total === "number" ? lore.total : null;
       }
 
-      if (!name.trim()) return null;
-      return {
-        skill: `Lore: ${name.trim()}`,
+      if (!name.trim()) continue;
+      loreByKey.set(loreKey(name), {
+        skill: loreLabel(name),
         rank: proficiencyValueToRank(rawRank, usesRawBonus),
         total: totalOverride ?? intMod + proficiencyValueToBonus(rawRank, level, usesRawBonus),
-      };
-    })
-    .filter((lore): lore is { skill: string; rank: number; total: number } => !!lore);
+      });
+    }
+  }
+
+  for (const [key, rank] of Object.entries(proficiencies)) {
+    if (rank <= 0 || !isLoreProficiencyKey(key)) continue;
+    loreByKey.set(loreKey(key), {
+      skill: loreLabel(key),
+      rank: editableProficiencyToRank(rank),
+      total: intMod + editableProficiencyToBonus(rank, level),
+    });
+  }
+
+  return [...loreByKey.values()];
 }
 
 function FullSheetEditor({ character, onClose }: { character: Character; onClose: () => void }) {
@@ -1949,7 +2013,10 @@ function MiniCharacterSheet({
     rawRank: proficiencies[skill] ?? 0,
   })).filter(({ rawRank }) => rawRank > 0);
   const extraSkills = Object.entries(proficiencies)
-    .filter(([key, rank]) => !NON_SKILL_PROF_KEYS.has(key.toLowerCase()) && rank > 0)
+    .filter(
+      ([key, rank]) =>
+        !NON_SKILL_PROF_KEYS.has(key.toLowerCase()) && !isLoreProficiencyKey(key) && rank > 0
+    )
     .map(([skill, rank]) => ({
       skill,
       rank: proficiencyValueToRank(rank, usesRawBonus),

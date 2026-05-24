@@ -259,6 +259,22 @@ function customLabel(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function loreKey(name: string): string {
+  const cleaned = name
+    .trim()
+    .replace(/^lore:\s*/i, "")
+    .replace(/\s+lore$/i, "");
+  return customKey(`${cleaned} Lore`);
+}
+
+function loreLabel(name: string): string {
+  const cleaned = name
+    .trim()
+    .replace(/^lore:\s*/i, "")
+    .replace(/\s+lore$/i, "");
+  return `${customLabel(cleaned)} Lore`;
+}
+
 function canonicalProfKey(key: string): string {
   const normalized = customKey(key);
   const aliases: Record<string, string> = {
@@ -329,6 +345,17 @@ function proficiencyValueToRank(value: number, usesRawBonus: boolean): number {
 
 function normalizedProfBonus(rankOrBonus: number, level: number, usesRawBonus: boolean): number {
   return proficiencyValueToBonus(rankOrBonus, level, usesRawBonus);
+}
+
+function editableProficiencyToBonus(rankOrBonus: number, level: number): number {
+  if (!rankOrBonus) return 0;
+  return level + (rankOrBonus > 4 ? rankOrBonus : rankOrBonus * 2);
+}
+
+function editableProficiencyToRank(rankOrBonus: number): number {
+  if (!rankOrBonus) return 0;
+  const rank = rankOrBonus > 4 ? rankOrBonus / 2 : rankOrBonus;
+  return Math.max(0, Math.min(4, Math.round(rank)));
 }
 
 function deriveMaxHp(build: PBBuild, level: number): number | null {
@@ -755,11 +782,17 @@ function getCharacterAttacks(build: PBBuild): SheetAttack[] {
   return [...attacks.values()];
 }
 
-function getLoreSkills(build: PBBuild, level: number, usesRawBonus: boolean) {
+function getLoreSkills(
+  build: PBBuild,
+  level: number,
+  usesRawBonus: boolean,
+  proficiencies: Record<string, number> = {}
+) {
   const intMod = abilityModNum(build.abilities?.int ?? 10);
-  if (!Array.isArray(build.lores)) return [];
-  return build.lores
-    .map((lore): { skill: string; rank: number; total: number } | null => {
+  const loreByKey = new Map<string, { key: string; skill: string; rank: number; total: number }>();
+
+  if (Array.isArray(build.lores)) {
+    for (const lore of build.lores) {
       let name = "";
       let rawRank = 0;
       let totalOverride: number | null = null;
@@ -778,14 +811,29 @@ function getLoreSkills(build: PBBuild, level: number, usesRawBonus: boolean) {
           0;
         totalOverride = typeof lore.total === "number" ? lore.total : null;
       }
-      if (!name.trim()) return null;
-      return {
-        skill: name,
+      if (!name.trim()) continue;
+      const key = loreKey(name);
+      loreByKey.set(key, {
+        key,
+        skill: loreLabel(name),
         rank: proficiencyValueToRank(rawRank, usesRawBonus),
         total: totalOverride ?? normalizedProfBonus(rawRank, level, usesRawBonus) + intMod,
-      };
-    })
-    .filter((lore): lore is { skill: string; rank: number; total: number } => !!lore);
+      });
+    }
+  }
+
+  for (const [key, rank] of Object.entries(proficiencies)) {
+    if (rank <= 0 || !canonicalProfKey(key).includes("lore")) continue;
+    const normalizedKey = loreKey(key);
+    loreByKey.set(normalizedKey, {
+      key: normalizedKey,
+      skill: loreLabel(key),
+      rank: editableProficiencyToRank(rank),
+      total: editableProficiencyToBonus(rank, level) + intMod,
+    });
+  }
+
+  return [...loreByKey.values()];
 }
 
 function getEquipmentEntries(build: PBBuild): { name: string; qty: number }[] {
@@ -1727,7 +1775,11 @@ function StatsTabPanel({
   const profs = build.proficiencies ?? {};
   const profEntries = Object.entries(profs).filter(([, rank]) => rank > 0);
   const loreFromPathbuilder = getLoreSkills(build, level, usesRawBonus);
-  const pathbuilderLoreNames = new Set(loreFromPathbuilder.map((lore) => customKey(lore.skill)));
+  const loreProfKeys = new Set(
+    profEntries
+      .filter(([key]) => canonicalProfKey(key).includes("lore"))
+      .map(([key]) => loreKey(key))
+  );
   const loreProfs = profEntries.filter(([key]) => canonicalProfKey(key).includes("lore"));
   const combatProfs = profEntries.filter(([key]) => COMBAT_PROF_KEYS.has(canonicalProfKey(key)));
   const spellDcProfs = profEntries.filter(([key]) => SPELL_DC_PROF_KEYS.has(canonicalProfKey(key)));
@@ -1794,7 +1846,7 @@ function StatsTabPanel({
     const label = loreSkillName.trim().replace(/\s+lore$/i, "");
     const key = customKey(`${label} Lore`);
     if (!key) return;
-    onSaveProficiencies({ [key]: rankToStoredProficiency(loreSkillRank, usesRawBonus) });
+    onSaveProficiencies({ [key]: loreSkillRank });
     setLoreSkillName("");
     setLoreSkillRank(1);
   }
@@ -1809,6 +1861,10 @@ function StatsTabPanel({
 
   function setProficiencyRank(key: string, rank: number) {
     onSaveProficiencies({ [key]: rankToStoredProficiency(rank, usesRawBonus) });
+  }
+
+  function setLoreProficiencyRank(key: string, rank: number) {
+    onSaveProficiencies({ [key]: rank });
   }
 
   function removeExtraSkill(key: string) {
@@ -2097,12 +2153,12 @@ function StatsTabPanel({
                 ...loreProfs.map(([key, rank]) => ({
                   key,
                   label: profLabel(key),
-                  rank: proficiencyValueToRank(rank, usesRawBonus),
+                  rank: editableProficiencyToRank(rank),
                   total: null as number | null,
                   removable: true,
                 })),
                 ...loreFromPathbuilder
-                  .filter((lore) => !pathbuilderLoreNames.has(customKey(lore.skill)))
+                  .filter((lore) => !loreProfKeys.has(lore.key))
                   .map((lore) => ({
                     key: `pathbuilder-${lore.skill}`,
                     label: lore.skill,
@@ -2118,13 +2174,17 @@ function StatsTabPanel({
                   <ProfBadge rank={lore.rank} />
                   <span className="text-sm flex-1">{lore.label}</span>
                   <span className="font-mono text-sm font-semibold w-10 text-right">
-                    {signedTotal(lore.total ?? customLoreTotal(profs[lore.key] ?? 0))}
+                    {signedTotal(
+                      lore.total ??
+                        editableProficiencyToBonus(profs[lore.key] ?? 0, level) +
+                          abilityModNum(abs?.int ?? 10)
+                    )}
                   </span>
                   {lore.removable && (
                     <ProficiencyEditor
                       rank={lore.rank}
                       disabled={isSaving}
-                      onChange={(nextRank) => setProficiencyRank(lore.key, nextRank)}
+                      onChange={(nextRank) => setLoreProficiencyRank(lore.key, nextRank)}
                     />
                   )}
                   {lore.removable && (
@@ -2425,7 +2485,7 @@ function OfficialSheetPanel({
   const profs = build.proficiencies ?? {};
   const attacks = getCharacterAttacks(build);
   const equipment = getEquipmentEntries(build);
-  const loreSkills = getLoreSkills(build, level, usesRawBonus);
+  const loreSkills = getLoreSkills(build, level, usesRawBonus, profs);
   const featNames = dedupeDisplayFeats([
     ...(characterFeatRows?.data ?? [])
       .filter((row) => row.feat)
