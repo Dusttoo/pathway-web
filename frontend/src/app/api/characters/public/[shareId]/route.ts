@@ -64,7 +64,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sha
     untyped
       .from("character_known_spells")
       .select(
-        "id, tradition, rank, spell_source, is_signature, notes, spell:spells(name, description, source, rank, traditions)"
+        "id, tradition, spell_source, is_signature, notes, spell:spells(name, description, source, traditions)"
       )
       .eq("character_id", character.id),
   ]);
@@ -80,11 +80,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sha
     character: safeCharacter,
     feats: featsResult.data ?? [],
     known_spells: Array.isArray(spellsResult.data)
-      ? [...spellsResult.data].sort((a, b) => {
-          const left = typeof a === "object" && a && "rank" in a ? Number(a.rank) : 0;
-          const right = typeof b === "object" && b && "rank" in b ? Number(b.rank) : 0;
-          return left - right;
-        })
+      ? spellsResult.data.map((spell) =>
+          typeof spell === "object" && spell ? { ...spell, rank: 0 } : spell
+        )
       : [],
   });
 }
