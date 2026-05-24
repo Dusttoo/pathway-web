@@ -277,7 +277,9 @@ function SpellEditForm({ entry }: { entry: HomebrewEntry }) {
     });
   }
 
-  const effectiveLevel = type === "Cantrip" ? "0" : level;
+  const isCantripType = type === "Cantrip" || type === "Focus Cantrip";
+  const isFocusType = type === "Focus" || type === "Focus Cantrip";
+  const effectiveLevel = isCantripType ? "0" : level;
   const castValue = cast === "Other" ? castCustom : cast;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -307,6 +309,8 @@ function SpellEditForm({ entry }: { entry: HomebrewEntry }) {
           traits,
           type,
           level: effectiveLevel,
+          is_focus_spell: isFocusType,
+          is_ritual: type === "Ritual",
           heightened,
           summary: description.trim().slice(0, 400),
           description: description.trim(),
@@ -353,15 +357,15 @@ function SpellEditForm({ entry }: { entry: HomebrewEntry }) {
         <div className="grid grid-cols-2 gap-4">
           <Field label="Type">
             <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
-              {["Spell", "Cantrip", "Focus", "Ritual"].map((o) => (
+              {["Spell", "Cantrip", "Focus", "Focus Cantrip", "Ritual"].map((o) => (
                 <option key={o}>{o}</option>
               ))}
             </select>
           </Field>
-          <Field label={type === "Cantrip" ? "Rank (auto: 0)" : "Rank"}>
+          <Field label={isCantripType ? "Rank (auto: 0)" : "Rank"}>
             <select
-              className={`input ${type === "Cantrip" ? "opacity-50 pointer-events-none" : ""}`}
-              value={type === "Cantrip" ? "0" : level}
+              className={`input ${isCantripType ? "opacity-50 pointer-events-none" : ""}`}
+              value={isCantripType ? "0" : level}
               onChange={(e) => setLevel(e.target.value)}
             >
               {["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map((l) => (
@@ -386,7 +390,7 @@ function SpellEditForm({ entry }: { entry: HomebrewEntry }) {
             <input className="input" value={source} onChange={(e) => setSource(e.target.value)} />
           </Field>
         </div>
-        {type !== "Focus" && type !== "Ritual" && (
+        {!isFocusType && type !== "Ritual" && (
           <Field label="Traditions" hint="Select all that apply.">
             <div className="flex flex-wrap gap-2 mt-1">
               {TRADITIONS.map((t) => (

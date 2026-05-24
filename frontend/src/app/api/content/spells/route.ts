@@ -148,7 +148,8 @@ function virtualType(row: HomebrewRow): string {
 function virtualSpell(row: HomebrewRow): SpellRow {
   const data = row.data ?? {};
   const spellType = normalize(text(data.type) ?? "");
-  const isFocus = spellType === "focus" || booleanValue(data.is_focus_spell);
+  const isCantrip = spellType === "cantrip" || spellType === "focus cantrip";
+  const isFocus = spellType === "focus" || spellType === "focus cantrip" || booleanValue(data.is_focus_spell);
   const isRitual = spellType === "ritual" || booleanValue(data.is_ritual);
   return {
     area: text(data.area),
@@ -162,7 +163,7 @@ function virtualSpell(row: HomebrewRow): SpellRow {
     is_focus_spell: isFocus,
     is_official: false,
     is_ritual: isRitual,
-    level: spellType === "cantrip" ? 0 : numberValue(data.level, 1),
+    level: isCantrip ? 0 : numberValue(data.level, 1),
     name: text(data.name) ?? text(row.name) ?? "Unnamed Spell",
     range_text: text(data.range_text) ?? text(data.range) ?? "",
     rarity: text(data.rarity) ?? "Common",

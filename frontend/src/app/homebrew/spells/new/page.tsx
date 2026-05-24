@@ -10,7 +10,7 @@ import { ArrowLeft, Sparkles } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type SpellType = "Spell" | "Cantrip" | "Focus" | "Ritual";
+type SpellType = "Spell" | "Cantrip" | "Focus" | "Focus Cantrip" | "Ritual";
 type Rarity = "Common" | "Uncommon" | "Rare" | "Unique";
 type RollMode = "none" | "spell_attack" | "saving_throw" | "heal" | "flat_roll";
 
@@ -125,9 +125,12 @@ export default function NewSpellPage() {
     });
   }
 
+  const isCantripType = type === "Cantrip" || type === "Focus Cantrip";
+  const isFocusType = type === "Focus" || type === "Focus Cantrip";
+
   // Cantrips are always level 0; focus/ritual don't really use rank the same way
   const effectiveLevel =
-    type === "Cantrip" ? "0" : level;
+    isCantripType ? "0" : level;
 
   const traditionsStr = Array.from(traditions).join(", ");
 
@@ -190,6 +193,8 @@ export default function NewSpellPage() {
       traits,
       type,
       level: effectiveLevel,
+      is_focus_spell: isFocusType,
+      is_ritual: type === "Ritual",
       heightened,
       summary: description.trim().slice(0, 400),
       description: description.trim(),
@@ -284,16 +289,16 @@ export default function NewSpellPage() {
                 <Select
                   value={type}
                   onChange={(v) => setType(v as SpellType)}
-                  options={["Spell", "Cantrip", "Focus", "Ritual"]}
+                  options={["Spell", "Cantrip", "Focus", "Focus Cantrip", "Ritual"]}
                 />
               </Field>
 
-              <Field label={type === "Cantrip" ? "Rank (auto: 0)" : "Rank"}>
+              <Field label={isCantripType ? "Rank (auto: 0)" : "Rank"}>
                 <Select
-                  value={type === "Cantrip" ? "0" : level}
+                  value={isCantripType ? "0" : level}
                   onChange={setLevel}
                   options={["0","1","2","3","4","5","6","7","8","9","10"]}
-                  className={type === "Cantrip" ? "opacity-50 pointer-events-none" : ""}
+                  className={isCantripType ? "opacity-50 pointer-events-none" : ""}
                 />
               </Field>
             </div>
@@ -318,7 +323,7 @@ export default function NewSpellPage() {
             </div>
 
             {/* Traditions (only for non-Focus) */}
-            {type !== "Focus" && type !== "Ritual" && (
+            {!isFocusType && type !== "Ritual" && (
               <Field
                 label="Traditions"
                 hint={type === "Cantrip" ? "Cantrips may belong to any tradition." : "Select all that apply."}

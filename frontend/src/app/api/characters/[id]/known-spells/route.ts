@@ -95,7 +95,8 @@ async function ensureSpellReference(
   const row = homebrew as HomebrewSpellRow;
   const data = row.data ?? {};
   const spellType = normalize(text(data.type) ?? "");
-  const isFocus = spellType === "focus" || booleanValue(data.is_focus_spell);
+  const isCantrip = spellType === "cantrip" || spellType === "focus cantrip";
+  const isFocus = spellType === "focus" || spellType === "focus cantrip" || booleanValue(data.is_focus_spell);
   const isRitual = spellType === "ritual" || booleanValue(data.is_ritual);
 
   const { error: insertError } = await service.from("spells").upsert(
@@ -103,7 +104,7 @@ async function ensureSpellReference(
       id: row.id,
       name: text(data.name) ?? text(row.name) ?? "Unnamed Spell",
       description: text(data.description) ?? text(data.summary) ?? "",
-      level: spellType === "cantrip" ? 0 : numberValue(data.level, 1),
+      level: isCantrip ? 0 : numberValue(data.level, 1),
       traditions: listValues(data.traditions),
       traits: listValues(data.traits),
       cast_actions: text(data.cast_actions) ?? text(data.cast),
