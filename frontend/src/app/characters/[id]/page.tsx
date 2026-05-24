@@ -84,7 +84,15 @@ interface PBBuild {
   weapons?: unknown[];
   lores?: unknown[];
   equipment?: Array<[string, number]> | Array<{ name: string; qty: number }>;
-  attributes?: { ancestryhp: number; classhp: number; bonushp: number; bonushpPerLevel: number };
+  attributes?: {
+    ancestryhp: number;
+    classhp: number;
+    bonushp: number;
+    bonushpPerLevel: number;
+    speed?: number;
+    speedBonus?: number;
+    speed_bonus?: number;
+  };
   spellCasters?: Array<{
     name: string;
     perDay: number[];
@@ -262,6 +270,8 @@ function canonicalProfKey(key: string): string {
     advanced: "advanced_weapons",
     classdc: "class_dc",
     class_dc: "class_dc",
+    spellattack: "spell_dc",
+    spell_attack: "spell_dc",
     spelldc: "spell_dc",
     spell_dc: "spell_dc",
     castingarcane: "casting_arcane",
@@ -356,17 +366,35 @@ function deriveAc(build: PBBuild, level: number, usesRawBonus: boolean): number 
   return 10 + abilityModNum(abilities.dex) + normalizedProfBonus(armorRank, level, usesRawBonus);
 }
 
+function deriveSpeed(build: PBBuild): number | null {
+  const statsSpeed = getNestedNumber(build, [["stats", "speed"]]);
+  if (statsSpeed !== null) return statsSpeed;
+
+  const attributeSpeed = getNestedNumber(build, [["attributes", "speed"]]);
+  if (attributeSpeed !== null) {
+    return (
+      attributeSpeed +
+      (getNestedNumber(build, [["attributes", "speedBonus"], ["attributes", "speed_bonus"]]) ?? 0)
+    );
+  }
+
+  return getNestedNumber(build, [["speed"], ["speed_ft"]]);
+}
+
+function spellcastingAbilityKey(build: PBBuild) {
+  const caster = build.spellCasters?.[0];
+  const tradition = caster?.magicTradition?.toLowerCase?.() ?? "";
+  return abilityKey(
+    caster?.ability?.toLowerCase?.() ?? TRADITION_ABILITY_MAP[tradition] ?? build.keyability,
+    "int"
+  );
+}
+
 function getDefenseDetails(build: PBBuild, level: number, usesRawBonus: boolean) {
   const ac = deriveAc(build, level, usesRawBonus);
   const abilities = build.abilities ?? { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
   const proficiencies = build.proficiencies ?? {};
-  const speed =
-    getNestedNumber(build, [
-      ["speed"],
-      ["speed_ft"],
-      ["stats", "speed"],
-      ["attributes", "speed"],
-    ]) ?? null;
+  const speed = deriveSpeed(build);
   const classRank = proficiencies.class_dc ?? proficiencies.classDC ?? 0;
   const classAbility = abilityKey(build.keyability, "str");
   const classDc =
@@ -383,17 +411,15 @@ function getDefenseDetails(build: PBBuild, level: number, usesRawBonus: boolean)
     proficiencies.casting_occult ??
     proficiencies.casting_primal ??
     0;
-  const spellAbility = abilityKey(
-    build.spellCasters?.[0]?.ability?.toLowerCase?.() ?? build.keyability,
-    "int"
-  );
-  const spellDc =
-    getNestedNumber(build, [["spell_dc"], ["spellDC"], ["stats", "spell_dc"]]) ??
-    (spellRank > 0
+  const spellAbility = spellcastingAbilityKey(build);
+  const computedSpellDc =
+    spellRank > 0
       ? 10 +
         abilityModNum(abilities[spellAbility] ?? 10) +
         normalizedProfBonus(spellRank, level, usesRawBonus)
-      : null);
+      : null;
+  const spellDc =
+    computedSpellDc ?? getNestedNumber(build, [["spell_dc"], ["spellDC"], ["stats", "spell_dc"]]);
   return {
     ac,
     armor: getNestedString(build, [["armor"], ["equipped_armor"], ["stats", "armor"]]) ?? "",
@@ -466,6 +492,12 @@ const SAVE_ABILITY: Record<string, keyof NonNullable<PBBuild["abilities"]>> = {
   fortitude: "con",
   reflex: "dex",
   will: "wis",
+};
+const TRADITION_ABILITY_MAP: Record<string, keyof NonNullable<PBBuild["abilities"]>> = {
+  arcane: "int",
+  divine: "wis",
+  occult: "cha",
+  primal: "wis",
 };
 
 const COMBAT_PROF_KEYS = new Set([
@@ -1722,10 +1754,7 @@ function StatsTabPanel({
   const [attackDamage, setAttackDamage] = useState("");
   const [attackTraits, setAttackTraits] = useState("");
   const classDcAbility = abilityKey(build.keyability, "str");
-  const spellcastingAbility = abilityKey(
-    build.spellCasters?.[0]?.ability?.toLowerCase?.() ?? build.keyability,
-    "int"
-  );
+  const spellcastingAbility = spellcastingAbilityKey(build);
 
   function storedProfBonus(rankOrBonus: number): number {
     return normalizedProfBonus(rankOrBonus, level, usesRawBonus);

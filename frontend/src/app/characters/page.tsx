@@ -97,7 +97,12 @@ type HpAttributes = {
   classhp: number;
   bonushp: number;
   bonushpPerLevel: number;
+  speed?: number;
+  speedBonus?: number;
+  speed_bonus?: number;
 };
+
+type HpAttributeKey = "ancestryhp" | "classhp" | "bonushp" | "bonushpPerLevel";
 
 type DefenseDetails = {
   ac: string;
@@ -195,6 +200,12 @@ const SAVE_ABILITY: Record<(typeof SAVE_KEYS)[number][0], keyof AbilityScores> =
   fortitude: "con",
   reflex: "dex",
   will: "wis",
+};
+const TRADITION_ABILITY_MAP: Record<string, keyof AbilityScores> = {
+  arcane: "int",
+  divine: "wis",
+  occult: "cha",
+  primal: "wis",
 };
 const COMBAT_PROF_KEYS = new Set([
   "advanced",
@@ -333,6 +344,9 @@ function getHpAttributes(character: Character): HpAttributes {
     bonushp: typeof attributes.bonushp === "number" ? attributes.bonushp : 0,
     bonushpPerLevel:
       typeof attributes.bonushpPerLevel === "number" ? attributes.bonushpPerLevel : 0,
+    speed: typeof attributes.speed === "number" ? attributes.speed : undefined,
+    speedBonus: typeof attributes.speedBonus === "number" ? attributes.speedBonus : undefined,
+    speed_bonus: typeof attributes.speed_bonus === "number" ? attributes.speed_bonus : undefined,
   };
 }
 
@@ -350,17 +364,11 @@ function getDefenseDetails(character: Character): DefenseDetails {
       ["armor_class"],
       ["stats", "ac"],
     ]) ?? deriveAc(character);
-  const speed =
-    getNestedNumber(build, [["speed"], ["speed_ft"], ["stats", "speed"]]) ??
-    getNestedNumber(build, [["attributes", "speed"]]) ??
-    getNestedNumber(character.pathbuilder_data, [["speed"], ["build", "speed"]]);
+  const speed = deriveSpeed(character);
   const classDc =
     getNestedNumber(build, [["class_dc"], ["classDC"], ["stats", "class_dc"]]) ??
     getNestedNumber(character.pathbuilder_data, [["class_dc"], ["build", "class_dc"]]);
   const classRank = proficiencies.class_dc ?? proficiencies.classDC ?? 0;
-  const spellDc =
-    getNestedNumber(build, [["spell_dc"], ["spellDC"], ["stats", "spell_dc"]]) ??
-    getNestedNumber(character.pathbuilder_data, [["spell_dc"], ["build", "spell_dc"]]);
   const spellRank =
     proficiencies.spell_dc ??
     proficiencies.casting_arcane ??
@@ -372,14 +380,25 @@ function getDefenseDetails(character: Character): DefenseDetails {
     Array.isArray(build.spellCasters) && isRecord(build.spellCasters[0])
       ? build.spellCasters[0]
       : null;
+  const spellTradition =
+    typeof firstCaster?.magicTradition === "string" ? firstCaster.magicTradition.toLowerCase() : "";
   const spellAbility = abilityKey(
     typeof firstCaster?.ability === "string"
       ? firstCaster.ability.toLowerCase()
-      : typeof build.keyability === "string"
-        ? build.keyability.toLowerCase()
-        : null,
+      : TRADITION_ABILITY_MAP[spellTradition] ??
+          (typeof build.keyability === "string" ? build.keyability.toLowerCase() : null),
     "int"
   );
+  const computedSpellDc =
+    spellRank > 0
+      ? 10 +
+        abilityMod(abilities[spellAbility] ?? 10) +
+        proficiencyValueToBonus(spellRank, level, usesRawBonus)
+      : null;
+  const spellDc =
+    computedSpellDc ??
+    getNestedNumber(build, [["spell_dc"], ["spellDC"], ["stats", "spell_dc"]]) ??
+    getNestedNumber(character.pathbuilder_data, [["spell_dc"], ["build", "spell_dc"]]);
   const classAbility = abilityKey(
     typeof build.keyability === "string" ? build.keyability.toLowerCase() : null,
     "str"
@@ -404,15 +423,7 @@ function getDefenseDetails(character: Character): DefenseDetails {
               proficiencyValueToBonus(classRank, level, usesRawBonus)
           )
         : "",
-    spellDc: spellDc
-      ? String(spellDc)
-      : spellRank > 0
-        ? String(
-            10 +
-              abilityMod(abilities[spellAbility] ?? 10) +
-              proficiencyValueToBonus(spellRank, level, usesRawBonus)
-          )
-        : "",
+    spellDc: spellDc ? String(spellDc) : "",
   };
 }
 
@@ -747,6 +758,25 @@ function deriveAc(character: Character) {
     proficiencies.heavy_armor ??
     0;
   return 10 + abilityMod(abilities.dex) + proficiencyValueToBonus(armorRank, level, usesRawBonus);
+}
+
+function deriveSpeed(character: Character) {
+  const build = getCharacterBuild(character);
+  const statsSpeed = getNestedNumber(build, [["stats", "speed"]]);
+  if (statsSpeed !== null) return statsSpeed;
+
+  const attributeSpeed = getNestedNumber(build, [["attributes", "speed"]]);
+  if (attributeSpeed !== null) {
+    return (
+      attributeSpeed +
+      (getNestedNumber(build, [["attributes", "speedBonus"], ["attributes", "speed_bonus"]]) ?? 0)
+    );
+  }
+
+  return (
+    getNestedNumber(build, [["speed"], ["speed_ft"]]) ??
+    getNestedNumber(character.pathbuilder_data, [["speed"], ["build", "speed"]])
+  );
 }
 
 function getSpecialAbilities(character: Character) {
@@ -1396,19 +1426,19 @@ function FullSheetEditor({ character, onClose }: { character: Character; onClose
                 ))}
               </div>
               <div className="mt-4 grid gap-4 md:grid-cols-4">
-                {[
+                {([
                   ["ancestryhp", "Ancestry HP"],
                   ["classhp", "Class HP"],
                   ["bonushp", "Bonus HP"],
                   ["bonushpPerLevel", "Bonus HP/Level"],
-                ].map(([key, label]) => (
+                ] as Array<[HpAttributeKey, string]>).map(([key, label]) => (
                   <label key={key} className="space-y-1 text-sm">
                     <span>{label}</span>
                     <NumberStepper
                       className="w-full"
                       min={key.startsWith("bonus") ? -100 : 0}
                       max={key === "classhp" || key === "ancestryhp" ? 30 : 999}
-                      value={attributes[key as keyof HpAttributes]}
+                      value={attributes[key]}
                       onCommit={(value) =>
                         setAttributes((draft) => ({
                           ...draft,
