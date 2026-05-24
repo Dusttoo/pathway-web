@@ -2,7 +2,7 @@
 
 import { MainLayout } from "@/components/layout";
 import { HealthBar } from "@/components/characters/HealthBar";
-import { useCharacterLive, useSyncCharacter } from "@/lib/hooks/use-characters";
+import { useCharacterLive, useShareCharacter, useSyncCharacter } from "@/lib/hooks/use-characters";
 import {
   useCharacterDowntime,
   downtimeKeys,
@@ -45,10 +45,12 @@ import {
   Inbox,
   ExternalLink,
   Printer,
+  Share2,
+  Check,
 } from "lucide-react";
 import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Tables } from "@/lib/types/database.types";
@@ -83,7 +85,12 @@ interface PBBuild {
   lores?: unknown[];
   equipment?: Array<[string, number]> | Array<{ name: string; qty: number }>;
   attributes?: { ancestryhp: number; classhp: number; bonushp: number; bonushpPerLevel: number };
-  spellCasters?: Array<{ name: string; perDay: number[]; ability?: string; magicTradition?: string }>;
+  spellCasters?: Array<{
+    name: string;
+    perDay: number[];
+    ability?: string;
+    magicTradition?: string;
+  }>;
   ac?: number;
   armorClass?: number;
   armor_class?: number;
@@ -365,7 +372,9 @@ function getDefenseDetails(build: PBBuild, level: number, usesRawBonus: boolean)
   const classDc =
     getNestedNumber(build, [["class_dc"], ["classDC"], ["stats", "class_dc"]]) ??
     (classRank > 0
-      ? 10 + abilityModNum(abilities[classAbility] ?? 10) + normalizedProfBonus(classRank, level, usesRawBonus)
+      ? 10 +
+        abilityModNum(abilities[classAbility] ?? 10) +
+        normalizedProfBonus(classRank, level, usesRawBonus)
       : null);
   const spellRank =
     proficiencies.spell_dc ??
@@ -374,11 +383,16 @@ function getDefenseDetails(build: PBBuild, level: number, usesRawBonus: boolean)
     proficiencies.casting_occult ??
     proficiencies.casting_primal ??
     0;
-  const spellAbility = abilityKey(build.spellCasters?.[0]?.ability?.toLowerCase?.() ?? build.keyability, "int");
+  const spellAbility = abilityKey(
+    build.spellCasters?.[0]?.ability?.toLowerCase?.() ?? build.keyability,
+    "int"
+  );
   const spellDc =
     getNestedNumber(build, [["spell_dc"], ["spellDC"], ["stats", "spell_dc"]]) ??
     (spellRank > 0
-      ? 10 + abilityModNum(abilities[spellAbility] ?? 10) + normalizedProfBonus(spellRank, level, usesRawBonus)
+      ? 10 +
+        abilityModNum(abilities[spellAbility] ?? 10) +
+        normalizedProfBonus(spellRank, level, usesRawBonus)
       : null);
   return {
     ac,
@@ -3480,7 +3494,8 @@ function DowntimeTabPanel({
 
 export default function CharacterDetailPage() {
   const params = useParams();
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const characterId = params.id as string;
 
   const {
@@ -3488,10 +3503,12 @@ export default function CharacterDetailPage() {
     isLoading,
     error,
   } = useCharacterLive(characterId, {
-    enabled: !!characterId && !!user,
+    enabled: !!characterId && !!user && !authLoading,
   });
   const syncMutation = useSyncCharacter();
+  const shareMutation = useShareCharacter(characterId);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("stats");
 
   // Modal state: null = closed, otherwise { type, name }
@@ -3507,7 +3524,13 @@ export default function CharacterDetailPage() {
   const updateCharacter = useUpdateCharacter(characterId);
   const updateCompanion = useUpdateCompanion(characterId);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!authLoading && !isLoading && (error || !character)) {
+      router.replace(`/share/characters/${characterId}`);
+    }
+  }, [authLoading, character, characterId, error, isLoading, router]);
+
+  if (authLoading || isLoading) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center py-12">
@@ -3519,18 +3542,14 @@ export default function CharacterDetailPage() {
 
   if (error || !character) {
     return (
-      <MainLayout>
+      <div className="min-h-screen bg-background text-foreground">
         <div className="card p-6 bg-destructive/10 border-destructive">
-          <p className="text-destructive font-semibold">Character not found</p>
-          <p className="text-sm text-muted-foreground mt-1">{error?.message}</p>
-          <Link
-            href="/characters"
-            className="mt-4 inline-flex items-center gap-2 text-sm text-primary"
-          >
-            <ArrowLeft size={14} /> Back to characters
-          </Link>
+          <p className="text-destructive font-semibold">Opening public character view...</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            If this character has sharing enabled, Pathway will open the read-only sheet.
+          </p>
         </div>
-      </MainLayout>
+      </div>
     );
   }
 
@@ -3628,6 +3647,32 @@ export default function CharacterDetailPage() {
               >
                 Edit Full Sheet
               </Link>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShareMessage(null);
+                  try {
+                    const result = await shareMutation.mutateAsync({ enabled: true });
+                    await navigator.clipboard?.writeText(result.share_url);
+                    setShareMessage("Public link copied.");
+                    window.setTimeout(() => setShareMessage(null), 3500);
+                  } catch (err) {
+                    setShareMessage(err instanceof Error ? err.message : "Could not create link.");
+                  }
+                }}
+                disabled={shareMutation.isPending}
+                className="btn-outline flex items-center gap-2 text-sm disabled:opacity-60"
+                title="Create and copy a public read-only link"
+              >
+                {shareMutation.isPending ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : shareMessage === "Public link copied." ? (
+                  <Check size={14} />
+                ) : (
+                  <Share2 size={14} />
+                )}
+                Share
+              </button>
               {(character as unknown as { pathbuilder_id: number | null }).pathbuilder_id && (
                 <button
                   onClick={async () => {
@@ -3661,6 +3706,15 @@ export default function CharacterDetailPage() {
             <p className="text-xs text-green-400 mt-2">Sheet refreshed from Pathbuilder.</p>
           )}
           {syncError && <p className="text-xs text-destructive mt-2">{syncError}</p>}
+          {shareMessage && (
+            <p
+              className={`mt-2 text-xs ${
+                shareMessage === "Public link copied." ? "text-green-400" : "text-destructive"
+              }`}
+            >
+              {shareMessage}
+            </p>
+          )}
         </div>
 
         {/* ── Vitals ─────────────────────────────────────────────────────── */}

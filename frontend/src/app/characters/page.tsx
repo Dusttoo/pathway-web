@@ -9,13 +9,14 @@ import {
   useCharacters,
   useDeleteCharacter,
   useDeleteCharacterImage,
+  useShareCharacter,
   useUpdateCharacter,
   useUploadCharacterImage,
 } from "@/lib/hooks/use-characters";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay } from "@/lib/types/bot-integration";
 import type { Json, Tables } from "@/lib/types/database.types";
-import { ImagePlus, Loader2, Plus, Swords, Trash2 } from "lucide-react";
+import { Check, ImagePlus, Loader2, Plus, Share2, Swords, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -394,15 +395,23 @@ function getDefenseDetails(character: Character): DefenseDetails {
       getNestedString(build, [["senses"], ["stats", "senses"]]) ??
       getNestedString(character.pathbuilder_data, [["senses"], ["build", "senses"]]) ??
       "",
-    classDc:
-      classDc ? String(classDc)
+    classDc: classDc
+      ? String(classDc)
       : classRank > 0
-        ? String(10 + abilityMod(abilities[classAbility] ?? 10) + proficiencyValueToBonus(classRank, level, usesRawBonus))
+        ? String(
+            10 +
+              abilityMod(abilities[classAbility] ?? 10) +
+              proficiencyValueToBonus(classRank, level, usesRawBonus)
+          )
         : "",
-    spellDc:
-      spellDc ? String(spellDc)
+    spellDc: spellDc
+      ? String(spellDc)
       : spellRank > 0
-        ? String(10 + abilityMod(abilities[spellAbility] ?? 10) + proficiencyValueToBonus(spellRank, level, usesRawBonus))
+        ? String(
+            10 +
+              abilityMod(abilities[spellAbility] ?? 10) +
+              proficiencyValueToBonus(spellRank, level, usesRawBonus)
+          )
         : "",
   };
 }
@@ -2052,7 +2061,11 @@ function MiniCharacterSheet({
               <MiniStat label="HP" value={maxHp} sub={`${attributes.classhp} class hp`} />
               <MiniStat
                 label="Speed"
-                value={defenses.speed ? `${defenses.speed} ft${defenses.size ? ` · ${defenses.size}` : ""}` : "—"}
+                value={
+                  defenses.speed
+                    ? `${defenses.speed} ft${defenses.size ? ` · ${defenses.size}` : ""}`
+                    : "—"
+                }
               />
               <MiniStat label="Perception" value={signed(perception)} sub={perceptionLabel} />
               {SAVE_KEYS.map(([key, label]) => {
@@ -2292,7 +2305,9 @@ function CharacterCard({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadCharacterImage = useUploadCharacterImage();
   const deleteCharacterImage = useDeleteCharacterImage();
+  const shareCharacter = useShareCharacter(character.id);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isFullEditorOpen, setIsFullEditorOpen] = useState(initiallyOpenEditor);
@@ -2336,6 +2351,18 @@ function CharacterCard({
       setUploadError(err instanceof Error ? err.message : "Could not remove image");
     } finally {
       setIsUploading(false);
+    }
+  }
+
+  async function createShareLink() {
+    setShareMessage(null);
+    try {
+      const result = await shareCharacter.mutateAsync({ enabled: true });
+      await navigator.clipboard?.writeText(result.share_url);
+      setShareMessage("Public link copied");
+      window.setTimeout(() => setShareMessage(null), 3500);
+    } catch (err) {
+      setShareMessage(err instanceof Error ? err.message : "Could not create share link");
     }
   }
 
@@ -2430,6 +2457,26 @@ function CharacterCard({
             >
               {isBusy ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
             </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                void createShareLink();
+              }}
+              disabled={shareCharacter.isPending}
+              className="btn-outline px-3 py-2 disabled:opacity-50"
+              title="Create and copy public read-only share link"
+              aria-label={`Create public share link for ${character.name}`}
+            >
+              {shareCharacter.isPending ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : shareMessage === "Public link copied" ? (
+                <Check size={16} />
+              ) : (
+                <Share2 size={16} />
+              )}
+            </button>
             <input
               ref={fileInputRef}
               type="file"
@@ -2474,6 +2521,15 @@ function CharacterCard({
           </div>
           {uploadError && (
             <p className="relative z-10 mt-2 text-xs text-destructive">{uploadError}</p>
+          )}
+          {shareMessage && (
+            <p
+              className={`relative z-10 mt-2 text-xs ${
+                shareMessage === "Public link copied" ? "text-green-400" : "text-destructive"
+              }`}
+            >
+              {shareMessage}
+            </p>
           )}
 
           <div className="relative z-10 mt-4 border-t border-border/60 pt-4">

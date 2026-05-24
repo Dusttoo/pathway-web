@@ -16,6 +16,7 @@ export const characterKeys = {
   list: (params: CharacterListParams) => [...characterKeys.all, "list", params] as const,
   detail: (id: string) => [...characterKeys.all, "detail", id] as const,
   images: ["characters", "images"] as const,
+  publicShare: (id: string) => [...characterKeys.all, "public-share", id] as const,
 };
 
 export function useCharacters(params: CharacterListParams = {}, options?: { enabled?: boolean }) {
@@ -315,6 +316,31 @@ export function useSyncCharacter() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(characterKeys.detail(data.id), data);
+      queryClient.invalidateQueries({ queryKey: characterKeys.all });
+    },
+  });
+}
+
+export function useShareCharacter(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { is_public: boolean; public_share_id: string; share_url: string },
+    Error,
+    { enabled: boolean }
+  >({
+    mutationFn: async ({ enabled }) => {
+      const res = await fetch(`/api/characters/${id}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error ?? res.statusText);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: characterKeys.all });
     },
   });

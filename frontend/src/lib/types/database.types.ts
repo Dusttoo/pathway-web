@@ -417,12 +417,14 @@ export type Database = {
           heritage_name: string | null
           hero_points: number
           id: string
+          is_public: boolean
           level: number
           name: string
           notes: string | null
           overlay: Json
           pathbuilder_data: Json | null
           pathbuilder_id: number | null
+          public_share_id: string
           source: string
           status: string
           updated_at: string
@@ -443,12 +445,14 @@ export type Database = {
           heritage_name?: string | null
           hero_points?: number
           id?: string
+          is_public?: boolean
           level?: number
           name: string
           notes?: string | null
           overlay?: Json
           pathbuilder_data?: Json | null
           pathbuilder_id?: number | null
+          public_share_id?: string
           source?: string
           status?: string
           updated_at?: string
@@ -469,12 +473,14 @@ export type Database = {
           heritage_name?: string | null
           hero_points?: number
           id?: string
+          is_public?: boolean
           level?: number
           name?: string
           notes?: string | null
           overlay?: Json
           pathbuilder_data?: Json | null
           pathbuilder_id?: number | null
+          public_share_id?: string
           source?: string
           status?: string
           updated_at?: string
