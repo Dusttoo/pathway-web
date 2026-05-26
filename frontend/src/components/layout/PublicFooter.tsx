@@ -14,6 +14,7 @@ export function PublicFooter() {
       links: [
         { label: "Features", href: "/features" },
         { label: "About", href: "/about" },
+        { label: "Other Tools", href: "/other-tools" },
       ],
     },
     {

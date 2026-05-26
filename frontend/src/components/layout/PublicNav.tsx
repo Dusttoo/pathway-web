@@ -16,6 +16,7 @@ export function PublicNav() {
     { label: "Commands", href: "/commands" },
     { label: "Features", href: "/features" },
     { label: "About", href: "/about" },
+    { label: "Other Tools", href: "/other-tools" },
     { label: "Support Server", href: DISCORD_SUPPORT_SERVER_URL, external: true },
     { label: "Feedback", href: "/feedback" },
   ];
@@ -38,7 +39,7 @@ export function PublicNav() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            {navItems.map((item) => (
+            {navItems.map((item) =>
               "external" in item && item.external ? (
                 <a
                   key={item.href}
@@ -58,7 +59,7 @@ export function PublicNav() {
                   {item.label}
                 </Link>
               )
-            ))}
+            )}
           </div>
 
           {/* Right Side */}
@@ -99,7 +100,7 @@ export function PublicNav() {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden py-4 space-y-3 border-t border-border">
-            {navItems.map((item) => (
+            {navItems.map((item) =>
               "external" in item && item.external ? (
                 <a
                   key={item.href}
@@ -121,7 +122,7 @@ export function PublicNav() {
                   {item.label}
                 </Link>
               )
-            ))}
+            )}
             <div className="pt-3 border-t border-border">
               <a
                 href={DISCORD_BOT_INVITE_URL}

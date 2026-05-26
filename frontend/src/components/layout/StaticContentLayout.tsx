@@ -19,6 +19,7 @@ export function StaticContentLayout({ children }: StaticContentLayoutProps) {
     { label: "Pricing", href: "/pricing" },
     { label: "Blog", href: "/blog" },
     { label: "Docs", href: "/docs" },
+    { label: "Other Tools", href: "/other-tools" },
   ];
 
   return (
