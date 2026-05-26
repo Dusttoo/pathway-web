@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { createServiceClient } from "@/lib/supabase/server";
 
 /**
  * Contact Form API Route
@@ -7,7 +8,6 @@ import { z } from "zod";
  * Handles contact form submissions from the public website.
  *
  * TODO: Integrate with email service (SendGrid, AWS SES, or Resend)
- * TODO: Store submissions in database for tracking
  * TODO: Implement rate limiting per IP address
  */
 
@@ -43,9 +43,7 @@ function checkRateLimit(ip: string): boolean {
   const submissions = submissionTracker.get(ip) || [];
 
   // Filter out old submissions outside the time window
-  const recentSubmissions = submissions.filter(
-    (timestamp) => now - timestamp < RATE_WINDOW,
-  );
+  const recentSubmissions = submissions.filter((timestamp) => now - timestamp < RATE_WINDOW);
 
   if (recentSubmissions.length >= RATE_LIMIT) {
     return false;
@@ -75,9 +73,7 @@ export async function POST(request: NextRequest) {
   try {
     // Get IP for rate limiting
     const ip =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
+      request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
 
     // Check rate limit
     if (!checkRateLimit(ip)) {
@@ -86,7 +82,7 @@ export async function POST(request: NextRequest) {
           error: "Rate limit exceeded. Please try again later.",
           code: "RATE_LIMIT_EXCEEDED",
         },
-        { status: 429 },
+        { status: 429 }
       );
     }
 
@@ -94,16 +90,29 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = contactSchema.parse(body);
 
-    // Log submission (in production, store in database)
-    console.log("📧 Contact Form Submission:", {
+    const service = createServiceClient();
+    const db = service as unknown as { from: (table: string) => any };
+    const { error: insertError } = await db.from("contact_submissions").insert({
       name: validatedData.name,
       email: validatedData.email,
-      subject: getSubjectLabel(validatedData.subject),
-      messageLength: validatedData.message.length,
-      discordUsername: validatedData.discordUsername || "Not provided",
-      timestamp: new Date().toISOString(),
-      ip,
+      subject: validatedData.subject,
+      message: validatedData.message,
+      discord_username: validatedData.discordUsername || null,
+      ip_address: ip,
+      user_agent: request.headers.get("user-agent"),
     });
+
+    if (insertError) {
+      console.error("Contact form save error:", insertError);
+      return NextResponse.json(
+        {
+          error:
+            "An unexpected error occurred. Please try again or email us directly at support@pathway.gg",
+          code: "INTERNAL_ERROR",
+        },
+        { status: 500 }
+      );
+    }
 
     // TODO: Send email notification
     // Example with Resend:
@@ -114,15 +123,6 @@ export async function POST(request: NextRequest) {
     //   html: generateEmailTemplate(validatedData),
     // });
 
-    // TODO: Store in database
-    // await db.contactSubmissions.create({
-    //   data: {
-    //     ...validatedData,
-    //     ipAddress: ip,
-    //     userAgent: request.headers.get("user-agent"),
-    //   },
-    // });
-
     // Return success response
     return NextResponse.json(
       {
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
         message:
           "Your message has been sent successfully. We'll get back to you within 24-48 hours.",
       },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     // Handle validation errors
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
             message: err.message,
           })),
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
           "An unexpected error occurred. Please try again or email us directly at support@pathway.gg",
         code: "INTERNAL_ERROR",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

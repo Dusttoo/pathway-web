@@ -4,14 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { MainLayout } from "@/components/layout";
 import { useAuth } from "@/lib/providers/auth-provider";
-import {
-  Shield,
-  Users,
-  Swords,
-  BookOpen,
-  Activity,
-  ArrowLeft,
-} from "lucide-react";
+import { Shield, Users, Swords, BookOpen, Activity, ArrowLeft, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -117,7 +110,10 @@ export default function AdminSettingsPage() {
           <p className="text-sm text-muted-foreground mt-1">
             You need admin privileges to view this page.
           </p>
-          <Link href="/settings" className="mt-4 inline-flex items-center gap-2 text-sm text-primary">
+          <Link
+            href="/settings"
+            className="mt-4 inline-flex items-center gap-2 text-sm text-primary"
+          >
             <ArrowLeft size={14} /> Back to Settings
           </Link>
         </div>
@@ -145,9 +141,7 @@ export default function AdminSettingsPage() {
             </div>
             <div>
               <h1>Admin Settings</h1>
-              <p className="text-muted-foreground text-sm">
-                Platform overview and user management
-              </p>
+              <p className="text-muted-foreground text-sm">Platform overview and user management</p>
             </div>
           </div>
         </div>
@@ -195,9 +189,7 @@ export default function AdminSettingsPage() {
             <StatCard
               label="Avg Chars / User"
               value={
-                stats.totalUsers > 0
-                  ? (stats.totalCharacters / stats.totalUsers).toFixed(1)
-                  : "—"
+                stats.totalUsers > 0 ? (stats.totalCharacters / stats.totalUsers).toFixed(1) : "—"
               }
               icon={Activity}
               color="text-chart-1"
@@ -205,6 +197,21 @@ export default function AdminSettingsPage() {
             />
           </div>
         ) : null}
+
+        <Link
+          href="/settings/admin/feedback"
+          className="card flex items-start gap-4 p-5 transition-all hover:scale-[1.01] hover:shadow-lg"
+        >
+          <div className="rounded-lg bg-primary/10 p-2">
+            <MessageSquare className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold">Feedback Inbox</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review feedback and contact form submissions.
+            </p>
+          </div>
+        </Link>
 
         {/* Recent users */}
         <div className="card p-6">
@@ -233,7 +240,9 @@ export default function AdminSettingsPage() {
                   {recentUsers.map((u) => (
                     <tr key={u.id} className="border-b border-border/50 last:border-0">
                       <td className="py-2.5 font-medium">
-                        {u.discord_username ?? <span className="text-muted-foreground italic">unknown</span>}
+                        {u.discord_username ?? (
+                          <span className="text-muted-foreground italic">unknown</span>
+                        )}
                       </td>
                       <td className="py-2.5 font-mono text-xs text-muted-foreground">
                         {u.discord_id}
