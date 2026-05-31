@@ -3,6 +3,7 @@
  */
 
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Home, Map, Book, Shield } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,9 @@ export const dynamic = "force-dynamic";
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="max-w-2xl w-full text-center space-y-8">
         {/* 404 Header */}
         <div className="space-y-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/providers/auth-provider";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -10,6 +11,7 @@ export function Header() {
       <div className="px-8 py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1" />
+          <ThemeToggle />
           {user && (
             <div className="flex items-center gap-4">
               <div className="text-right">

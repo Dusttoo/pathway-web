@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/providers/auth-provider";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Shield, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
@@ -26,6 +27,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted flex items-center justify-center p-8">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <Link
