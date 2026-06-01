@@ -3139,6 +3139,7 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
     tradition: isFocusMode ? undefined : tradition,
     level: rank,
     is_focus: isFocusMode ? true : undefined,
+    include_homebrew: true,
     limit: 15,
   });
 

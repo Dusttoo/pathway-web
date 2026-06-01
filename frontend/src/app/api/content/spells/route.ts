@@ -125,7 +125,9 @@ function matchesTradition(row: SpellRow, tradition: string | null): boolean {
   if (!tradition) return true;
   const expected = normalize(tradition);
   if (expected === "focus") return !!row.is_focus_spell;
-  return listValues(row.traditions).some((value) => normalize(value) === expected);
+  const traditions = listValues(row.traditions);
+  if (!row.is_official && traditions.length === 0) return true;
+  return traditions.some((value) => normalize(value) === expected);
 }
 
 function sourceText(data: Record<string, unknown>): string {
@@ -181,6 +183,7 @@ export async function GET(request: Request) {
   const level = searchParams.get("level");
   const isFocus = searchParams.get("is_focus");
   const isRitual = searchParams.get("is_ritual");
+  const includeHomebrew = searchParams.get("include_homebrew") !== "false";
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "25")));
   const offset = (page - 1) * limit;
@@ -189,10 +192,10 @@ export async function GET(request: Request) {
   let query = supabase
     .from("spells")
     .select("*")
-    .eq("is_official", true)
     .order("level", { ascending: true })
     .order("name", { ascending: true });
 
+  if (!includeHomebrew) query = query.eq("is_official", true);
   if (q) query = query.ilike("name", `%${q}%`);
   if (level) query = query.eq("level", parseInt(level));
   if (isFocus === "true") query = query.eq("is_focus_spell", true);
@@ -200,11 +203,13 @@ export async function GET(request: Request) {
 
   const [{ data, error }, { data: homebrewData, error: homebrewError }] = await Promise.all([
     query,
-    supabase
-      .from("homebrew_entries")
-      .select("*")
-      .eq("type", "spell")
-      .order("name", { ascending: true }),
+    includeHomebrew
+      ? supabase
+          .from("homebrew_entries")
+          .select("*")
+          .eq("type", "spell")
+          .order("name", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (error) {

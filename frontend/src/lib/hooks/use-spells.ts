@@ -9,6 +9,7 @@ type SpellParams = {
   tradition?: string;
   level?: number;
   is_focus?: boolean;
+  include_homebrew?: boolean;
   page?: number;
   limit?: number;
 };
@@ -28,6 +29,9 @@ export function useSpells(params: SpellParams = {}, options?: { enabled?: boolea
       if (params.tradition) qs.set("tradition", params.tradition);
       if (params.level !== undefined) qs.set("level", String(params.level));
       if (params.is_focus !== undefined) qs.set("is_focus", String(params.is_focus));
+      if (params.include_homebrew !== undefined) {
+        qs.set("include_homebrew", String(params.include_homebrew));
+      }
       if (params.page) qs.set("page", String(params.page));
       if (params.limit) qs.set("limit", String(params.limit));
       const res = await fetch(`/api/content/spells?${qs}`);

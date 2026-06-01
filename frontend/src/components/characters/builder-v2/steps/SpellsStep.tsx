@@ -149,6 +149,7 @@ export function SpellsStep({ state, update }: StepProps) {
     q: searchQ || undefined,
     tradition,
     level: rank,
+    include_homebrew: true,
     limit: 50,
   });
   const spells: Spell[] = data?.data ?? [];
