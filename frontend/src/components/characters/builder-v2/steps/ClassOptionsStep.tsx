@@ -424,19 +424,42 @@ function advancementRows(value: unknown): Array<{ level: string; text: string }>
     .filter((item): item is { level: string; text: string } => !!item);
 }
 
-function currentSpellSlots(value: unknown, level: number): string[] {
-  if (!Array.isArray(value)) return [];
-  const exact = value
-    .map(objectValue)
-    .find((row) => numberValue(row.level) === level || String(row.level ?? "") === String(level));
-  if (!exact) return [];
-  return Object.entries(exact)
-    .filter(([key, slotValue]) => key !== "level" && numberValue(slotValue) !== null)
-    .map(([key, slotValue]) => `${labelValue(key)}: ${slotValue}`);
+function currentSpellSlots(value: unknown, level: number): Array<{ label: string; value: string }> {
+  if (Array.isArray(value)) {
+    const exact = value
+      .map(objectValue)
+      .find((row) => numberValue(row.level) === level || String(row.level ?? "") === String(level));
+    if (!exact) return [];
+    return Object.entries(exact)
+      .filter(([key, slotValue]) => key !== "level" && numberValue(slotValue) !== null)
+      .map(([key, slotValue]) => ({ label: spellRankLabel(key), value: String(slotValue) }));
+  }
+
+  const table = objectValue(value);
+  const row = table[String(level)];
+  if (!Array.isArray(row)) return [];
+  return row
+    .map((slotValue, index) => ({ rank: index + 1, slots: numberValue(slotValue) }))
+    .filter((entry): entry is { rank: number; slots: number } => entry.slots !== null && entry.slots > 0)
+    .map((entry) => ({ label: spellRankLabel(entry.rank), value: String(entry.slots) }));
 }
 
 function pdfSection(meta: UnknownRecord, key: string): string {
   return stringValue(meta[key]);
+}
+
+function dirgeLabel(key: string): string {
+  if (key === "cantrips") return "Dirge Cantrips";
+  if (key === "rank_1_spells") return "Dirge 1st-rank Spells";
+  if (key === "spells_added_each_level") return "Dirge Spells Added Each Level";
+  return `Dirge ${labelValue(key)}`;
+}
+
+function spellRankLabel(rank: string | number): string {
+  const raw = typeof rank === "number" ? rank : parseInt(rank.replace(/\D/g, ""), 10);
+  if (!Number.isFinite(raw)) return labelValue(String(rank));
+  const suffix = raw === 1 ? "st" : raw === 2 ? "nd" : raw === 3 ? "rd" : "th";
+  return `${raw}${suffix}-rank spells`;
 }
 
 function ClassSummaryPanel({
@@ -532,17 +555,20 @@ function ClassSummaryPanel({
         />
       </div>
 
-      {(focusPoints != null || cantripsKnown != null || Object.keys(dirge).length > 0) && (
+      {(focusPoints != null ||
+        cantripsKnown != null ||
+        slots.length > 0 ||
+        Object.keys(dirge).length > 0) && (
         <div className="rounded-lg border border-border bg-background/40 p-3">
           <h4 className="text-sm font-semibold">Spellcasting and Class Engine</h4>
           <div className="mt-2 flex flex-wrap gap-2 text-xs">
             {focusPoints != null && <InfoPill label="Focus Points" value={String(focusPoints)} />}
             {cantripsKnown != null && <InfoPill label="Cantrips" value={String(cantripsKnown)} />}
-            {Object.entries(dirge).map(([key, value]) => (
-              <InfoPill key={key} label={labelValue(key)} value={String(value)} />
-            ))}
             {slots.map((slot) => (
-              <InfoPill key={slot} label={`Level ${level} Slots`} value={slot} />
+              <InfoPill key={slot.label} label={slot.label} value={slot.value} />
+            ))}
+            {Object.entries(dirge).map(([key, value]) => (
+              <InfoPill key={key} label={dirgeLabel(key)} value={String(value)} />
             ))}
           </div>
         </div>
