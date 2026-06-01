@@ -159,6 +159,10 @@ export async function POST(request: Request) {
     focus_points,
     spell_slot_progression,
     spells_known_progression,
+    advancement_text,
+    feature_details_text,
+    class_feats_text,
+    focus_spells_text,
     trained_skill_count,
     class_trained_skills,
     class_lore_skills,
@@ -241,6 +245,11 @@ export async function POST(request: Request) {
         focus_points: is_spellcaster ? focusPoints : 0,
         spell_slot_progression: is_spellcaster ? slotProgression : {},
         spells_known_progression: is_spellcaster ? spellsKnownProgression : {},
+        advancement_text: typeof advancement_text === "string" ? advancement_text.trim() : "",
+        feature_details_text:
+          typeof feature_details_text === "string" ? feature_details_text.trim() : "",
+        class_feats_text: typeof class_feats_text === "string" ? class_feats_text.trim() : "",
+        focus_spells_text: typeof focus_spells_text === "string" ? focus_spells_text.trim() : "",
       },
     })
     .select()

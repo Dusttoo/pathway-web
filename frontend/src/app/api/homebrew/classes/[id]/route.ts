@@ -188,6 +188,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     focus_points?: number;
     spell_slot_progression?: Record<string, number[]>;
     spells_known_progression?: Record<string, number[]>;
+    advancement_text?: string;
+    feature_details_text?: string;
+    class_feats_text?: string;
+    focus_spells_text?: string;
     trained_skill_count?: number;
     class_trained_skills?: string[];
     class_lore_skills?: string[];
@@ -212,6 +216,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     focus_points,
     spell_slot_progression,
     spells_known_progression,
+    advancement_text,
+    feature_details_text,
+    class_feats_text,
+    focus_spells_text,
     trained_skill_count,
     class_trained_skills,
     class_lore_skills,
@@ -288,6 +296,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     focus_points !== undefined ||
     spell_slot_progression !== undefined ||
     spells_known_progression !== undefined ||
+    advancement_text !== undefined ||
+    feature_details_text !== undefined ||
+    class_feats_text !== undefined ||
+    focus_spells_text !== undefined ||
     is_spellcaster !== undefined
   ) {
     const spellcaster =
@@ -302,6 +314,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       focus_points: spellcaster ? focusPoints : 0,
       spell_slot_progression: spellcaster ? slotProgression : {},
       spells_known_progression: spellcaster ? spellsKnownProgression : {},
+      ...(advancement_text !== undefined ? { advancement_text: advancement_text.trim() } : {}),
+      ...(feature_details_text !== undefined
+        ? { feature_details_text: feature_details_text.trim() }
+        : {}),
+      ...(class_feats_text !== undefined ? { class_feats_text: class_feats_text.trim() } : {}),
+      ...(focus_spells_text !== undefined
+        ? { focus_spells_text: focus_spells_text.trim() }
+        : {}),
     } as Json;
   }
 

@@ -32,6 +32,10 @@ export type HomebrewClassInput = {
   spell_slot_progression?: Record<string, number[]>;
   spells_known_progression?: Record<string, number[]>;
   description?: string;
+  advancement_text?: string;
+  feature_details_text?: string;
+  class_feats_text?: string;
+  focus_spells_text?: string;
 };
 
 export type HomebrewBackgroundInput = {

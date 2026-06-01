@@ -143,6 +143,10 @@ type ClassItem = {
   spell_slot_progression: Record<string, number[]>;
   spells_known_progression: Record<string, number[]>;
   trained_skill_count: number;
+  advancement_text?: string;
+  feature_details_text?: string;
+  class_feats_text?: string;
+  focus_spells_text?: string;
 };
 
 function cleanLoreSkill(value: string): string {
@@ -261,6 +265,14 @@ function toItem(raw: Record<string, unknown>): ClassItem {
     ),
     trained_skill_count:
       typeof meta.trained_skill_count === "number" ? meta.trained_skill_count : 3,
+    advancement_text:
+      typeof meta.advancement_text === "string" ? meta.advancement_text : undefined,
+    feature_details_text:
+      typeof meta.feature_details_text === "string" ? meta.feature_details_text : undefined,
+    class_feats_text:
+      typeof meta.class_feats_text === "string" ? meta.class_feats_text : undefined,
+    focus_spells_text:
+      typeof meta.focus_spells_text === "string" ? meta.focus_spells_text : undefined,
   };
 }
 
@@ -304,6 +316,12 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
   );
   const [loreInput, setLoreInput] = useState("");
   const [description, setDesc] = useState(initialValues?.description ?? "");
+  const [advancementText, setAdvancementText] = useState(initialValues?.advancement_text ?? "");
+  const [featureDetailsText, setFeatureDetailsText] = useState(
+    initialValues?.feature_details_text ?? ""
+  );
+  const [classFeatsText, setClassFeatsText] = useState(initialValues?.class_feats_text ?? "");
+  const [focusSpellsText, setFocusSpellsText] = useState(initialValues?.focus_spells_text ?? "");
   const [formError, setFormError] = useState<string | null>(null);
 
   const isPending = create.isPending || update.isPending;
@@ -381,6 +399,10 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
       class_lore_skills: classLoreSkills,
       class_proficiencies: classProficiencies,
       description: description || undefined,
+      advancement_text: advancementText || undefined,
+      feature_details_text: featureDetailsText || undefined,
+      class_feats_text: classFeatsText || undefined,
+      focus_spells_text: focusSpellsText || undefined,
     };
     try {
       if (isEditing) {
@@ -817,6 +839,54 @@ function ClassForm({ initialValues, onDone }: { initialValues?: ClassItem; onDon
           placeholder="Flavor text, class features…"
         />
       </div>
+
+      <section className="rounded-md border border-border bg-muted/20 p-3 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold">PDF-Style Class Details</h3>
+          <p className="text-xs text-muted-foreground">
+            Use these fields for classes that need a playtest-style writeup: advancement,
+            feature details, class feats, and focus or special spells.
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Advancement Table</label>
+          <textarea
+            className="input w-full min-h-[110px] resize-y text-sm"
+            value={advancementText}
+            onChange={(e) => setAdvancementText(e.target.value)}
+            placeholder={"1: Initial proficiencies, class feature\n2: Class feat, skill feat"}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Class Feature Details</label>
+          <textarea
+            className="input w-full min-h-[140px] resize-y text-sm"
+            value={featureDetailsText}
+            onChange={(e) => setFeatureDetailsText(e.target.value)}
+            placeholder="Write feature names and rules text, such as spellcasting, class paths, and scaling features."
+          />
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium mb-1">Class Feats</label>
+            <textarea
+              className="input w-full min-h-[130px] resize-y text-sm"
+              value={classFeatsText}
+              onChange={(e) => setClassFeatsText(e.target.value)}
+              placeholder={"1st: Feat Name - Summary\n2nd: Feat Name - Summary"}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Focus / Special Spells</label>
+            <textarea
+              className="input w-full min-h-[130px] resize-y text-sm"
+              value={focusSpellsText}
+              onChange={(e) => setFocusSpellsText(e.target.value)}
+              placeholder={"Focus 1: Spell Name - Summary\nCantrip 1: Spell Name - Summary"}
+            />
+          </div>
+        </div>
+      </section>
 
       {formError && <p className="text-sm text-destructive">{formError}</p>}
       <div className="flex gap-2 justify-end pt-1">
