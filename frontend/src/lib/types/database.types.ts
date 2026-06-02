@@ -206,6 +206,7 @@ export type Database = {
       bag_items: {
         Row: {
           category: string
+          char_key: string
           created_at: string
           custom_name: string | null
           display_name: string
@@ -220,6 +221,7 @@ export type Database = {
         }
         Insert: {
           category?: string
+          char_key?: string
           created_at?: string
           custom_name?: string | null
           display_name: string
@@ -234,6 +236,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          char_key?: string
           created_at?: string
           custom_name?: string | null
           display_name?: string
@@ -274,6 +277,7 @@ export type Database = {
         Row: {
           bag_name: string
           categories: Json
+          char_key: string
           id: string
           updated_at: string
           user_id: string
@@ -281,6 +285,7 @@ export type Database = {
         Insert: {
           bag_name?: string
           categories?: Json
+          char_key?: string
           id?: string
           updated_at?: string
           user_id: string
@@ -288,6 +293,7 @@ export type Database = {
         Update: {
           bag_name?: string
           categories?: Json
+          char_key?: string
           id?: string
           updated_at?: string
           user_id?: string

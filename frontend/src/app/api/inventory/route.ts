@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 export type BagItem       = { name: string; qty: number };
 export type BagCategories = Record<string, BagItem[]>;
 export type BagData       = { bag_name: string; categories: BagCategories };
+const LEGACY_BAG_CHAR_KEY = "__legacy__";
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -66,11 +67,12 @@ export async function GET() {
   const service = createServiceClient();
 
   const [{ data: bagRow }, { data: items, error: itemsErr }] = await Promise.all([
-    service.from("bags").select("bag_name").eq("user_id", userId).maybeSingle(),
+    service.from("bags").select("bag_name").eq("user_id", userId).eq("char_key", LEGACY_BAG_CHAR_KEY).maybeSingle(),
     service
       .from("bag_items")
       .select("category, display_name, quantity, sort_order")
       .eq("user_id", userId)
+      .eq("char_key", LEGACY_BAG_CHAR_KEY)
       .order("sort_order", { ascending: true }),
   ]);
 
@@ -112,8 +114,8 @@ export async function POST(request: Request) {
 
   // Ensure bag metadata row exists (idempotent — never overwrites bag_name)
   await service.from("bags").upsert(
-    { user_id: userId, bag_name: "My Bag", categories: {} },
-    { onConflict: "user_id", ignoreDuplicates: true }
+    { user_id: userId, char_key: LEGACY_BAG_CHAR_KEY, bag_name: "My Bag", categories: {} },
+    { onConflict: "user_id,char_key", ignoreDuplicates: true }
   );
 
   // Increment qty if item already exists in this category
@@ -121,6 +123,7 @@ export async function POST(request: Request) {
     .from("bag_items")
     .select("id, quantity")
     .eq("user_id", userId)
+    .eq("char_key", LEGACY_BAG_CHAR_KEY)
     .eq("category", catName)
     .ilike("display_name", itemName)
     .maybeSingle();
@@ -138,6 +141,7 @@ export async function POST(request: Request) {
   const ref = await resolveItemRef(itemName);
   const { error } = await service.from("bag_items").insert({
     user_id:      userId,
+    char_key:     LEGACY_BAG_CHAR_KEY,
     category:     catName,
     display_name: itemName,
     quantity:     qtyNum,
@@ -169,6 +173,7 @@ export async function DELETE(request: Request) {
     .from("bag_items")
     .delete()
     .eq("user_id", userId)
+    .eq("char_key", LEGACY_BAG_CHAR_KEY)
     .eq("category", String(category))
     .ilike("display_name", String(itemName));
 
@@ -199,6 +204,7 @@ export async function PATCH(request: Request) {
       .from("bag_items")
       .update({ quantity: qtyNum })
       .eq("user_id", userId)
+      .eq("char_key", LEGACY_BAG_CHAR_KEY)
       .eq("category", String(body.category))
       .ilike("display_name", String(body.itemName));
 
@@ -218,7 +224,8 @@ export async function PATCH(request: Request) {
   const { error } = await service
     .from("bags")
     .update({ bag_name: bag_name.trim() })
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .eq("char_key", LEGACY_BAG_CHAR_KEY);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
