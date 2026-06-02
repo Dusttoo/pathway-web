@@ -126,6 +126,13 @@ function stripMarkup(raw: string): string {
     .trim();
 }
 
+function cleanBlock(raw: string): string {
+  return stripMarkup(raw)
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function descriptionText(src: Row): string {
   return stripMarkup(s(src.summary_markdown) || s(src.summary) || s(src.text));
 }
@@ -194,6 +201,16 @@ function textField(raw: unknown): string | null {
   if (typeof raw === "string" && raw.trim()) return raw.trim();
   if (typeof raw === "number" && Number.isFinite(raw)) return String(raw);
   return null;
+}
+
+function rankNumber(raw: unknown): number {
+  const value = first(raw) || s(raw);
+  const normalized = value.toLowerCase();
+  if (normalized.includes("legendary")) return 8;
+  if (normalized.includes("master")) return 6;
+  if (normalized.includes("expert")) return 4;
+  if (normalized.includes("trained")) return 2;
+  return 0;
 }
 
 // ── feats ─────────────────────────────────────────────────────
@@ -732,20 +749,150 @@ export function transformBackground(doc: NethysDoc): Row {
 // ── classes and class features ────────────────────────────────
 
 function proficiencyBlock(src: Row): Row {
-  return compact({
-    perception: src.perception_proficiency,
-    fortitude: src.fortitude_proficiency,
-    reflex: src.reflex_proficiency,
-    will: src.will_proficiency,
-    attacks: src.attack_proficiency,
-    defenses: src.defense_proficiency,
-    skills: src.skill_proficiency,
-  });
+  const attacks = arr(src.attack_proficiency);
+  const defenses = arr(src.defense_proficiency);
+  const skills = arr(src.skill_proficiency);
+  const out: Row = {
+    classDC: 2,
+    perception: rankNumber(src.perception_proficiency),
+    fortitude: rankNumber(src.fortitude_proficiency),
+    reflex: rankNumber(src.reflex_proficiency),
+    will: rankNumber(src.will_proficiency),
+  };
+
+  for (const entry of attacks) {
+    const normalized = entry.toLowerCase();
+    const rank = rankNumber(entry);
+    if (normalized.includes("simple")) out.simple = Math.max(n(out.simple), rank);
+    if (normalized.includes("martial")) out.martial = Math.max(n(out.martial), rank);
+    if (normalized.includes("advanced")) out.advanced = Math.max(n(out.advanced), rank);
+    if (normalized.includes("unarmed")) out.unarmed = Math.max(n(out.unarmed), rank);
+    if (normalized.includes("bomb")) out.alchemicalBombs = Math.max(n(out.alchemicalBombs), rank);
+  }
+
+  for (const entry of defenses) {
+    const normalized = entry.toLowerCase();
+    const rank = rankNumber(entry);
+    if (normalized.includes("light")) out.light = Math.max(n(out.light), rank);
+    if (normalized.includes("medium")) out.medium = Math.max(n(out.medium), rank);
+    if (normalized.includes("heavy")) out.heavy = Math.max(n(out.heavy), rank);
+    if (normalized.includes("unarmored")) out.unarmored = Math.max(n(out.unarmored), rank);
+  }
+
+  for (const entry of skills) {
+    const match = entry.match(/trained in\s+(.+?)(?:\s+equal to|$)/i);
+    if (!match) continue;
+    const skill = cleanBlock(match[1]).toLowerCase();
+    if (skill && !skill.includes("number of additional")) out[skill.replace(/\s+/g, "_")] = 2;
+  }
+
+  return compact(out);
+}
+
+function trainedSkillCount(src: Row): number {
+  const skills = arr(src.skill_proficiency).join(" ");
+  const match = skills.match(/(?:equal to\s*)?(\d+)\s+plus/i);
+  return match ? parseInt(match[1], 10) : 3;
+}
+
+function extractHtmlTableRows(tableHtml: string): string[][] {
+  const rows: string[][] = [];
+  const rowRegex = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch: RegExpExecArray | null;
+
+  while ((rowMatch = rowRegex.exec(tableHtml))) {
+    const cells = [...rowMatch[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+      .map((match) => cleanBlock(match[1]))
+      .filter(Boolean);
+    if (cells.length > 0 && !/^your level$/i.test(cells[0])) rows.push(cells);
+  }
+
+  return rows;
+}
+
+function classAdvancement(markdown: string): Array<{ level: number; features: string[] }> {
+  const classFeaturesAt = markdown.search(/<title\b[^>]*level=["']2["'][^>]*>\s*Class Features\s*<\/title>/i);
+  if (classFeaturesAt === -1) return [];
+  const afterHeading = markdown.slice(classFeaturesAt);
+  const tableMatch = afterHeading.match(/<table\b[^>]*>[\s\S]*?<\/table>/i);
+  if (!tableMatch) return [];
+
+  return extractHtmlTableRows(tableMatch[0])
+    .map((cells) => {
+      const level = parseInt(cells[0], 10);
+      const features = cells
+        .slice(1)
+        .join(", ")
+        .split(",")
+        .map((feature) => feature.trim())
+        .filter(Boolean);
+      return Number.isFinite(level) && features.length > 0 ? { level, features } : null;
+    })
+    .filter((row): row is { level: number; features: string[] } => !!row);
+}
+
+function advancementText(rows: Array<{ level: number; features: string[] }>): string {
+  return rows.map((row) => `Level ${row.level}: ${row.features.join(", ")}`).join("\n");
+}
+
+function classFeatureDetails(markdown: string): Array<{
+  level: number | null;
+  name: string;
+  description: string;
+}> {
+  const tableMatch = markdown.match(/<title\b[^>]*level=["']2["'][^>]*>\s*Class Features\s*<\/title>[\s\S]*?<table\b[^>]*>[\s\S]*?<\/table>/i);
+  if (!tableMatch) return [];
+
+  const start = (tableMatch.index ?? 0) + tableMatch[0].length;
+  const tail = markdown.slice(start);
+  const titleRegex = /<title\b([^>]*)level=["']3["']([^>]*)>([\s\S]*?)<\/title>/gi;
+  const titles: Array<{ index: number; end: number; attrs: string; name: string }> = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = titleRegex.exec(tail))) {
+    titles.push({
+      index: match.index,
+      end: titleRegex.lastIndex,
+      attrs: `${match[1]} ${match[2]}`,
+      name: cleanBlock(match[3]),
+    });
+  }
+
+  return titles
+    .map((title, index) => {
+      const next = titles[index + 1]?.index ?? tail.length;
+      const body = cleanBlock(tail.slice(title.end, next));
+      const levelMatch = title.attrs.match(/right=["'][^"']*Level\s+(\d+)/i);
+      const level = levelMatch ? parseInt(levelMatch[1], 10) : title.name === "Initial Proficiencies" ? 1 : null;
+      return title.name && body ? { level, name: title.name, description: body } : null;
+    })
+    .filter((row): row is { level: number | null; name: string; description: string } => !!row);
+}
+
+function keyTerms(markdown: string): Array<{ name: string; description: string }> {
+  const aside = markdown.match(/<aside>[\s\S]*?<title\b[^>]*>\s*Key Terms\s*<\/title>([\s\S]*?)<\/aside>/i);
+  if (!aside) return [];
+
+  return [...aside[1].matchAll(/\*\*\[?([^\]\*:]+)[^\*:]*\]?(?:\([^)]+\))?\*\*:\s*([\s\S]*?)(?=\n\s*\*\*\[?|$)/g)]
+    .map((match) => ({
+      name: cleanBlock(match[1]),
+      description: cleanBlock(match[2]),
+    }))
+    .filter((term) => term.name && term.description);
+}
+
+function classFeatureText(details: Array<{ level: number | null; name: string; description: string }>): string {
+  return details
+    .map((detail) => `${detail.level ? `Level ${detail.level} - ` : ""}${detail.name}\n${detail.description}`)
+    .join("\n\n");
 }
 
 export function transformClass(doc: NethysDoc): Row {
   const src = source(doc);
   const text = descriptionText(src);
+  const markdown = s(src.markdown);
+  const advancement = classAdvancement(markdown);
+  const featureDetails = classFeatureDetails(markdown);
   const traditions = s(src.tradition_markdown);
   const isSpellcaster = /spellcasting|spellcaster|cantrip|tradition/i.test(`${text} ${traditions}`);
 
@@ -757,7 +904,7 @@ export function transformClass(doc: NethysDoc): Row {
     class_hp: n(src.hp, 8),
     key_attribute: arr(src.attribute).map((x) => x.toLowerCase()),
     initial_proficiencies: proficiencyBlock(src),
-    class_features: [],
+    class_features: featureDetails,
     is_spellcaster: isSpellcaster,
     spellcasting_ability: null,
     source: sourceText(src),
@@ -768,6 +915,11 @@ export function transformClass(doc: NethysDoc): Row {
       navigation: src.navigation,
       hp_raw: src.hp_raw,
       proficiencies: proficiencyBlock(src),
+      trained_skill_count: trainedSkillCount(src),
+      advancement,
+      advancement_text: advancementText(advancement),
+      feature_details_text: classFeatureText(featureDetails),
+      key_terms: keyTerms(markdown),
       tradition_markdown: src.tradition_markdown,
     }),
   };
