@@ -69,6 +69,13 @@ interface PBBuild {
   keyability?: string;
   abilities?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
   proficiencies?: Record<string, number>;
+  specificProficiencies?: {
+    trained?: string[];
+    expert?: string[];
+    master?: string[];
+    legendary?: string[];
+  };
+  custom_specific_proficiencies?: CustomSpecificProficiency[];
   feats?: Array<[string, string | null, string | null, string | null] | string[]>;
   specials?: string[];
   custom_attacks?: {
@@ -118,6 +125,12 @@ interface PBBuild {
   weaknesses?: string | string[];
   stats?: Record<string, unknown>;
 }
+
+type CustomSpecificProficiency = {
+  type: "weapon" | "armor";
+  name: string;
+  rank: number;
+};
 
 type TabKey =
   | "stats"
@@ -603,6 +616,63 @@ const ADDABLE_MANAGED_PROFS = [
 
 function rankToStoredProficiency(rank: number, usesRawBonus: boolean): number {
   return usesRawBonus ? rank * 2 : rank;
+}
+
+function specificProficiencyRank(rank: unknown): number {
+  const n = typeof rank === "number" ? rank : parseInt(String(rank ?? "1"), 10);
+  if (n >= 8) return 4;
+  if (n >= 6) return 3;
+  if (n >= 4) return 2;
+  if (n >= 2) return 1;
+  return Math.max(1, Math.min(4, n || 1));
+}
+
+function specificProficiencyBucket(rank: number): "trained" | "expert" | "master" | "legendary" {
+  if (rank >= 4) return "legendary";
+  if (rank >= 3) return "master";
+  if (rank >= 2) return "expert";
+  return "trained";
+}
+
+function groupedSpecificProficiencies(proficiencies: CustomSpecificProficiency[]) {
+  const grouped = {
+    trained: [] as string[],
+    expert: [] as string[],
+    master: [] as string[],
+    legendary: [] as string[],
+  };
+  for (const prof of proficiencies) {
+    const name = prof.name.trim();
+    if (!name) continue;
+    grouped[specificProficiencyBucket(specificProficiencyRank(prof.rank))].push(name);
+  }
+  return grouped;
+}
+
+function customSpecificProficiencies(build: PBBuild): CustomSpecificProficiency[] {
+  if (Array.isArray(build.custom_specific_proficiencies)) {
+    return build.custom_specific_proficiencies
+      .filter((prof) => prof?.name?.trim())
+      .map((prof) => ({
+        type: prof.type === "armor" ? "armor" : "weapon",
+        name: prof.name.trim(),
+        rank: specificProficiencyRank(prof.rank),
+      }));
+  }
+
+  const grouped = build.specificProficiencies;
+  if (!grouped) return [];
+  const result: CustomSpecificProficiency[] = [];
+  for (const [bucket, names] of Object.entries(grouped)) {
+    if (!Array.isArray(names)) continue;
+    const rank = bucket === "legendary" ? 4 : bucket === "master" ? 3 : bucket === "expert" ? 2 : 1;
+    for (const name of names) {
+      if (typeof name === "string" && name.trim()) {
+        result.push({ type: "weapon", name: name.trim(), rank });
+      }
+    }
+  }
+  return result;
 }
 
 function abilityBoostedScore(score: number, direction: 1 | -1): number {
@@ -1804,6 +1874,7 @@ function StatsTabPanel({
   const loreProfs = profEntries.filter(([key]) => canonicalProfKey(key).includes("lore"));
   const combatProfs = profEntries.filter(([key]) => COMBAT_PROF_KEYS.has(canonicalProfKey(key)));
   const spellDcProfs = profEntries.filter(([key]) => SPELL_DC_PROF_KEYS.has(canonicalProfKey(key)));
+  const customSpecificProfs = customSpecificProficiencies(build);
   const extraProfs = profEntries.filter(([key]) => {
     const canonical = canonicalProfKey(key);
     return (
@@ -1822,6 +1893,9 @@ function StatsTabPanel({
   const [loreSkillRank, setLoreSkillRank] = useState(1);
   const [profToAdd, setProfToAdd] = useState("light_armor");
   const [profToAddRank, setProfToAddRank] = useState(1);
+  const [specificProfType, setSpecificProfType] = useState<"weapon" | "armor">("weapon");
+  const [specificProfName, setSpecificProfName] = useState("");
+  const [specificProfRank, setSpecificProfRank] = useState(1);
   const [attackName, setAttackName] = useState("");
   const [attackBonus, setAttackBonus] = useState("");
   const [attackDamage, setAttackDamage] = useState("");
@@ -1878,6 +1952,41 @@ function StatsTabPanel({
       [profToAdd]: rankToStoredProficiency(profToAddRank, usesRawBonus),
     });
     setProfToAddRank(1);
+  }
+
+  function saveSpecificProficiencies(next: CustomSpecificProficiency[]) {
+    const clean: CustomSpecificProficiency[] = next
+      .filter((prof) => prof.name.trim())
+      .map((prof) => ({
+        type: prof.type === "armor" ? "armor" : "weapon",
+        name: prof.name.trim(),
+        rank: specificProficiencyRank(prof.rank),
+      }));
+    onSaveExtras({
+      custom_specific_proficiencies: clean,
+      specificProficiencies: groupedSpecificProficiencies(clean),
+    });
+  }
+
+  function addSpecificProficiency() {
+    const name = specificProfName.trim();
+    if (!name) return;
+    saveSpecificProficiencies([
+      ...customSpecificProfs,
+      { type: specificProfType, name, rank: specificProfRank },
+    ]);
+    setSpecificProfName("");
+    setSpecificProfRank(1);
+  }
+
+  function updateSpecificProficiency(index: number, patch: Partial<CustomSpecificProficiency>) {
+    saveSpecificProficiencies(
+      customSpecificProfs.map((prof, i) => (i === index ? { ...prof, ...patch } : prof))
+    );
+  }
+
+  function removeSpecificProficiency(index: number) {
+    saveSpecificProficiencies(customSpecificProfs.filter((_, i) => i !== index));
   }
 
   function setProficiencyRank(key: string, rank: number) {
@@ -2338,6 +2447,116 @@ function StatsTabPanel({
             ))}
           </div>
         )}
+        <div className="mt-3 space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+          <div>
+            <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Specific weapon & armor proficiencies
+            </h5>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Use this for deity favored weapons, ancestry weapons, special class training, or
+              campaign-specific armor.
+            </p>
+          </div>
+          {customSpecificProfs.length > 0 && (
+            <div className="grid grid-cols-1 gap-2">
+              {customSpecificProfs.map((prof, index) => (
+                <div
+                  key={`${prof.type}-${prof.name}-${index}`}
+                  className="grid grid-cols-1 gap-2 rounded-md border border-border bg-background/50 p-2 md:grid-cols-[8rem_1fr_150px_auto] md:items-center"
+                >
+                  <select
+                    className="input text-sm"
+                    value={prof.type}
+                    disabled={isSaving}
+                    onChange={(e) =>
+                      updateSpecificProficiency(index, {
+                        type: e.target.value === "armor" ? "armor" : "weapon",
+                      })
+                    }
+                    aria-label={`${prof.name} type`}
+                  >
+                    <option value="weapon">Weapon</option>
+                    <option value="armor">Armor</option>
+                  </select>
+                  <input
+                    className="input text-sm"
+                    value={prof.name}
+                    disabled={isSaving}
+                    onChange={(e) => updateSpecificProficiency(index, { name: e.target.value })}
+                    aria-label={`${prof.name} name`}
+                  />
+                  <select
+                    className="input text-sm"
+                    value={specificProficiencyRank(prof.rank)}
+                    disabled={isSaving}
+                    onChange={(e) =>
+                      updateSpecificProficiency(index, { rank: Number(e.target.value) })
+                    }
+                    aria-label={`${prof.name} rank`}
+                  >
+                    <option value={1}>Trained</option>
+                    <option value={2}>Expert</option>
+                    <option value={3}>Master</option>
+                    <option value={4}>Legendary</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeSpecificProficiency(index)}
+                    disabled={isSaving}
+                    className="justify-self-start text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 md:justify-self-center"
+                    title="Remove specific proficiency"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-[8rem_1fr_150px_auto]">
+            <select
+              className="input text-sm"
+              value={specificProfType}
+              disabled={isSaving}
+              onChange={(e) =>
+                setSpecificProfType(e.target.value === "armor" ? "armor" : "weapon")
+              }
+            >
+              <option value="weapon">Weapon</option>
+              <option value="armor">Armor</option>
+            </select>
+            <input
+              className="input text-sm"
+              value={specificProfName}
+              disabled={isSaving}
+              onChange={(e) => setSpecificProfName(e.target.value)}
+              placeholder={
+                specificProfType === "weapon"
+                  ? "e.g. Longsword, deity favored weapon"
+                  : "e.g. Hellknight plate"
+              }
+            />
+            <select
+              className="input text-sm"
+              value={specificProfRank}
+              disabled={isSaving}
+              onChange={(e) => setSpecificProfRank(Number(e.target.value))}
+            >
+              <option value={1}>Trained</option>
+              <option value={2}>Expert</option>
+              <option value={3}>Master</option>
+              <option value={4}>Legendary</option>
+            </select>
+            <button
+              type="button"
+              onClick={addSpecificProficiency}
+              disabled={isSaving || !specificProfName.trim()}
+              className="btn-outline text-sm flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Plus size={14} />
+              Add
+            </button>
+          </div>
+        </div>
       </div>
 
       <div>

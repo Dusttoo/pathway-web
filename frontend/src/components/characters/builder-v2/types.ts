@@ -38,6 +38,12 @@ export type StartingItem = {
   quantity: number;
 };
 
+export type CustomProficiency = {
+  type: "weapon" | "armor";
+  name: string;
+  rank: number;
+};
+
 export type ClassOptions = {
   subclass?: string;
   doctrine?: string;
@@ -155,6 +161,7 @@ export type BuilderState = {
   abilityBoostChoices: AbilityBoostChoices;
   trainedSkills: string[];
   additionalSkills: { name: string; rank: number }[];
+  customProficiencies: CustomProficiency[];
 
   // Feats (from Nethys reference, persisted to character_feats)
   selectedFeats: SelectedFeat[];
@@ -236,6 +243,7 @@ export const DEFAULT_STATE: BuilderState = {
   abilityBoostChoices: { ancestryFree: [], background: [], free: [] },
   trainedSkills: [],
   additionalSkills: [],
+  customProficiencies: [],
 
   selectedFeats: [],
 

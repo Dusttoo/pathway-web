@@ -78,6 +78,7 @@ export function ReviewStep({ state, onCreated }: StepProps) {
       trained_skills: state.trainedSkills,
       background_trained_skill: state.backgroundTrainedSkill || undefined,
       additional_skills: state.additionalSkills.filter((s) => s.name.trim()),
+      custom_proficiencies: state.customProficiencies.filter((prof) => prof.name.trim()),
       custom_feats: [...selectedFeatSnapshots, ...state.customFeats.filter((f) => f.name.trim())],
       custom_specials: allCustomSpecials,
       custom_attacks: state.customAttacks.filter((a) => a.name.trim()),
@@ -212,6 +213,10 @@ export function ReviewStep({ state, onCreated }: StepProps) {
           />
           <Stat label="Speed" value={`${state.ancestrySpeed} ft`} />
           <Stat label="Trained skills" value={String(state.trainedSkills.length)} />
+          <Stat
+            label="Custom profs"
+            value={String(state.customProficiencies.filter((prof) => prof.name.trim()).length)}
+          />
           <Stat label="Feats picked" value={String(state.selectedFeats.length)} />
           <Stat label="Spells picked" value={String(state.selectedSpells.length)} />
           <Stat label="Items" value={String(state.selectedItems.length)} />

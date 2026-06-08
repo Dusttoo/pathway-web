@@ -42,6 +42,7 @@ export function SkillsStep({ state, update }: StepProps) {
     backgroundTrainedSkill,
     trainedSkills,
     additionalSkills,
+    customProficiencies,
     abilities,
   } = state;
 
@@ -74,6 +75,9 @@ export function SkillsStep({ state, update }: StepProps) {
   // ── additional skills (custom rank, e.g. lore, raised by feats) ──
   const [newSkillName, setNewSkillName] = useState("");
   const [newSkillRank, setNewSkillRank] = useState(2);
+  const [newProficiencyType, setNewProficiencyType] = useState<"weapon" | "armor">("weapon");
+  const [newProficiencyName, setNewProficiencyName] = useState("");
+  const [newProficiencyRank, setNewProficiencyRank] = useState(2);
 
   function addAdditional() {
     const name = newSkillName.trim();
@@ -97,6 +101,47 @@ export function SkillsStep({ state, update }: StepProps) {
   function setAdditionalName(index: number, name: string) {
     update({
       additionalSkills: additionalSkills.map((s, i) => (i === index ? { ...s, name } : s)),
+    });
+  }
+
+  function addCustomProficiency() {
+    const name = newProficiencyName.trim();
+    if (!name) return;
+    update({
+      customProficiencies: [
+        ...customProficiencies,
+        { type: newProficiencyType, name, rank: newProficiencyRank },
+      ],
+    });
+    setNewProficiencyName("");
+    setNewProficiencyRank(2);
+  }
+
+  function removeCustomProficiency(index: number) {
+    update({ customProficiencies: customProficiencies.filter((_, i) => i !== index) });
+  }
+
+  function setCustomProficiencyName(index: number, name: string) {
+    update({
+      customProficiencies: customProficiencies.map((prof, i) =>
+        i === index ? { ...prof, name } : prof
+      ),
+    });
+  }
+
+  function setCustomProficiencyRank(index: number, rank: number) {
+    update({
+      customProficiencies: customProficiencies.map((prof, i) =>
+        i === index ? { ...prof, rank } : prof
+      ),
+    });
+  }
+
+  function setCustomProficiencyType(index: number, type: "weapon" | "armor") {
+    update({
+      customProficiencies: customProficiencies.map((prof, i) =>
+        i === index ? { ...prof, type } : prof
+      ),
     });
   }
 
@@ -273,6 +318,135 @@ export function SkillsStep({ state, update }: StepProps) {
         ) : (
           <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
             No additional skills added yet.
+          </p>
+        )}
+      </section>
+
+      <section>
+        <h3 className="text-sm font-semibold mb-1">Weapon & armor proficiencies</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Add specific weapon or armor training from ancestry feats, deity favored weapons,
+          archetypes, class features, or campaign options.
+        </p>
+
+        <div className="grid grid-cols-1 gap-2 mb-3 sm:grid-cols-[8rem_1fr_10rem_auto]">
+          <select
+            value={newProficiencyType}
+            onChange={(e) => setNewProficiencyType(e.target.value as "weapon" | "armor")}
+            className="input text-sm"
+            aria-label="Custom proficiency type"
+          >
+            <option value="weapon">Weapon</option>
+            <option value="armor">Armor</option>
+          </select>
+          <input
+            type="text"
+            placeholder={
+              newProficiencyType === "weapon"
+                ? "e.g. Longsword, deity favored weapon"
+                : "e.g. Hellknight plate, ancestral armor"
+            }
+            className="input flex-1 text-sm"
+            value={newProficiencyName}
+            onChange={(e) => setNewProficiencyName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustomProficiency();
+              }
+            }}
+          />
+          <select
+            value={newProficiencyRank}
+            onChange={(e) => setNewProficiencyRank(parseInt(e.target.value, 10))}
+            className="input text-sm"
+            aria-label="Custom proficiency rank"
+          >
+            <option value={2}>Trained</option>
+            <option value={4}>Expert</option>
+            <option value={6}>Master</option>
+            <option value={8}>Legendary</option>
+          </select>
+          <button
+            type="button"
+            onClick={addCustomProficiency}
+            disabled={!newProficiencyName.trim()}
+            className="btn-outline px-3 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+
+        {customProficiencies.length > 0 ? (
+          <div className="space-y-2">
+            {customProficiencies.map((prof, i) => (
+              <div
+                key={`${prof.type}-${prof.name}-${i}`}
+                className="grid grid-cols-[auto_1fr_auto] gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[auto_8rem_minmax(14rem,1fr)_10rem_auto] sm:items-end"
+              >
+                <CheckCircle2 size={14} className="mt-8 shrink-0 text-primary sm:mt-0 sm:mb-3" />
+                <label className="col-span-2 block sm:col-span-1">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Type
+                  </span>
+                  <select
+                    value={prof.type}
+                    onChange={(e) =>
+                      setCustomProficiencyType(i, e.target.value as "weapon" | "armor")
+                    }
+                    className="input text-sm"
+                    aria-label={`Custom proficiency ${i + 1} type`}
+                  >
+                    <option value="weapon">Weapon</option>
+                    <option value="armor">Armor</option>
+                  </select>
+                </label>
+                <label className="col-span-2 block min-w-0 sm:col-span-1">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Name
+                  </span>
+                  <input
+                    type="text"
+                    value={prof.name}
+                    onChange={(e) => setCustomProficiencyName(i, e.target.value)}
+                    placeholder="Specific weapon or armor"
+                    className="input text-sm"
+                    aria-label={`Custom proficiency ${i + 1} name`}
+                  />
+                </label>
+                <label className="col-span-2 block sm:col-span-1">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Rank
+                  </span>
+                  <select
+                    value={prof.rank}
+                    onChange={(e) => setCustomProficiencyRank(i, parseInt(e.target.value, 10))}
+                    className="input text-xs py-2"
+                    aria-label={`Custom proficiency ${i + 1} rank`}
+                  >
+                    <option value={2}>Trained</option>
+                    <option value={4}>Expert</option>
+                    <option value={6}>Master</option>
+                    <option value={8}>Legendary</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => removeCustomProficiency(i)}
+                  className="col-start-3 row-start-1 self-start p-1 text-muted-foreground hover:text-destructive sm:col-start-auto sm:row-start-auto sm:mb-2 sm:self-end"
+                  aria-label={`Remove ${prof.name}`}
+                >
+                  <X size={14} />
+                </button>
+                <span className="col-span-full ml-6 text-xs text-muted-foreground sm:hidden">
+                  Current rank: {rankLabel(prof.rank)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+            No specific weapon or armor proficiencies added yet.
           </p>
         )}
       </section>

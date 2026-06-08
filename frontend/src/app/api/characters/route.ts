@@ -178,6 +178,16 @@ function classSpellCaster(
   };
 }
 
+type SpecificProficiencyBucket = "trained" | "expert" | "master" | "legendary";
+
+function specificProficiencyBucket(rank: unknown): SpecificProficiencyBucket {
+  const n = typeof rank === "number" ? rank : parseInt(String(rank ?? "0"), 10);
+  if (n >= 8) return "legendary";
+  if (n >= 6) return "master";
+  if (n >= 4) return "expert";
+  return "trained";
+}
+
 function synthesizeBuild(
   input: NativeBuildInput,
   ancestry: AncestryRow,
@@ -237,6 +247,22 @@ function synthesizeBuild(
       damage: attack.damage.trim(),
       traits: attack.traits.trim(),
     }));
+  const customProficiencies = (input.custom_proficiencies ?? [])
+    .filter((prof) => prof.name.trim())
+    .map((prof) => ({
+      type: prof.type === "armor" ? "armor" : "weapon",
+      name: prof.name.trim(),
+      rank: prof.rank,
+    }));
+  const specificProficiencies: Record<SpecificProficiencyBucket, string[]> = {
+    trained: [],
+    expert: [],
+    master: [],
+    legendary: [],
+  };
+  for (const prof of customProficiencies) {
+    specificProficiencies[specificProficiencyBucket(prof.rank)].push(prof.name);
+  }
 
   const mergedProfs: Record<string, number> = {
     ...baseSkills,
@@ -333,7 +359,8 @@ function synthesizeBuild(
       equipment: (input.equipment_refs ?? [])
         .filter((e) => e.name.trim())
         .map((e) => [e.name.trim(), Math.max(1, e.quantity)] as [string, number]),
-      specificProficiencies: { trained: [], expert: [], master: [], legendary: [] },
+      specificProficiencies,
+      custom_specific_proficiencies: customProficiencies,
       weapons: [],
       armor: [],
       money: input.money,
