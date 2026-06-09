@@ -22,6 +22,7 @@ import {
   GraduationCap,
   BookOpen,
   AlertTriangle,
+  Download,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -84,6 +85,190 @@ function str(v: unknown): string { return v != null ? String(v) : ""; }
 function num(v: unknown): number | null {
   const n = Number(v);
   return v != null && v !== "" && !isNaN(n) ? n : null;
+}
+
+function slugFileName(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "homebrew-monster";
+}
+
+function signed(value: unknown) {
+  const n = num(value) ?? 0;
+  return n >= 0 ? `+${n}` : String(n);
+}
+
+function abilityModToScore(value: unknown) {
+  const mod = num(value);
+  return mod == null ? 10 : 10 + mod * 2;
+}
+
+function normalizeActionCost(cost: unknown) {
+  const raw = str(cost).toLowerCase();
+  if (raw.includes("reaction")) return { type: "reaction", value: null };
+  if (raw.includes("free")) return { type: "free", value: null };
+  const match = raw.match(/\b([123])\b/);
+  if (match) return { type: "action", value: Number(match[1]) };
+  return { type: "passive", value: null };
+}
+
+function foundryDamageParts(damage: unknown) {
+  const text = str(damage).trim();
+  if (!text) return [];
+  const match = text.match(/^(.+?)\s+([a-z][a-z -]*)$/i);
+  return [[match ? match[1].trim() : text, match ? match[2].trim().toLowerCase() : "untyped"]];
+}
+
+function foundryTraitObject(values: unknown) {
+  return {
+    value: Array.isArray(values)
+      ? values.map((value) => str(value).toLowerCase()).filter(Boolean)
+      : [],
+    custom: "",
+    rarity: "",
+  };
+}
+
+function buildFoundryMonsterActor(entry: HomebrewEntry) {
+  const d = entry.data as Record<string, unknown>;
+  const core = (d.core ?? {}) as Record<string, unknown>;
+  const rich = (d.rich ?? {}) as Record<string, unknown>;
+  const defs = (rich.defenses ?? {}) as Record<string, unknown>;
+  const saves = (core.saves ?? defs.saves ?? {}) as Record<string, unknown>;
+  const mods = (rich.ability_modifiers ?? {}) as Record<string, unknown>;
+  const speed = (rich.speed ?? {}) as Record<string, unknown>;
+  const traits = Array.isArray(core.traits)
+    ? (core.traits as unknown[])
+    : Array.isArray(rich.creature_traits)
+      ? (rich.creature_traits as unknown[])
+      : [];
+  const attacks = Array.isArray(rich.attacks) ? (rich.attacks as Record<string, unknown>[]) : [];
+  const abilityGroups = (rich.abilities ?? {}) as Record<string, unknown>;
+  const abilities = [
+    ...(Array.isArray(abilityGroups.top) ? (abilityGroups.top as Record<string, unknown>[]) : []),
+    ...(Array.isArray(abilityGroups.mid) ? (abilityGroups.mid as Record<string, unknown>[]) : []),
+    ...(Array.isArray(abilityGroups.bot) ? (abilityGroups.bot as Record<string, unknown>[]) : []),
+  ];
+  const actorName = str(core.name || rich.name || d.name || entry.name);
+  const items = [
+    ...attacks
+      .filter((attack) => str(attack.name))
+      .map((attack) => ({
+        name: str(attack.name),
+        type: "melee",
+        img: "icons/svg/sword.svg",
+        system: {
+          attack: { value: str(attack.bonus ?? "0") },
+          bonus: { value: 0 },
+          damageRolls: {
+            main: {
+              damage: str(attack.damage),
+              damageType: foundryDamageParts(attack.damage)[0]?.[1] ?? "untyped",
+            },
+          },
+          traits: {
+            value: Array.isArray(attack.traits)
+              ? (attack.traits as unknown[]).map((trait) => str(trait).toLowerCase()).filter(Boolean)
+              : [],
+          },
+          weaponType: str(attack.type).toLowerCase().includes("ranged") ? "ranged" : "melee",
+        },
+      })),
+    ...abilities
+      .filter((ability) => str(ability.name))
+      .map((ability) => ({
+        name: str(ability.name),
+        type: "action",
+        img: "icons/svg/aura.svg",
+        system: {
+          actionType: normalizeActionCost(ability.cost),
+          category: "interaction",
+          description: { value: str(ability.description) },
+          traits: foundryTraitObject(ability.traits),
+        },
+      })),
+  ];
+
+  return {
+    name: actorName,
+    type: "npc",
+    img: str(d.image_url) || "icons/svg/mystery-man.svg",
+    system: {
+      abilities: {
+        str: { mod: num(mods.str) ?? 0, value: abilityModToScore(mods.str) },
+        dex: { mod: num(mods.dex) ?? 0, value: abilityModToScore(mods.dex) },
+        con: { mod: num(mods.con) ?? 0, value: abilityModToScore(mods.con) },
+        int: { mod: num(mods.int) ?? 0, value: abilityModToScore(mods.int) },
+        wis: { mod: num(mods.wis) ?? 0, value: abilityModToScore(mods.wis) },
+        cha: { mod: num(mods.cha) ?? 0, value: abilityModToScore(mods.cha) },
+      },
+      attributes: {
+        ac: { value: num(core.ac ?? defs.ac) ?? 10 },
+        hp: {
+          value: num(core.hp ?? defs.hp) ?? 1,
+          max: num(core.hp ?? defs.hp) ?? 1,
+          details: Array.isArray(defs.hp_notes) ? (defs.hp_notes as string[]).join("; ") : "",
+        },
+        perception: { value: signed(core.perception ?? rich.perception) },
+        speed: {
+          value: num(speed.land) ?? 25,
+          otherSpeeds: Object.entries(speed)
+            .filter(([key]) => key !== "land")
+            .map(([type, value]) => ({ type, value: num(value) ?? 0 })),
+        },
+      },
+      details: {
+        level: { value: num(core.level ?? rich.level) ?? 0 },
+        privateNotes: "",
+        publicNotes: str(rich.description),
+        source: { value: "Pathway Homebrew" },
+      },
+      resources: {},
+      saves: {
+        fortitude: { value: signed(saves.fort ?? saves.Fort) },
+        reflex: { value: signed(saves.ref ?? saves.Ref) },
+        will: { value: signed(saves.will ?? saves.Will) },
+      },
+      skills: Object.fromEntries(
+        Object.entries((rich.skills ?? {}) as Record<string, unknown>).map(([skill, bonus]) => [
+          skill.toLowerCase(),
+          { value: signed(bonus) },
+        ])
+      ),
+      traits: {
+        rarity: str(core.rarity).toLowerCase() || "common",
+        size: str(core.size).toLowerCase() || "med",
+        value: traits.map((trait) => str(trait).toLowerCase()).filter(Boolean),
+      },
+      immunities: Array.isArray(defs.immunities) ? defs.immunities : [],
+      weaknesses: Array.isArray(defs.weaknesses) ? defs.weaknesses : [],
+      resistances: Array.isArray(defs.resistances) ? defs.resistances : [],
+    },
+    items,
+    effects: [],
+    flags: {
+      pathway: {
+        source: "homebrew",
+        homebrewId: entry.id,
+        exportedAt: new Date().toISOString(),
+        originalData: d,
+      },
+    },
+  };
+}
+
+function downloadFoundryMonsterJson(entry: HomebrewEntry) {
+  const actor = buildFoundryMonsterActor(entry);
+  const blob = new Blob([JSON.stringify(actor, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slugFileName(actor.name)}-foundry-vtt.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function SpellDetail({ entry }: { entry: HomebrewEntry }) {
@@ -178,6 +363,17 @@ function MonsterDetail({ entry }: { entry: HomebrewEntry }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => downloadFoundryMonsterJson(entry)}
+          className="btn-outline inline-flex items-center gap-2 text-sm"
+        >
+          <Download size={14} />
+          Export Foundry JSON
+        </button>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {core.level != null && (
           <Badge className="bg-muted/60 text-muted-foreground border border-border">Level {str(core.level)}</Badge>
