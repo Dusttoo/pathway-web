@@ -94,6 +94,16 @@ function slugFileName(name: string) {
     .replace(/^-|-$/g, "") || "homebrew-monster";
 }
 
+function signed(value: unknown) {
+  const n = num(value) ?? 0;
+  return n >= 0 ? `+${n}` : String(n);
+}
+
+function abilityModToScore(value: unknown) {
+  const mod = num(value);
+  return mod == null ? 10 : 10 + mod * 2;
+}
+
 function normalizeActionCost(cost: unknown) {
   const raw = str(cost).toLowerCase();
   if (raw.includes("reaction")) return { type: "reaction", value: null };
@@ -120,74 +130,6 @@ function foundryTraitObject(values: unknown) {
   };
 }
 
-function foundryId(seed: string) {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  }
-  let id = "";
-  for (let i = 0; i < 16; i++) {
-    hash = (hash * 1664525 + 1013904223) >>> 0;
-    id += chars[hash % chars.length];
-  }
-  return id;
-}
-
-function foundrySize(size: unknown) {
-  const normalized = str(size).toLowerCase();
-  if (normalized.startsWith("tiny")) return "tiny";
-  if (normalized.startsWith("small")) return "sm";
-  if (normalized.startsWith("large")) return "lg";
-  if (normalized.startsWith("huge")) return "huge";
-  if (normalized.startsWith("gargantuan")) return "grg";
-  return "med";
-}
-
-function foundryDamageRollKey(name: string, index: number) {
-  return foundryId(`${name}-damage-${index}`).toLowerCase();
-}
-
-type FoundryDefenseEntry = { type: string; value?: number; exceptions: unknown[] };
-
-function foundryDefenseList(values: unknown): FoundryDefenseEntry[] {
-  if (!Array.isArray(values)) return [];
-  const result: FoundryDefenseEntry[] = [];
-
-  for (const value of values) {
-    if (typeof value === "string") {
-      const type = value.toLowerCase().trim();
-      if (type) result.push({ type, exceptions: [] });
-      continue;
-    }
-
-    if (value && typeof value === "object") {
-      const record = value as Record<string, unknown>;
-      const type = str(record.type).toLowerCase().trim();
-      if (!type) continue;
-
-      const entry: FoundryDefenseEntry = {
-        type,
-        exceptions: Array.isArray(record.exceptions) ? record.exceptions : [],
-      };
-      const amount = num(record.value);
-      if (amount !== null) entry.value = amount;
-      result.push(entry);
-    }
-  }
-
-  return result;
-}
-
-function htmlParagraphs(text: unknown) {
-  const raw = str(text).trim();
-  if (!raw) return "";
-  return raw
-    .split(/\n{2,}/)
-    .map((part) => `<p>${part.replace(/\n/g, "<br />")}</p>`)
-    .join("");
-}
-
 function buildFoundryMonsterActor(entry: HomebrewEntry) {
   const d = entry.data as Record<string, unknown>;
   const core = (d.core ?? {}) as Record<string, unknown>;
@@ -209,106 +151,66 @@ function buildFoundryMonsterActor(entry: HomebrewEntry) {
     ...(Array.isArray(abilityGroups.bot) ? (abilityGroups.bot as Record<string, unknown>[]) : []),
   ];
   const actorName = str(core.name || rich.name || d.name || entry.name);
-  const actorImg = str(d.image_url) || "icons/svg/mystery-man.svg";
   const items = [
     ...attacks
       .filter((attack) => str(attack.name))
-      .map((attack, index) => {
-        const damageParts = foundryDamageParts(attack.damage);
-        const damageKey = foundryDamageRollKey(str(attack.name), index);
-        return {
-          _id: foundryId(`${entry.id}-attack-${index}-${str(attack.name)}`),
-          name: str(attack.name),
-          type: "melee",
-          img: "systems/pf2e/icons/default-icons/melee.svg",
-          sort: 100000 + index * 100000,
-          system: {
-            attack: { value: "" },
-            attackEffects: { custom: "", value: [] },
-            bonus: { value: num(attack.bonus) ?? 0 },
-            damageRolls: {
-              [damageKey]: {
-                damage: damageParts[0]?.[0] ?? str(attack.damage),
-                damageType: damageParts[0]?.[1] ?? "untyped",
-              },
+      .map((attack) => ({
+        name: str(attack.name),
+        type: "melee",
+        img: "icons/svg/sword.svg",
+        system: {
+          attack: { value: str(attack.bonus ?? "0") },
+          bonus: { value: 0 },
+          damageRolls: {
+            main: {
+              damage: str(attack.damage),
+              damageType: foundryDamageParts(attack.damage)[0]?.[1] ?? "untyped",
             },
-            description: { value: "" },
-            publication: { license: "ORC", remaster: true, title: "" },
-            rules: [],
-            slug: null,
-            traits: {
-              rarity: "common",
-              value: Array.isArray(attack.traits)
-                ? (attack.traits as unknown[]).map((trait) => str(trait).toLowerCase()).filter(Boolean)
-                : [],
-            },
-            weaponType: { value: str(attack.type).toLowerCase().includes("ranged") ? "ranged" : "melee" },
           },
-        };
-      }),
+          traits: {
+            value: Array.isArray(attack.traits)
+              ? (attack.traits as unknown[]).map((trait) => str(trait).toLowerCase()).filter(Boolean)
+              : [],
+          },
+          weaponType: str(attack.type).toLowerCase().includes("ranged") ? "ranged" : "melee",
+        },
+      })),
     ...abilities
       .filter((ability) => str(ability.name))
-      .map((ability, index) => {
-        const actionCost = normalizeActionCost(ability.cost);
-        return {
-          _id: foundryId(`${entry.id}-ability-${index}-${str(ability.name)}`),
-          name: str(ability.name),
-          type: "action",
-          img: `systems/pf2e/icons/actions/${actionCost.type === "passive" ? "Passive" : actionCost.type === "reaction" ? "Reaction" : actionCost.type === "free" ? "FreeAction" : `${actionCost.value}Action`}.webp`,
-          sort: 300000 + index * 100000,
-          system: {
-            actionType: { value: actionCost.type },
-            actions: { value: actionCost.value },
-            category: "interaction",
-            description: { value: htmlParagraphs(ability.description) },
-            publication: { license: "ORC", remaster: true, title: "" },
-            rules: [],
-            slug: null,
-            traits: foundryTraitObject(ability.traits),
-          },
-        };
-      }),
+      .map((ability) => ({
+        name: str(ability.name),
+        type: "action",
+        img: "icons/svg/aura.svg",
+        system: {
+          actionType: normalizeActionCost(ability.cost),
+          category: "interaction",
+          description: { value: str(ability.description) },
+          traits: foundryTraitObject(ability.traits),
+        },
+      })),
   ];
 
   return {
-    _id: foundryId(entry.id || actorName),
     name: actorName,
     type: "npc",
-    img: actorImg,
-    folder: null,
-    sort: 0,
-    ownership: { default: 0 },
-    prototypeToken: {
-      name: actorName,
-      actorLink: false,
-      disposition: -1,
-      displayName: 20,
-      displayBars: 40,
-      width: 1,
-      height: 1,
-      texture: { src: actorImg },
-    },
+    img: str(d.image_url) || "icons/svg/mystery-man.svg",
     system: {
       abilities: {
-        str: { mod: num(mods.str) ?? 0 },
-        dex: { mod: num(mods.dex) ?? 0 },
-        con: { mod: num(mods.con) ?? 0 },
-        int: { mod: num(mods.int) ?? 0 },
-        wis: { mod: num(mods.wis) ?? 0 },
-        cha: { mod: num(mods.cha) ?? 0 },
+        str: { mod: num(mods.str) ?? 0, value: abilityModToScore(mods.str) },
+        dex: { mod: num(mods.dex) ?? 0, value: abilityModToScore(mods.dex) },
+        con: { mod: num(mods.con) ?? 0, value: abilityModToScore(mods.con) },
+        int: { mod: num(mods.int) ?? 0, value: abilityModToScore(mods.int) },
+        wis: { mod: num(mods.wis) ?? 0, value: abilityModToScore(mods.wis) },
+        cha: { mod: num(mods.cha) ?? 0, value: abilityModToScore(mods.cha) },
       },
       attributes: {
-        ac: { details: "", value: num(core.ac ?? defs.ac) ?? 10 },
-        allSaves: { value: "" },
+        ac: { value: num(core.ac ?? defs.ac) ?? 10 },
         hp: {
           value: num(core.hp ?? defs.hp) ?? 1,
           max: num(core.hp ?? defs.hp) ?? 1,
-          temp: 0,
           details: Array.isArray(defs.hp_notes) ? (defs.hp_notes as string[]).join("; ") : "",
         },
-        immunities: foundryDefenseList(defs.immunities),
-        weaknesses: foundryDefenseList(defs.weaknesses),
-        resistances: foundryDefenseList(defs.resistances),
+        perception: { value: signed(core.perception ?? rich.perception) },
         speed: {
           value: num(speed.land) ?? 25,
           otherSpeeds: Object.entries(speed)
@@ -317,43 +219,31 @@ function buildFoundryMonsterActor(entry: HomebrewEntry) {
         },
       },
       details: {
-        blurb: "",
-        languages: {
-          details: "",
-          value: Array.isArray(rich.languages)
-            ? (rich.languages as unknown[]).map((language) => str(language).toLowerCase()).filter(Boolean)
-            : [],
-        },
         level: { value: num(core.level ?? rich.level) ?? 0 },
         privateNotes: "",
-        publicNotes: htmlParagraphs(rich.description),
-        publication: { license: "ORC", remaster: true, title: "Pathway Homebrew" },
-      },
-      initiative: { statistic: "perception" },
-      perception: {
-        details: Array.isArray(rich.senses) ? (rich.senses as unknown[]).map(str).join(", ") : "",
-        mod: num(core.perception ?? rich.perception) ?? 0,
-        senses: Array.isArray(rich.senses)
-          ? (rich.senses as unknown[]).map((sense) => ({ type: str(sense).toLowerCase().replace(/\s+/g, "-") }))
-          : [],
+        publicNotes: str(rich.description),
+        source: { value: "Pathway Homebrew" },
       },
       resources: {},
       saves: {
-        fortitude: { saveDetail: "", value: num(saves.fort ?? saves.Fort) ?? 0 },
-        reflex: { saveDetail: "", value: num(saves.ref ?? saves.Ref) ?? 0 },
-        will: { saveDetail: "", value: num(saves.will ?? saves.Will) ?? 0 },
+        fortitude: { value: signed(saves.fort ?? saves.Fort) },
+        reflex: { value: signed(saves.ref ?? saves.Ref) },
+        will: { value: signed(saves.will ?? saves.Will) },
       },
       skills: Object.fromEntries(
         Object.entries((rich.skills ?? {}) as Record<string, unknown>).map(([skill, bonus]) => [
           skill.toLowerCase(),
-          { base: num(bonus) ?? 0 },
+          { value: signed(bonus) },
         ])
       ),
       traits: {
         rarity: str(core.rarity).toLowerCase() || "common",
-        size: { value: foundrySize(core.size) },
+        size: str(core.size).toLowerCase() || "med",
         value: traits.map((trait) => str(trait).toLowerCase()).filter(Boolean),
       },
+      immunities: Array.isArray(defs.immunities) ? defs.immunities : [],
+      weaknesses: Array.isArray(defs.weaknesses) ? defs.weaknesses : [],
+      resistances: Array.isArray(defs.resistances) ? defs.resistances : [],
     },
     items,
     effects: [],
