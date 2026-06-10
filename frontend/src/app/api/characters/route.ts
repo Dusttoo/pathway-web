@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type AncestryRow = Tables<"ancestries">;
+type BackgroundRow = Tables<"backgrounds">;
 type ClassRow = Tables<"character_classes">;
 type UntypedClient = SupabaseClient;
 type CharacterFeatSummary = {
@@ -113,6 +114,62 @@ function loreTopicName(value: unknown): string | null {
   return topic || null;
 }
 
+function jsonStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((entry) => jsonStringList(entry))
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function metadataFeatNames(value: unknown): string[] {
+  const found: string[] = [];
+
+  function visit(node: unknown, keyHint = "") {
+    if (!node) return;
+    const keyLooksLikeFeat = /(^|_|-)feats?($|_|-)|skill[_-]?feat|granted[_-]?feats?/i.test(keyHint);
+
+    if (typeof node === "string") {
+      if (keyLooksLikeFeat) found.push(...jsonStringList(node));
+      return;
+    }
+
+    if (Array.isArray(node)) {
+      if (keyLooksLikeFeat) {
+        found.push(...node.flatMap((entry) => jsonStringList(entry)));
+        for (const entry of node) {
+          if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+            const name = (entry as Record<string, unknown>).name;
+            if (typeof name === "string" && name.trim()) found.push(name.trim());
+          }
+        }
+      } else {
+        for (const entry of node) visit(entry, keyHint);
+      }
+      return;
+    }
+
+    if (typeof node === "object") {
+      const record = node as Record<string, unknown>;
+      if (keyLooksLikeFeat && typeof record.name === "string" && record.name.trim()) {
+        found.push(record.name.trim());
+      }
+      for (const [key, child] of Object.entries(record)) visit(child, key);
+    }
+  }
+
+  visit(value);
+  return [...new Set(found.map((feat) => feat.trim()).filter(Boolean))];
+}
+
 function metadataString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -191,7 +248,8 @@ function specificProficiencyBucket(rank: unknown): SpecificProficiencyBucket {
 function synthesizeBuild(
   input: NativeBuildInput,
   ancestry: AncestryRow,
-  charClass: ClassRow
+  charClass: ClassRow,
+  background?: BackgroundRow | null
 ): object {
   const classProfs = Object.fromEntries(
     Object.entries((charClass.initial_proficiencies ?? {}) as Record<string, unknown>).map(
@@ -206,9 +264,17 @@ function synthesizeBuild(
 
   // Background-granted skill (rank 1, does not consume a free pick slot)
   const bgSkillProfs: Record<string, number> = {};
-  if (input.background_trained_skill) {
-    const sk = input.background_trained_skill.toLowerCase();
-    bgSkillProfs[sk] = Math.max(classProfs[sk] ?? 0, 1);
+  const backgroundTrainedSkills = [
+    ...(input.background_trained_skill ? [input.background_trained_skill] : []),
+    ...jsonStringList(background?.skill_proficiencies),
+  ];
+  for (const skill of backgroundTrainedSkills) {
+    const sk = skill
+      .toLowerCase()
+      .replace(/\s+lore$/i, "_lore")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "");
+    if (sk) bgSkillProfs[sk] = Math.max(classProfs[sk] ?? 0, 1);
   }
 
   const trainedSkillProfs = Object.fromEntries(
@@ -228,6 +294,12 @@ function synthesizeBuild(
       ])
   );
 
+  const backgroundFeats = metadataFeatNames(background?.background_metadata).map((feat) => [
+    feat,
+    "Skill Feat",
+    "Level 1",
+    `Granted by ${input.background}`,
+  ]);
   const customFeats = (input.custom_feats ?? [])
     .filter((feat) => feat.name.trim())
     .map((feat) => [
@@ -296,6 +368,12 @@ function synthesizeBuild(
   for (const [topic, rank] of classLoreProfs) {
     if (!classLores.has(topic.toLowerCase())) classLores.set(topic.toLowerCase(), [topic, rank]);
   }
+  const backgroundLores = jsonStringList(background?.lore_skills)
+    .map(loreTopicName)
+    .filter((topic): topic is string => !!topic);
+  for (const topic of backgroundLores) {
+    if (!classLores.has(topic.toLowerCase())) classLores.set(topic.toLowerCase(), [topic, 1]);
+  }
   const spellCaster = classSpellCaster(input, charClass, classMetadata);
 
   return {
@@ -342,7 +420,7 @@ function synthesizeBuild(
       },
       proficiencies: mergedProfs,
       mods: {},
-      feats: customFeats,
+      feats: [...backgroundFeats, ...customFeats],
       specials: customSpecials,
       custom_attacks: customAttacks,
       lores: [
@@ -502,7 +580,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const [ancestryResult, classResult, heritageResult] = await Promise.all([
+    const [ancestryResult, classResult, heritageResult, backgroundResult] = await Promise.all([
       ctx.service.from("ancestries").select("*").eq("id", nb.ancestry_id).maybeSingle(),
       ctx.service.from("character_classes").select("*").eq("id", nb.class_id).maybeSingle(),
       ctx.service
@@ -512,6 +590,7 @@ export async function POST(request: Request) {
         .or(`ancestry_id.eq.${nb.ancestry_id},is_versatile.eq.true`)
         .limit(1)
         .maybeSingle(),
+      ctx.service.from("backgrounds").select("*").ilike("name", nb.background).limit(1).maybeSingle(),
     ]);
 
     let ancestry = ancestryResult.data as AncestryRow | null;
@@ -544,7 +623,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const pathbuilderData = synthesizeBuild(nb, ancestry, charClass);
+    const pathbuilderData = synthesizeBuild(
+      nb,
+      ancestry,
+      charClass,
+      backgroundResult.data as BackgroundRow | null
+    );
 
     // variant_rules + art columns may not be in the generated types yet
     // (migrations 20260512100000 / 20260514000000). Cast at the insert site

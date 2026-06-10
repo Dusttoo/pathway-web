@@ -21,6 +21,15 @@ type HomebrewSpellRow = {
   updated_at?: string | null;
 };
 
+type SpellOverlayEntry = {
+  caster: string;
+  spell: string;
+  rank: number;
+  added_at?: string;
+  source?: string;
+  row_id?: string;
+};
+
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -154,6 +163,85 @@ async function assertOwnsCharacter(characterId: string, userId: string): Promise
   return !!data;
 }
 
+function buildFromPathbuilderData(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if (record.build && typeof record.build === "object" && !Array.isArray(record.build)) {
+      return record.build as Record<string, unknown>;
+    }
+    return record;
+  }
+  return {};
+}
+
+function pickCasterName(character: { pathbuilder_data?: unknown }, tradition: string): string {
+  const build = buildFromPathbuilderData(character.pathbuilder_data);
+  const casters = Array.isArray(build.spellCasters)
+    ? (build.spellCasters as Record<string, unknown>[])
+    : [];
+  const match =
+    casters.find(
+      (caster) =>
+        typeof caster.magicTradition === "string" &&
+        caster.magicTradition.toLowerCase() === tradition.toLowerCase()
+    ) ?? casters[0];
+  return text(match?.name) ?? "Spellcasting";
+}
+
+async function mirrorKnownSpellToBotOverlay(
+  service: UntypedClient,
+  characterId: string,
+  row: {
+    id: string;
+    tradition: string;
+    rank: number;
+    spell?: { name?: string | null } | null;
+  }
+) {
+  const spellName = text(row.spell?.name);
+  if (!spellName) return;
+
+  const { data: character, error } = await service
+    .from("characters")
+    .select("pathbuilder_data, overlay")
+    .eq("id", characterId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!character) return;
+
+  const overlay = ((character.overlay as Record<string, unknown> | null) ?? {}) as Record<string, unknown>;
+  const spellbook = Array.isArray(overlay.spellbook)
+    ? (overlay.spellbook as SpellOverlayEntry[])
+    : [];
+  const caster = pickCasterName(character, row.tradition);
+  const existingIndex = spellbook.findIndex(
+    (entry) =>
+      entry.row_id === row.id ||
+      (entry.source === "pathway-web" &&
+        entry.spell?.toLowerCase() === spellName.toLowerCase() &&
+        entry.caster?.toLowerCase() === caster.toLowerCase() &&
+        Number(entry.rank) === Number(row.rank))
+  );
+  const nextEntry: SpellOverlayEntry = {
+    caster,
+    spell: spellName,
+    rank: row.rank,
+    added_at: new Date().toISOString(),
+    source: "pathway-web",
+    row_id: row.id,
+  };
+  const nextSpellbook =
+    existingIndex >= 0
+      ? spellbook.map((entry, index) => (index === existingIndex ? { ...entry, ...nextEntry } : entry))
+      : [...spellbook, nextEntry];
+
+  const { error: updateError } = await service
+    .from("characters")
+    .update({ overlay: { ...overlay, spellbook: nextSpellbook } })
+    .eq("id", characterId);
+  if (updateError) throw updateError;
+}
+
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -245,5 +333,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const status = error.code === "23505" ? 409 : 400;
     return NextResponse.json({ error: error.message }, { status });
   }
+  await mirrorKnownSpellToBotOverlay(service, id, data as {
+    id: string;
+    tradition: string;
+    rank: number;
+    spell?: { name?: string | null } | null;
+  });
   return NextResponse.json(data, { status: 201 });
 }

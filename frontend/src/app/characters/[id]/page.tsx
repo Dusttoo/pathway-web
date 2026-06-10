@@ -420,9 +420,6 @@ function deriveAc(build: PBBuild, level: number, usesRawBonus: boolean): number 
 }
 
 function deriveSpeed(build: PBBuild): number | null {
-  const statsSpeed = getNestedNumber(build, [["stats", "speed"]]);
-  if (statsSpeed !== null) return statsSpeed;
-
   const attributeSpeed = getNestedNumber(build, [["attributes", "speed"]]);
   if (attributeSpeed !== null) {
     return (
@@ -431,7 +428,7 @@ function deriveSpeed(build: PBBuild): number | null {
     );
   }
 
-  return getNestedNumber(build, [["speed"], ["speed_ft"]]);
+  return getNestedNumber(build, [["speed"], ["speed_ft"], ["stats", "speed"]]);
 }
 
 function spellcastingAbilityKey(build: PBBuild) {
@@ -1941,7 +1938,7 @@ function StatsTabPanel({
     const label = loreSkillName.trim().replace(/\s+lore$/i, "");
     const key = customKey(`${label} Lore`);
     if (!key) return;
-    onSaveProficiencies({ [key]: loreSkillRank });
+    onSaveProficiencies({ [key]: rankToStoredProficiency(loreSkillRank, usesRawBonus) });
     setLoreSkillName("");
     setLoreSkillRank(1);
   }
@@ -1994,7 +1991,7 @@ function StatsTabPanel({
   }
 
   function setLoreProficiencyRank(key: string, rank: number) {
-    onSaveProficiencies({ [key]: rank });
+    onSaveProficiencies({ [key]: rankToStoredProficiency(rank, usesRawBonus) });
   }
 
   function removeExtraSkill(key: string) {

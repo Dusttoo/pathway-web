@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import type { TablesUpdate } from "@/lib/types/database.types";
 import type { CharacterOverlay } from "@/lib/types/bot-integration";
 
+function characterKey(name: string): string {
+  return name.toLowerCase().trim().replace(/\s+/g, "-");
+}
+
 async function resolveUserId(authUser: {
   id: string;
   identities?: { provider: string; identity_data?: Record<string, string> }[];
@@ -205,6 +209,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const name = body.name.trim();
     if (!name) return NextResponse.json({ error: "Character name is required" }, { status: 400 });
     updates.name = name;
+    updates.char_key = characterKey(name);
   }
   if (body.ancestry_name !== undefined) {
     updates.ancestry_name = body.ancestry_name?.trim() || null;
@@ -303,6 +308,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (!name) return NextResponse.json({ error: "Character name is required" }, { status: 400 });
       build.name = name;
       updates.name = name;
+      updates.char_key = characterKey(name);
     }
     if (body.build_patch.ancestry !== undefined) {
       build.ancestry = body.build_patch.ancestry?.trim() || null;
@@ -370,9 +376,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       };
     }
 
+    if (updates.name && build.name !== updates.name) {
+      build.name = updates.name;
+    }
+
     updates.pathbuilder_data = (
       hasWrapper ? { ...(pb as Record<string, unknown>), build } : build
     ) as TablesUpdate<"characters">["pathbuilder_data"];
+  } else if (updates.name) {
+    const pb = existing.pathbuilder_data as
+      | { build?: Record<string, unknown> }
+      | Record<string, unknown>
+      | null;
+    if (pb) {
+      const hasWrapper = "build" in pb;
+      const build = {
+        ...((pb as { build?: Record<string, unknown> }).build ?? pb),
+        name: updates.name,
+      } as Record<string, unknown>;
+      updates.pathbuilder_data = (
+        hasWrapper ? { ...(pb as Record<string, unknown>), build } : build
+      ) as TablesUpdate<"characters">["pathbuilder_data"];
+    }
   }
 
   if (Object.keys(updates).length === 0) {
