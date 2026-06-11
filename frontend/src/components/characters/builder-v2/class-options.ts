@@ -16,6 +16,55 @@ export type ClassOptionConfig = {
 };
 
 const ELEMENTS = ["Air", "Earth", "Fire", "Metal", "Water", "Wood"];
+const CLERIC_DOMAINS = [
+  "Air",
+  "Ambition",
+  "Cities",
+  "Confidence",
+  "Creation",
+  "Darkness",
+  "Death",
+  "Decay",
+  "Destruction",
+  "Dreams",
+  "Dust",
+  "Duty",
+  "Earth",
+  "Family",
+  "Fate",
+  "Fire",
+  "Freedom",
+  "Healing",
+  "Indulgence",
+  "Knowledge",
+  "Luck",
+  "Magic",
+  "Might",
+  "Moon",
+  "Nature",
+  "Nightmares",
+  "Pain",
+  "Passion",
+  "Perfection",
+  "Protection",
+  "Repose",
+  "Sorrow",
+  "Soul",
+  "Star",
+  "Sun",
+  "Time",
+  "Toil",
+  "Travel",
+  "Truth",
+  "Tyranny",
+  "Undeath",
+  "Vigil",
+  "Void",
+  "Water",
+  "Wealth",
+  "Wyrmkin",
+  "Zeal",
+];
 
 export const CLASS_OPTION_CONFIGS: Record<string, ClassOptionConfig> = {
   alchemist: {
@@ -79,14 +128,45 @@ export const CLASS_OPTION_CONFIGS: Record<string, ClassOptionConfig> = {
     ],
   },
   cleric: {
-    title: "Cleric Doctrine",
-    summary: "Your doctrine affects proficiencies, font play, and battlefield role.",
+    title: "Cleric Class Options",
+    summary:
+      "Record the choices your deity and doctrine grant: divine font, doctrine, favored weapon, domain, sanctification, and anathema.",
     fields: [
+      {
+        key: "divineFont",
+        label: "Divine Font",
+        description: "Choose the font granted by your deity and sanctification.",
+        options: ["Healing Font", "Harmful Font"],
+      },
       {
         key: "doctrine",
         label: "Doctrine",
         description: "Most clerics choose Cloistered Cleric or Warpriest.",
         options: ["Cloistered Cleric", "Warpriest"],
+      },
+      {
+        key: "deityFavoredWeapon",
+        label: "Deity's Favored Weapon",
+        description: "Record the weapon granted by your deity.",
+        placeholder: "Longsword (1d8 S), Greatsword (1d12 S)...",
+      },
+      {
+        key: "domain",
+        label: "Domain Initiate",
+        description: "Choose the domain for your free Domain Initiate feat.",
+        options: CLERIC_DOMAINS,
+      },
+      {
+        key: "sanctification",
+        label: "Sanctification",
+        description: "Record whether your cleric is holy, unholy, or neither.",
+        options: ["Holy", "Unholy", "Neither"],
+      },
+      {
+        key: "anathema",
+        label: "Anathema",
+        description: "Record your deity's anathema or any campaign-specific adjustments.",
+        placeholder: "Deity anathema...",
       },
     ],
   },
@@ -372,6 +452,12 @@ export function classOptionSpecials(
     lines.push("Kinetic Aura");
     lines.push("Elemental Blast");
     lines.push("Base Kinesis");
+  }
+
+  if (key === "cleric") {
+    lines.push("Cleric Spellcasting");
+    lines.push("Deity");
+    lines.push("Free Feat: Domain Initiate");
   }
 
   if (options.notes?.trim()) lines.push(`Class notes: ${options.notes.trim()}`);

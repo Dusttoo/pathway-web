@@ -47,6 +47,11 @@ export type CustomProficiency = {
 export type ClassOptions = {
   subclass?: string;
   doctrine?: string;
+  divineFont?: string;
+  deityFavoredWeapon?: string;
+  domain?: string;
+  sanctification?: string;
+  anathema?: string;
   patron?: string;
   thesis?: string;
   muse?: string;
