@@ -61,3 +61,36 @@ export async function GET() {
     contact: contactResult.data ?? [],
   });
 }
+
+export async function PATCH(request: Request) {
+  const auth = await requireAdmin();
+
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const body = await request.json().catch(() => null);
+  const kind = body?.kind;
+  const id = body?.id;
+  const addressed = Boolean(body?.addressed);
+
+  if ((kind !== "feedback" && kind !== "contact") || typeof id !== "string" || !id) {
+    return NextResponse.json({ error: "Invalid submission update" }, { status: 400 });
+  }
+
+  const table = kind === "feedback" ? "feedback_submissions" : "contact_submissions";
+  const db = auth.service as unknown as { from: (table: string) => any };
+  const { data, error } = await db
+    .from(table)
+    .update({ status: addressed ? "resolved" : "new" })
+    .eq("id", id)
+    .select("id, status")
+    .single();
+
+  if (error) {
+    console.error("[admin/submissions] failed to update", { kind, id, error });
+    return NextResponse.json({ error: "Failed to update submission" }, { status: 500 });
+  }
+
+  return NextResponse.json({ submission: data });
+}

@@ -4,8 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { MainLayout } from "@/components/layout";
 import { useAuth } from "@/lib/providers/auth-provider";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Bug, Lightbulb, Mail, MessageSquare, Shield } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Bug, Check, Lightbulb, Mail, MessageSquare, Shield } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -40,6 +40,7 @@ interface SubmissionsResponse {
 }
 
 type Tab = "feedback" | "contact";
+type SubmissionKind = "feedback" | "contact";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -72,10 +73,45 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
+function AddressedToggle({
+  addressed,
+  disabled,
+  onChange,
+}: {
+  addressed: boolean;
+  disabled: boolean;
+  onChange: (addressed: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!addressed)}
+      disabled={disabled}
+      className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+        addressed
+          ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200"
+          : "border-border bg-background/40 text-muted-foreground hover:text-foreground"
+      } disabled:cursor-not-allowed disabled:opacity-60`}
+      aria-pressed={addressed}
+    >
+      <span
+        className={`flex h-4 w-4 items-center justify-center rounded border ${
+          addressed ? "border-emerald-400 bg-emerald-500 text-white" : "border-muted-foreground"
+        }`}
+      >
+        {addressed && <Check className="h-3 w-3" />}
+      </span>
+      {disabled ? "Updating..." : addressed ? "Addressed" : "Mark addressed"}
+    </button>
+  );
+}
+
 export default function AdminFeedbackPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("feedback");
+  const [pendingSubmission, setPendingSubmission] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery<SubmissionsResponse, Error>({
     queryKey: ["admin-submissions"],
@@ -86,6 +122,33 @@ export default function AdminFeedbackPage() {
     },
     enabled: !!user?.is_admin,
     staleTime: 30_000,
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({
+      kind,
+      id,
+      addressed,
+    }: {
+      kind: SubmissionKind;
+      id: string;
+      addressed: boolean;
+    }) => {
+      setPendingSubmission(`${kind}:${id}`);
+      const res = await fetch("/api/admin/submissions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, id, addressed }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
+    },
+    onSettled: () => {
+      setPendingSubmission(null);
+    },
   });
 
   useEffect(() => {
@@ -194,6 +257,15 @@ export default function AdminFeedbackPage() {
                           </p>
                         </div>
                       </div>
+                      <AddressedToggle
+                        addressed={item.status === "resolved"}
+                        disabled={
+                          updateStatus.isPending && pendingSubmission === `feedback:${item.id}`
+                        }
+                        onChange={(addressed) =>
+                          updateStatus.mutate({ kind: "feedback", id: item.id, addressed })
+                        }
+                      />
                     </div>
                     <pre className="mt-4 whitespace-pre-wrap rounded-md border border-border bg-muted p-4 text-sm leading-6">
                       {item.description}
@@ -240,6 +312,13 @@ export default function AdminFeedbackPage() {
                         </p>
                       </div>
                     </div>
+                    <AddressedToggle
+                      addressed={item.status === "resolved"}
+                      disabled={updateStatus.isPending && pendingSubmission === `contact:${item.id}`}
+                      onChange={(addressed) =>
+                        updateStatus.mutate({ kind: "contact", id: item.id, addressed })
+                      }
+                    />
                   </div>
                   <pre className="mt-4 whitespace-pre-wrap rounded-md border border-border bg-muted p-4 text-sm leading-6">
                     {item.message}
