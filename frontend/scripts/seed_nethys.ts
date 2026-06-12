@@ -239,6 +239,7 @@ async function writeRows(
     replaceExisting?: boolean;
   }
 ): Promise<void> {
+  rows = dedupeRows(rows, [opts.conflict]);
   rows = dedupeRows(rows, opts.dedupeBy);
   if (rows.length === 0) return;
   if (opts.dryRun) {
@@ -409,8 +410,6 @@ const SEEDERS: Seeder[] = [
     conflict: "aon_id",
     transform: transformItem,
     filter: (r) => !!r.name,
-    dedupeBy: ["name", "level"],
-    adoptExistingBy: ["name", "level"],
   },
   {
     key: "weapons",
@@ -419,8 +418,6 @@ const SEEDERS: Seeder[] = [
     conflict: "aon_id",
     transform: transformItem,
     filter: (r) => !!r.name,
-    dedupeBy: ["name", "level"],
-    adoptExistingBy: ["name", "level"],
   },
   {
     key: "armor",
@@ -429,8 +426,6 @@ const SEEDERS: Seeder[] = [
     conflict: "aon_id",
     transform: transformItem,
     filter: (r) => !!r.name,
-    dedupeBy: ["name", "level"],
-    adoptExistingBy: ["name", "level"],
   },
   {
     key: "shields",
@@ -439,8 +434,6 @@ const SEEDERS: Seeder[] = [
     conflict: "aon_id",
     transform: transformItem,
     filter: (r) => !!r.name,
-    dedupeBy: ["name", "level"],
-    adoptExistingBy: ["name", "level"],
   },
   {
     key: "actions",
