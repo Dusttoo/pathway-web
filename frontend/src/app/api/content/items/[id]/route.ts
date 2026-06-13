@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { dedupeItems, itemCompletenessScore, type DedupeItemRow } from "@/lib/items/dedupe";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -17,5 +18,19 @@ export async function GET(
     return NextResponse.json({ error: "Item not found" }, { status: 404 });
   }
 
-  return NextResponse.json(data);
+  const item = data as DedupeItemRow;
+  if (item.name) {
+    const { data: candidates } = await supabase
+      .from("items")
+      .select("*")
+      .eq("name", item.name)
+      .eq("level", item.level ?? 0);
+
+    const canonical = dedupeItems((candidates ?? []) as DedupeItemRow[])[0];
+    if (canonical && itemCompletenessScore(canonical) > itemCompletenessScore(item)) {
+      return NextResponse.json(canonical);
+    }
+  }
+
+  return NextResponse.json(item);
 }
