@@ -1,10 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, Loader2, Save, Trash2 } from "lucide-react";
-import { IconStepProgress } from "./IconStepProgress";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Backpack,
+  BookOpen,
+  Check,
+  Circle,
+  Gauge,
+  HeartPulse,
+  Loader2,
+  Menu,
+  Save,
+  Shield,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { visibleSteps, type StepDef } from "./steps";
-import { DEFAULT_STATE, type BuilderState, type StepProps } from "./types";
+import { DEFAULT_STATE, type AbilityKey, type BuilderState, type StepProps } from "./types";
 import {
   useCharacterBuilderDraft,
   useDeleteCharacterBuilderDraft,
@@ -28,8 +42,6 @@ import { SpellsStep } from "./steps/SpellsStep";
 import { ReviewStep } from "./steps/ReviewStep";
 import { StubStep } from "./steps/StubStep";
 
-// Every step now has a real component — StubStep stays as a safety
-// fallback if the step config drifts ahead of the components.
 const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepProps>>> = {
   start: StartStep,
   ancestry: AncestryStep,
@@ -48,6 +60,141 @@ const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepPr
   review: ReviewStep,
 };
 
+const SAVE_ABILITY: Record<string, AbilityKey> = {
+  fortitude: "con",
+  reflex: "dex",
+  will: "wis",
+};
+
+const ABILITY_LABELS: Array<[AbilityKey, string]> = [
+  ["str", "STR"],
+  ["dex", "DEX"],
+  ["con", "CON"],
+  ["int", "INT"],
+  ["wis", "WIS"],
+  ["cha", "CHA"],
+];
+
+const PROF_LABELS = ["U", "T", "E", "M", "L"];
+
+function abilityMod(score: number): number {
+  return Math.floor((score - 10) / 2);
+}
+
+function signed(value: number): string {
+  return value >= 0 ? `+${value}` : String(value);
+}
+
+function profBonus(rank: number, level: number): number {
+  return rank > 0 ? level + rank * 2 : 0;
+}
+
+function profRank(value: unknown): number {
+  const numeric = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  if (numeric > 4) return Math.max(0, Math.min(4, Math.round(numeric / 2)));
+  return Math.max(0, Math.min(4, Math.round(numeric)));
+}
+
+function stepStatus(index: number, currentIndex: number) {
+  if (index < currentIndex) return "done";
+  if (index === currentIndex) return "active";
+  return "open";
+}
+
+function StepBadge({ step, status }: { step: StepDef; status: "done" | "active" | "open" }) {
+  const Icon = step.icon;
+  return (
+    <span
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border ${
+        status === "active"
+          ? "border-[#ff6a2a] bg-[#ff6a2a] text-white"
+          : status === "done"
+            ? "border-[#c9a227]/60 bg-[#c9a227]/20 text-[#f2d269]"
+            : "border-[#31445d] bg-[#202a35] text-[#9cabbd]"
+      }`}
+    >
+      {status === "done" ? <Check size={18} /> : <Icon size={18} />}
+    </span>
+  );
+}
+
+function PlanButton({
+  step,
+  index,
+  currentIndex,
+  onClick,
+}: {
+  step: StepDef;
+  index: number;
+  currentIndex: number;
+  onClick: () => void;
+}) {
+  const status = stepStatus(index, currentIndex);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors ${
+        status === "active"
+          ? "border-[#ff6a2a] bg-[#2c3440] text-white"
+          : "border-[#31445d] bg-[#202831] text-[#dce5ee] hover:border-[#6f86a3]"
+      }`}
+    >
+      <StepBadge step={step} status={status} />
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold">{step.label}</span>
+        <span className="block truncate text-[11px] text-[#9cabbd]">
+          {status === "done" ? "Complete" : status === "active" ? "Editing now" : "Open"}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function IdentityCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-md border border-[#31445d] bg-[#202831] px-3 py-2">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#31445d] text-[#dce5ee]">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[11px] uppercase tracking-wide text-[#9cabbd]">{label}</span>
+        <span className="block truncate text-sm font-semibold text-white">{value || "Not selected"}</span>
+      </span>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-md bg-[#151a20] px-3 py-2">
+      <p className="text-[11px] uppercase tracking-wide text-[#9cabbd]">{label}</p>
+      <p className="text-lg font-bold text-white">{value}</p>
+    </div>
+  );
+}
+
+function ProfPip({ rank }: { rank: number }) {
+  return (
+    <span
+      className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
+        rank > 0 ? "bg-[#ff6a2a] text-white" : "bg-[#31445d] text-[#b8c6d6]"
+      }`}
+      title={PROF_LABELS[rank] ?? "U"}
+    >
+      {PROF_LABELS[rank] ?? "U"}
+    </span>
+  );
+}
+
 export function BuilderShell() {
   const [state, setState] = useState<BuilderState>(DEFAULT_STATE);
   const [stepIndex, setStepIndex] = useState(0);
@@ -60,9 +207,6 @@ export function BuilderShell() {
   const steps = visibleSteps(state);
   const draft = draftQuery.data ?? null;
 
-  // If a class change makes the current step disappear (e.g. user picked
-  // a non-spellcaster and we were on the Spells step), snap back to the
-  // last visible step that still exists.
   useEffect(() => {
     if (stepIndex >= steps.length) {
       setStepIndex(Math.max(0, steps.length - 1));
@@ -71,6 +215,28 @@ export function BuilderShell() {
 
   const current = steps[stepIndex];
   const StepComponent = current ? STEP_COMPONENTS[current.key] : null;
+
+  const sheetPreview = useMemo(() => {
+    const level = Math.max(1, Number(state.level) || 1);
+    const conMod = abilityMod(state.abilities.con);
+    const maxHp = state.ancestryHp + level * (state.classHp + conMod);
+    const ac = 10 + abilityMod(state.abilities.dex) + profBonus(profRank(state.classInitialProfs.unarmored), level);
+    const classAbility = (state.keyability?.toLowerCase() || "str") as AbilityKey;
+    const classDcRank = profRank(state.classInitialProfs.class_dc);
+    const classDc = classDcRank
+      ? 10 + abilityMod(state.abilities[classAbility] ?? state.abilities.str) + profBonus(classDcRank, level)
+      : null;
+    const saves = Object.entries(SAVE_ABILITY).map(([key, ability]) => {
+      const rank = profRank(state.classInitialProfs[key]);
+      return {
+        key,
+        label: key === "fortitude" ? "Fortitude" : key === "reflex" ? "Reflex" : "Will",
+        rank,
+        total: abilityMod(state.abilities[ability]) + profBonus(rank, level),
+      };
+    });
+    return { level, maxHp, ac, classDc, saves };
+  }, [state]);
 
   function update(patch: Partial<BuilderState>) {
     setState((prev) => ({ ...prev, ...patch }));
@@ -109,27 +275,22 @@ export function BuilderShell() {
   };
 
   return (
-    <div className="space-y-6">
-      <IconStepProgress steps={steps} currentIndex={stepIndex} onJump={(i) => setStepIndex(i)} />
-
-      <div className="rounded-lg border border-border bg-muted/30 p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold">Builder Draft</p>
-          <p className="text-xs text-muted-foreground">
-            {draft
-              ? `Saved draft: ${draft.name} · ${new Date(draft.updated_at).toLocaleString()}`
-              : "Save your current progress and come back later."}
-          </p>
-          {draftMessage && <p className="text-xs text-primary mt-1">{draftMessage}</p>}
+    <div className="-mx-4 -mb-8 overflow-hidden rounded-lg border border-[#263545] bg-[#161b22] text-[#dce5ee] shadow-2xl md:-mx-8">
+      <div className="flex flex-col gap-3 border-b-2 border-[#ff6a2a] bg-[#11161c] px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <Menu size={28} className="text-white" />
+          <div className="min-w-0">
+            <p className="text-2xl font-semibold leading-none text-white">Character Builder</p>
+            <p className="mt-1 truncate text-sm text-[#b8c6d6]">
+              {state.name || "New Character"} {state.className ? `- ${state.className}` : ""}{" "}
+              {sheetPreview.level ? sheetPreview.level : ""}
+            </p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
           {draft && (
-            <button
-              type="button"
-              onClick={handleLoadDraft}
-              disabled={draftQuery.isLoading}
-              className="btn-outline px-3 py-1.5 text-xs"
-            >
+            <button type="button" onClick={handleLoadDraft} className="rounded-md border border-[#31445d] px-3 py-1.5 text-sm text-white hover:bg-[#202831]">
               Load Draft
             </button>
           )}
@@ -137,13 +298,9 @@ export function BuilderShell() {
             type="button"
             onClick={handleSaveDraft}
             disabled={saveDraft.isPending}
-            className="btn-primary px-3 py-1.5 text-xs flex items-center gap-1.5"
+            className="inline-flex items-center gap-2 rounded-md border border-[#c9a227] bg-[#c9a227] px-3 py-1.5 text-sm font-semibold text-[#11161c] disabled:opacity-60"
           >
-            {saveDraft.isPending ? (
-              <Loader2 size={13} className="animate-spin" />
-            ) : (
-              <Save size={13} />
-            )}
+            {saveDraft.isPending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
             Save Draft
           </button>
           {draft && (
@@ -151,77 +308,239 @@ export function BuilderShell() {
               type="button"
               onClick={handleDeleteDraft}
               disabled={deleteDraft.isPending}
-              className="btn-outline px-3 py-1.5 text-xs flex items-center gap-1.5"
+              className="inline-flex items-center gap-2 rounded-md border border-[#31445d] px-3 py-1.5 text-sm text-white hover:bg-[#202831] disabled:opacity-60"
             >
-              {deleteDraft.isPending ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Trash2 size={13} />
-              )}
+              {deleteDraft.isPending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
               Delete
             </button>
           )}
         </div>
       </div>
 
-      <div className="card p-6">
-        {current && (
-          <div className="mb-4 pb-4 border-b border-border flex items-center gap-3">
-            <current.icon size={22} className="text-primary" />
-            <div>
-              <h2 className="text-xl font-semibold leading-tight">{current.label}</h2>
-              <p className="text-xs text-muted-foreground">
-                Step {stepIndex + 1} of {steps.length}
-              </p>
+      {(draftMessage || draft) && (
+        <div className="border-b border-[#263545] bg-[#1d2530] px-4 py-2 text-xs text-[#b8c6d6]">
+          {draftMessage ||
+            `Saved draft: ${draft?.name} - ${draft ? new Date(draft.updated_at).toLocaleString() : ""}`}
+        </div>
+      )}
+
+      <div className="grid min-h-[760px] grid-cols-1 xl:grid-cols-[370px_240px_minmax(0,1fr)]">
+        <aside className="border-b border-[#263545] bg-[#1c242e] p-4 xl:border-b-0 xl:border-r">
+          <div className="space-y-2">
+            <IdentityCard icon={<Sparkles size={18} />} label="Ancestry" value={state.ancestryName} />
+            <IdentityCard icon={<BookOpen size={18} />} label="Background" value={state.backgroundName} />
+            <IdentityCard icon={<Shield size={18} />} label="Class" value={state.className} />
+          </div>
+
+          <div className="mt-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[#ff6a2a]">Build Plan</h2>
+              <span className="text-xs text-[#9cabbd]">
+                {stepIndex + 1}/{steps.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {steps.map((step, index) => (
+                <PlanButton
+                  key={step.key}
+                  step={step}
+                  index={index}
+                  currentIndex={stepIndex}
+                  onClick={() => setStepIndex(index)}
+                />
+              ))}
             </div>
           </div>
-        )}
+        </aside>
 
-        {StepComponent ? (
-          <StepComponent {...stepProps} />
-        ) : (
-          <StubStep {...stepProps} label={current?.label ?? "Step"} />
-        )}
-      </div>
+        <aside className="border-b border-[#263545] bg-[#151a20] p-4 xl:border-b-0 xl:border-r">
+          <div className="space-y-3">
+            <div className="rounded-lg border border-[#263545] bg-[#202831] p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-[#9cabbd]">
+                  Level
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={state.level}
+                    onChange={(event) =>
+                      update({ level: Math.max(1, Math.min(20, Number(event.target.value) || 1)) })
+                    }
+                    className="mt-1 h-9 w-full rounded-md border border-[#31445d] bg-[#151a20] px-2 text-sm text-white"
+                  />
+                </label>
+                <label className="text-xs text-[#9cabbd]">
+                  XP
+                  <input
+                    type="number"
+                    min={0}
+                    value={0}
+                    readOnly
+                    className="mt-1 h-9 w-full rounded-md border border-[#31445d] bg-[#151a20] px-2 text-sm text-white"
+                  />
+                </label>
+              </div>
+              <label className="mt-2 block text-xs text-[#9cabbd]">
+                Character Name
+                <input
+                  type="text"
+                  value={state.name}
+                  onChange={(event) => update({ name: event.target.value })}
+                  placeholder="Character name"
+                  className="mt-1 h-9 w-full rounded-md border border-[#31445d] bg-[#151a20] px-2 text-sm text-white placeholder:text-[#6f7f90]"
+                />
+              </label>
+            </div>
 
-      {/* Sticky bottom nav so Next is always reachable on long pages
-          (the card grids in Ancestry/Class/Background can be tall).
-          NB: don't use the .card class here — it forces column flex. */}
-      <div className="sticky bottom-2 z-30">
-        <div className="flex flex-row justify-between items-center gap-3 rounded-lg border-2 border-border bg-background/95 backdrop-blur-md shadow-lg px-4 py-3">
-          <button
-            type="button"
-            onClick={stepProps.onBack}
-            disabled={stepIndex === 0}
-            className="btn-outline px-4 flex items-center gap-2 disabled:opacity-40"
-          >
-            <ArrowLeft size={16} /> Back
-          </button>
-          <span className="text-xs text-muted-foreground hidden sm:inline">
-            Step {stepIndex + 1} / {steps.length} · {current?.label}
-          </span>
-          <button
-            type="button"
-            onClick={handleSaveDraft}
-            disabled={saveDraft.isPending}
-            className="btn-outline px-3 py-2 text-xs hidden sm:flex items-center gap-1.5 disabled:opacity-40"
-          >
-            {saveDraft.isPending ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Save size={14} />
-            )}
-            Save Draft
-          </button>
-          <button
-            type="button"
-            onClick={stepProps.onNext}
-            disabled={stepIndex >= steps.length - 1}
-            className="btn-primary px-4 flex items-center gap-2 disabled:opacity-40"
-          >
-            Next <ArrowRight size={16} />
-          </button>
-        </div>
+            <div className="grid grid-cols-2 gap-2">
+              <MiniStat label="AC" value={sheetPreview.ac} />
+              <MiniStat label="HP" value={sheetPreview.maxHp} />
+              <MiniStat label="Speed" value={`${state.ancestrySpeed || 25} ft`} />
+              <MiniStat label="Class DC" value={sheetPreview.classDc ?? "-"} />
+            </div>
+
+            <div className="rounded-lg border border-[#263545] bg-[#202831] p-3">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
+                <Gauge size={16} className="text-[#c9a227]" />
+                Abilities
+              </h3>
+              <div className="grid grid-cols-3 gap-2">
+                {ABILITY_LABELS.map(([key, label]) => (
+                  <div key={key} className="rounded-md bg-[#151a20] px-2 py-1.5 text-center">
+                    <p className="text-[10px] text-[#9cabbd]">{label}</p>
+                    <p className="text-sm font-bold text-white">{signed(abilityMod(state.abilities[key]))}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[#263545] bg-[#202831] p-3">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
+                <HeartPulse size={16} className="text-[#4dbfb0]" />
+                Saves
+              </h3>
+              <div className="space-y-2">
+                {sheetPreview.saves.map((save) => (
+                  <div key={save.key} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="flex items-center gap-2">
+                      <ProfPip rank={save.rank} />
+                      {save.label}
+                    </span>
+                    <span className="font-semibold text-white">{signed(save.total)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[#263545] bg-[#202831] p-3">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
+                <Backpack size={16} className="text-[#c9a227]" />
+                Quick Counts
+              </h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <MiniStat label="Skills" value={state.trainedSkills.length + state.additionalSkills.length} />
+                <MiniStat label="Feats" value={state.selectedFeats.length} />
+                <MiniStat label="Items" value={state.selectedItems.length} />
+                <MiniStat label="Spells" value={state.selectedSpells.length} />
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <main className="min-w-0 bg-[#11161c]">
+          <div className="border-b border-[#263545] bg-[#161b22] px-4 pt-3">
+            <div className="flex gap-1 overflow-x-auto">
+              {steps.map((step, index) => {
+                const status = stepStatus(index, stepIndex);
+                return (
+                  <button
+                    key={step.key}
+                    type="button"
+                    onClick={() => setStepIndex(index)}
+                    className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm transition-colors ${
+                      status === "active"
+                        ? "border-[#ff6a2a] text-[#ff6a2a]"
+                        : "border-transparent text-[#9cabbd] hover:text-white"
+                    }`}
+                  >
+                    {status === "done" ? <Check size={14} /> : <Circle size={10} />}
+                    {step.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="p-4">
+            <div className="rounded-lg border border-[#263545] bg-[#1c242e] p-4">
+              {current && (
+                <div className="mb-4 flex items-center justify-between gap-3 border-b border-[#31445d] pb-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <StepBadge step={current} status="active" />
+                    <div className="min-w-0">
+                      <h2 className="truncate text-xl font-semibold text-white">{current.label}</h2>
+                      <p className="text-xs text-[#9cabbd]">
+                        Step {stepIndex + 1} of {steps.length}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="hidden gap-2 sm:flex">
+                    <button
+                      type="button"
+                      onClick={stepProps.onBack}
+                      disabled={stepIndex === 0}
+                      className="inline-flex items-center gap-2 rounded-md border border-[#31445d] px-3 py-1.5 text-sm text-white hover:bg-[#202831] disabled:opacity-40"
+                    >
+                      <ArrowLeft size={15} />
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={stepProps.onNext}
+                      disabled={stepIndex >= steps.length - 1}
+                      className="inline-flex items-center gap-2 rounded-md border border-[#ff6a2a] bg-[#ff6a2a] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+                    >
+                      Next
+                      <ArrowRight size={15} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="builder-workspace-surface">
+                {StepComponent ? (
+                  <StepComponent {...stepProps} />
+                ) : (
+                  <StubStep {...stepProps} label={current?.label ?? "Step"} />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 border-t border-[#263545] bg-[#11161c]/95 px-4 py-3 backdrop-blur">
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={stepProps.onBack}
+                disabled={stepIndex === 0}
+                className="inline-flex items-center gap-2 rounded-md border border-[#31445d] px-4 py-2 text-sm text-white hover:bg-[#202831] disabled:opacity-40"
+              >
+                <ArrowLeft size={16} />
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={stepProps.onNext}
+                disabled={stepIndex >= steps.length - 1}
+                className="inline-flex items-center gap-2 rounded-md border border-[#ff6a2a] bg-[#ff6a2a] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                Next
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );

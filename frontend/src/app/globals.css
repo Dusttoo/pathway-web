@@ -386,6 +386,36 @@ a:hover {
   @apply ring-2 ring-ring ring-offset-2 ring-offset-background;
 }
 
+/* Character builder workspace */
+.builder-workspace-surface .card {
+  background: #202831;
+  border-color: #31445d;
+}
+
+.builder-workspace-surface .input,
+.builder-workspace-surface select,
+.builder-workspace-surface textarea {
+  background: #151a20;
+  border-color: #31445d;
+  color: #ffffff;
+}
+
+.builder-workspace-surface .input::placeholder,
+.builder-workspace-surface textarea::placeholder {
+  color: #6f7f90;
+}
+
+.builder-workspace-surface .btn-outline {
+  background: #151a20;
+  border-color: #31445d;
+  color: #ffffff;
+}
+
+.builder-workspace-surface .btn-outline:hover {
+  background: #263545;
+  color: #ffffff;
+}
+
 /* Link Focus States */
 a:focus-visible {
   @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background rounded;
