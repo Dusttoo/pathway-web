@@ -199,6 +199,7 @@ export async function GET(request: Request) {
   if (q) query = query.ilike("name", `%${q}%`);
   if (level) query = query.eq("level", parseInt(level));
   if (isFocus === "true") query = query.eq("is_focus_spell", true);
+  if (isFocus === "false") query = query.eq("is_focus_spell", false);
   if (isRitual === "true") query = query.eq("is_ritual", true);
 
   const [{ data, error }, { data: homebrewData, error: homebrewError }] = await Promise.all([
@@ -228,6 +229,7 @@ export async function GET(request: Request) {
       (!q || normalize(spell.name).includes(normalize(q))) &&
       (!level || spell.level === parseInt(level, 10)) &&
       (isFocus !== "true" || !!spell.is_focus_spell) &&
+      (isFocus !== "false" || !spell.is_focus_spell) &&
       (isRitual !== "true" || !!spell.is_ritual)
   );
   const deduped = dedupeSpells(filtered);

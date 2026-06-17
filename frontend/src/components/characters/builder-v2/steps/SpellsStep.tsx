@@ -21,8 +21,11 @@ const CLASS_TRADITION: Record<string, Tradition> = {
   druid: "primal",
   wizard: "arcane",
   magus: "arcane",
+  necromancer: "occult",
   oracle: "divine",
   psychic: "occult",
+  sorcerer: "arcane",
+  witch: "occult",
   animist: "divine",
 };
 
@@ -154,6 +157,7 @@ export function SpellsStep({ state, update, focus }: StepProps) {
     q: searchQ || undefined,
     tradition,
     level: rank,
+    is_focus: spellSource === "focus",
     include_homebrew: true,
     limit: 50,
   });
