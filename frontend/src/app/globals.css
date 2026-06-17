@@ -945,6 +945,153 @@ a:hover {
   padding: 0.65rem;
 }
 
+.pb-defense-picker {
+  border: 1px solid rgba(216, 166, 70, 0.42);
+  background: #111820;
+}
+
+.pb-defense-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #c45120;
+  padding: 0.85rem 1rem;
+}
+
+.pb-defense-picker-header h3 {
+  color: #f3e5c1;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pb-defense-picker-header p {
+  margin-top: 0.2rem;
+  color: #b99762;
+  font-size: 0.8rem;
+}
+
+.pb-defense-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid #c45120;
+  padding: 0.45rem 0.6rem;
+}
+
+.pb-defense-filter-row button {
+  border: 0;
+  background: transparent;
+  color: #d8c49b;
+  font-weight: 700;
+}
+
+.pb-defense-filter-row button.active {
+  color: #ff6b2a;
+}
+
+.pb-defense-source-row {
+  gap: 0.8rem;
+}
+
+.pb-defense-source-row input {
+  margin-left: auto;
+  min-width: min(24rem, 100%);
+  border: 1px solid #315173;
+  background: #06101c;
+  color: #f3e5c1;
+  padding: 0.45rem 0.65rem;
+}
+
+.pb-defense-picker-grid {
+  display: grid;
+  min-height: 26rem;
+  grid-template-columns: 17rem minmax(0, 1fr);
+}
+
+.pb-defense-picker-list {
+  max-height: 32rem;
+  overflow-y: auto;
+  border-right: 1px solid rgba(216, 166, 70, 0.24);
+  background: #1d2631;
+  padding: 0.4rem;
+}
+
+.pb-defense-picker-option {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) 2rem;
+  align-items: center;
+  gap: 0.75rem;
+  border: 0;
+  background: transparent;
+  color: #f7ecd3;
+  padding: 0.45rem 0.3rem;
+  text-align: left;
+}
+
+.pb-defense-picker-option:hover,
+.pb-defense-picker-option.selected {
+  color: #ff6b2a;
+}
+
+.pb-defense-picker-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pb-defense-picker-option strong {
+  display: inline-flex;
+  min-height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  background: #27405e;
+  color: #ffffff;
+  font-size: 0.75rem;
+}
+
+.pb-defense-picker-preview {
+  padding: 1.35rem 1.75rem;
+  color: #d8c49b;
+}
+
+.pb-defense-picker-preview h4 {
+  color: #f3e5c1;
+  font-weight: 900;
+}
+
+.pb-defense-picker-preview p {
+  margin-top: 0.75rem;
+  max-width: 48rem;
+  color: #d8c49b;
+  line-height: 1.55;
+}
+
+.pb-defense-picker-preview span {
+  display: block;
+  margin-top: 0.75rem;
+  color: #9b8d73;
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.pb-defense-picker-first {
+  margin-top: 2rem;
+  border-top: 1px solid rgba(216, 166, 70, 0.2);
+  padding-top: 1rem;
+}
+
+.pb-defense-picker-empty {
+  color: #b99762;
+  padding: 0.75rem 0.3rem;
+  font-size: 0.85rem;
+}
+
 .pb-defense-card-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1106,6 +1253,21 @@ a:hover {
   .pb-defense-line {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .pb-defense-source-row input {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .pb-defense-picker-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pb-defense-picker-list {
+    max-height: 18rem;
+    border-right: 0;
+    border-bottom: 1px solid rgba(216, 166, 70, 0.24);
   }
 }
 

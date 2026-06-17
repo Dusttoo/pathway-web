@@ -228,6 +228,8 @@ export type PatchCharacterPayload = {
     level?: number;
     deity?: string | null;
     keyability?: string | null;
+    armor?: string | null;
+    shield?: string | null;
     languages?: string[];
     abilities?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
     attributes?: { ancestryhp: number; classhp: number; bonushp: number; bonushpPerLevel: number };

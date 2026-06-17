@@ -28,6 +28,7 @@ import {
 import { useSpells } from "@/lib/hooks/use-spells";
 import { NumberStepper, InlineSelect, InlineTextarea } from "@/components/characters";
 import { useBag, bagKeys, type BagCategories, type BagItem } from "@/lib/hooks/use-bag";
+import { useItems } from "@/lib/hooks/use-items";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay, BotCompanion } from "@/lib/types/bot-integration";
 import {
@@ -2812,17 +2813,74 @@ function selectedArmorProfKey(armorName: string): "light_armor" | "medium_armor"
   return "unarmored";
 }
 
+type DefenseItem = Tables<"items">;
+type DefensePickerMode = "armor" | "shield";
+type ArmorFilter = "all" | "light" | "medium" | "heavy";
+type ItemSourceFilter = "standard" | "magic" | "custom";
+type DefenseBuildPatch = Pick<PBBuild, "armor" | "shield">;
+
+function itemSearchText(item: DefenseItem): string {
+  const traits = Array.isArray(item.traits) ? item.traits.join(" ") : "";
+  const metadata = isRecord(item.item_metadata) ? Object.values(item.item_metadata).join(" ") : "";
+  return [item.name, item.item_subtype, item.item_type, item.description, traits, metadata]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function armorFilterForItem(item: DefenseItem): ArmorFilter {
+  const text = itemSearchText(item);
+  if (text.includes("heavy armor") || text.includes("heavy")) return "heavy";
+  if (text.includes("medium armor") || text.includes("medium")) return "medium";
+  if (text.includes("light armor") || text.includes("light")) return "light";
+  return "all";
+}
+
+function matchesItemSourceFilter(item: DefenseItem, filter: ItemSourceFilter): boolean {
+  if (filter === "custom") return item.is_official === false;
+  const text = itemSearchText(item);
+  const isMagic = item.is_magical === true || text.includes("magical") || text.includes("magic");
+  return filter === "magic" ? isMagic : !isMagic;
+}
+
+function itemSummary(item: DefenseItem): string {
+  return item.description?.replace(/\s+/g, " ").trim().slice(0, 180) || "No description available.";
+}
+
+function itemMetaLine(item: DefenseItem): string {
+  return [
+    item.source,
+    item.level !== null && item.level !== undefined ? `Level ${item.level}` : null,
+    item.price_cp ? formatPriceCp(item.price_cp) : null,
+    item.bulk ? `Bulk ${item.bulk}` : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+}
+
 function DefenseTabPanel({
-  characterId,
   build,
   level,
   usesRawBonus,
+  onSaveDefense,
 }: {
-  characterId: string;
   build: PBBuild;
   level: number;
   usesRawBonus: boolean;
+  onSaveDefense: (patch: Partial<DefenseBuildPatch>) => void;
 }) {
+  const [pickerMode, setPickerMode] = useState<DefensePickerMode | null>(null);
+  const [armorFilter, setArmorFilter] = useState<ArmorFilter>("all");
+  const [sourceFilter, setSourceFilter] = useState<ItemSourceFilter>("standard");
+  const [search, setSearch] = useState("");
+  const { data: pickerData, isLoading: isPickerLoading } = useItems(
+    {
+      q: search || undefined,
+      item_type: pickerMode ?? undefined,
+      limit: 100,
+    },
+    { enabled: pickerMode !== null }
+  );
   const profs = build.proficiencies ?? {};
   const abilities = build.abilities ?? { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
   const defenses = getDefenseDetails(build, level, usesRawBonus);
@@ -2870,6 +2928,28 @@ function DefenseTabPanel({
     { label: "Immunities", value: defenses.immunities || "None" },
     { label: "Weaknesses", value: defenses.weaknesses || "None" },
   ];
+  const pickerItems = (pickerData?.data ?? []).filter((item) => {
+    if (!matchesItemSourceFilter(item, sourceFilter)) return false;
+    if (pickerMode === "armor" && armorFilter !== "all") return armorFilterForItem(item) === armorFilter;
+    return true;
+  });
+
+  function openPicker(mode: DefensePickerMode) {
+    setPickerMode(mode);
+    setSearch("");
+    setSourceFilter("standard");
+    if (mode === "armor") setArmorFilter("all");
+  }
+
+  function chooseArmor(name: string) {
+    onSaveDefense({ armor: name === "Unarmored" ? "" : name });
+    setPickerMode(null);
+  }
+
+  function chooseShield(name: string) {
+    onSaveDefense({ shield: name === "No Shield" ? "" : name });
+    setPickerMode(null);
+  }
 
   return (
     <div className="pb-tab-surface pb-defense-surface">
@@ -2905,11 +2985,103 @@ function DefenseTabPanel({
       </div>
 
       <div className="pb-defense-stage">
+        {pickerMode && (
+          <section className="pb-defense-picker">
+            <div className="pb-defense-picker-header">
+              <div>
+                <h3>{pickerMode === "armor" ? "Choose Armor" : "Choose Shield"}</h3>
+                <p>
+                  {pickerMode === "armor"
+                    ? "Only armor options are listed here."
+                    : "Only shield options are listed here."}
+                </p>
+              </div>
+              <button type="button" className="pb-mini-button" onClick={() => setPickerMode(null)}>
+                Cancel
+              </button>
+            </div>
+
+            {pickerMode === "armor" && (
+              <div className="pb-defense-filter-row">
+                {(["all", "light", "medium", "heavy"] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    className={armorFilter === filter ? "active" : ""}
+                    onClick={() => setArmorFilter(filter)}
+                  >
+                    {filter === "all" ? "All" : customLabel(filter)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="pb-defense-filter-row pb-defense-source-row">
+              {(["standard", "magic", "custom"] as const).map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  className={sourceFilter === filter ? "active" : ""}
+                  onClick={() => setSourceFilter(filter)}
+                >
+                  {customLabel(filter)}
+                </button>
+              ))}
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={`Search ${pickerMode}...`}
+              />
+            </div>
+
+            <div className="pb-defense-picker-grid">
+              <div className="pb-defense-picker-list">
+                <button
+                  type="button"
+                  className="pb-defense-picker-option selected"
+                  onClick={() => (pickerMode === "armor" ? chooseArmor("Unarmored") : chooseShield("No Shield"))}
+                >
+                  <span>{pickerMode === "armor" ? "Unarmored" : "No Shield"}</span>
+                  <strong>0</strong>
+                </button>
+                {isPickerLoading && <div className="pb-defense-picker-empty">Loading options...</div>}
+                {!isPickerLoading &&
+                  pickerItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="pb-defense-picker-option"
+                      onClick={() => (pickerMode === "armor" ? chooseArmor(item.name) : chooseShield(item.name))}
+                    >
+                      <span>{item.name}</span>
+                      <strong>{item.level ?? 0}</strong>
+                    </button>
+                  ))}
+                {!isPickerLoading && pickerItems.length === 0 && (
+                  <div className="pb-defense-picker-empty">No matching {pickerMode} options.</div>
+                )}
+              </div>
+              <div className="pb-defense-picker-preview">
+                <h4>{pickerMode === "armor" ? armorName : shieldName}</h4>
+                <p>{pickerMode === "armor" ? "Current armor selection." : "Current shield selection."}</p>
+                <span>{pickerMode === "armor" ? armorKey.replace("_", " ") : "shield"}</span>
+                {pickerItems[0] && (
+                  <div className="pb-defense-picker-first">
+                    <h4>{pickerItems[0].name}</h4>
+                    <p>{itemSummary(pickerItems[0])}</p>
+                    <span>{itemMetaLine(pickerItems[0])}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
         <section className="pb-defense-card">
           <div className="pb-defense-card-actions">
-            <Link href={`/characters?edit=${characterId}`} className="pb-mini-button">
+            <button type="button" className="pb-mini-button" onClick={() => openPicker("armor")}>
               Change
-            </Link>
+            </button>
             <button type="button" className="pb-mini-button">
               Options
             </button>
@@ -2935,9 +3107,9 @@ function DefenseTabPanel({
 
         <section className="pb-defense-card">
           <div className="pb-defense-card-actions">
-            <Link href={`/characters?edit=${characterId}`} className="pb-mini-button">
+            <button type="button" className="pb-mini-button" onClick={() => openPicker("shield")}>
               Change
-            </Link>
+            </button>
           </div>
           <div className="pb-defense-line">
             <div className="pb-defense-name">
@@ -4627,10 +4799,10 @@ export default function CharacterDetailPage() {
             {tab === "defense" &&
               (build ? (
                 <DefenseTabPanel
-                  characterId={characterId}
                   build={build}
                   level={level}
                   usesRawBonus={usesRawBonus}
+                  onSaveDefense={(patch) => updateCharacter.mutate({ build_patch: patch })}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground italic">

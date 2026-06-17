@@ -164,6 +164,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       level?: number;
       deity?: string | null;
       keyability?: string | null;
+      armor?: string | null;
+      shield?: string | null;
       languages?: string[];
       abilities?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
       attributes?: {
@@ -339,6 +341,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     if (body.build_patch.keyability !== undefined) {
       build.keyability = body.build_patch.keyability?.trim() || null;
+    }
+    if (body.build_patch.armor !== undefined) {
+      build.armor = body.build_patch.armor?.trim() || null;
+    }
+    if (body.build_patch.shield !== undefined) {
+      build.shield = body.build_patch.shield?.trim() || null;
     }
     if (body.build_patch.languages) {
       build.languages = body.build_patch.languages
