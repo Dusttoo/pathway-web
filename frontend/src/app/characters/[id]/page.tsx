@@ -59,7 +59,7 @@ import {
 import { ItemSearchCombobox } from "@/components/ui/ItemSearchCombobox";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Tables } from "@/lib/types/database.types";
 
@@ -99,6 +99,8 @@ interface PBBuild {
   weapons?: unknown[];
   lores?: unknown[];
   equipment?: Array<[string, number]> | Array<{ name: string; qty: number }>;
+  equipmentContainers?: Record<string, unknown>;
+  formula?: unknown[];
   attributes?: {
     ancestryhp: number;
     classhp: number;
@@ -979,6 +981,50 @@ function addEquipmentEntry(
 
 function removeEquipmentEntry(equipment: { name: string; qty: number }[], name: string): [string, number][] {
   return equipmentToTuples(equipment.filter((item) => item.name !== name));
+}
+
+function getEquipmentContainers(build: PBBuild): { key: string; name: string }[] {
+  const containers = build.equipmentContainers;
+  if (!isRecord(containers)) return [];
+  return Object.entries(containers).map(([key, value]) => ({
+    key,
+    name: isRecord(value) && typeof value.name === "string" ? value.name : customLabel(key),
+  }));
+}
+
+function containerKey(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function addEquipmentContainer(
+  current: Record<string, unknown> | undefined,
+  name: string
+): Record<string, unknown> {
+  const cleanName = name.trim();
+  if (!cleanName) return current ?? {};
+  const key = containerKey(cleanName) || `container_${Date.now()}`;
+  return {
+    ...(current ?? {}),
+    [key]: { name: cleanName, items: [] },
+  };
+}
+
+function getFormulaEntries(build: PBBuild): string[] {
+  return (Array.isArray(build.formula) ? build.formula : [])
+    .map((entry) => {
+      if (typeof entry === "string") return entry;
+      if (isRecord(entry) && typeof entry.name === "string") return entry.name;
+      return "";
+    })
+    .filter(Boolean);
+}
+
+function addFormulaEntry(current: unknown[] | undefined, name: string): string[] {
+  const cleanName = name.trim();
+  const existing = getFormulaEntries({ formula: current } as PBBuild);
+  if (!cleanName) return existing;
+  if (existing.some((entry) => entry.toLowerCase() === cleanName.toLowerCase())) return existing;
+  return [...existing, cleanName];
 }
 
 function ContentModal({
@@ -4072,15 +4118,22 @@ function GearTabPanel({
   build,
   onSelect,
   onSaveEquipment,
+  onSaveContainers,
+  onSaveFormulas,
 }: {
   build: PBBuild;
   onSelect: (name: string) => void;
   onSaveEquipment: (equipment: [string, number][]) => void;
+  onSaveContainers: (containers: Record<string, unknown>) => void;
+  onSaveFormulas: (formulas: string[]) => void;
 }) {
   const { data: bag, isLoading, error } = useBag();
   const removeMutation = useRemoveItem();
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [activeGearForm, setActiveGearForm] = useState<"container" | "formula" | null>(null);
+  const [containerName, setContainerName] = useState("");
+  const [formulaName, setFormulaName] = useState("");
   const [primaryFilter, setPrimaryFilter] = useState<GearPrimaryFilter>("gear");
   const [secondaryFilter, setSecondaryFilter] = useState<GearSecondaryFilter>("adventuring");
   const [gearSearch, setGearSearch] = useState("");
@@ -4100,7 +4153,6 @@ function GearTabPanel({
   const sheetEquipment = getEquipmentEntries(build).filter(
     (item) => !bagItemNames.has(item.name.trim().toLocaleLowerCase())
   );
-  const hasInventory = categoryNames.length > 0 || sheetEquipment.length > 0;
   const fullEquipment = getEquipmentEntries(build);
   const gearItems = (gearData?.data ?? []).filter((item) => {
     if (["weapon", "armor", "shield"].includes(item.item_type ?? "")) return false;
@@ -4110,6 +4162,10 @@ function GearTabPanel({
   });
   const selectedPreview = previewItem ?? gearItems[0] ?? null;
   const totalBulk = fullEquipment.reduce((sum, item) => sum + item.qty, 0);
+  const containers = getEquipmentContainers(build);
+  const formulas = getFormulaEntries(build);
+  const hasInventory =
+    categoryNames.length > 0 || sheetEquipment.length > 0 || containers.length > 0 || formulas.length > 0;
 
   function addGear(item: DefenseItem) {
     onSaveEquipment(addEquipmentEntry(fullEquipment, item.name, 1));
@@ -4118,6 +4174,24 @@ function GearTabPanel({
 
   function removeSheetGear(name: string) {
     onSaveEquipment(removeEquipmentEntry(fullEquipment, name));
+  }
+
+  function submitContainer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanName = containerName.trim();
+    if (!cleanName) return;
+    onSaveContainers(addEquipmentContainer(build.equipmentContainers, cleanName));
+    setContainerName("");
+    setActiveGearForm(null);
+  }
+
+  function submitFormula(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanName = formulaName.trim();
+    if (!cleanName) return;
+    onSaveFormulas(addFormulaEntry(build.formula, cleanName));
+    setFormulaName("");
+    setActiveGearForm(null);
   }
 
   if (isLoading)
@@ -4145,10 +4219,18 @@ function GearTabPanel({
           <button type="button" onClick={() => setShowPicker((v) => !v)} className="pb-outline-button">
             Add Gear
           </button>
-          <button type="button" className="pb-outline-button">
+          <button
+            type="button"
+            className="pb-outline-button"
+            onClick={() => setActiveGearForm((current) => (current === "container" ? null : "container"))}
+          >
             Add Container
           </button>
-          <button type="button" className="pb-outline-button">
+          <button
+            type="button"
+            className="pb-outline-button"
+            onClick={() => setActiveGearForm((current) => (current === "formula" ? null : "formula"))}
+          >
             Add Formula
           </button>
           <button type="button" onClick={() => window.print()} className="pb-outline-button">
@@ -4253,6 +4335,38 @@ function GearTabPanel({
         </section>
       )}
 
+      {activeGearForm === "container" && (
+        <form className="pb-gear-inline-form" onSubmit={submitContainer}>
+          <label>
+            <span>Container Name</span>
+            <input
+              value={containerName}
+              onChange={(event) => setContainerName(event.target.value)}
+              placeholder="Backpack, formula book, bandolier..."
+            />
+          </label>
+          <button type="submit" className="pb-outline-button">
+            Save Container
+          </button>
+        </form>
+      )}
+
+      {activeGearForm === "formula" && (
+        <form className="pb-gear-inline-form" onSubmit={submitFormula}>
+          <label>
+            <span>Formula Name</span>
+            <input
+              value={formulaName}
+              onChange={(event) => setFormulaName(event.target.value)}
+              placeholder="Lesser elixir of life, smoke ball..."
+            />
+          </label>
+          <button type="submit" className="pb-outline-button">
+            Save Formula
+          </button>
+        </form>
+      )}
+
       {showAddForm && (
         <AddItemForm existingCategories={categoryNames} onClose={() => setShowAddForm(false)} />
       )}
@@ -4290,6 +4404,46 @@ function GearTabPanel({
 
       {hasInventory && (
         <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
+          {containers.length > 0 && (
+            <div className="bg-muted/30 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Containers
+              </h4>
+              <ul className="space-y-1">
+                {containers.map((container) => (
+                  <li key={container.key} className="flex items-center justify-between text-sm py-0.5">
+                    <span className="flex-1 min-w-0 truncate">{container.name}</span>
+                    <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                      Container
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {formulas.length > 0 && (
+            <div className="bg-muted/30 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Formulas
+              </h4>
+              <ul className="space-y-1">
+                {formulas.map((formula) => (
+                  <li key={formula} className="flex items-center justify-between text-sm py-0.5">
+                    <button
+                      type="button"
+                      onClick={() => onSelect(formula)}
+                      className="flex-1 min-w-0 truncate text-left hover:text-primary transition-colors"
+                    >
+                      {formula}
+                    </button>
+                    <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                      Formula
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {categoryNames.map((cat) => (
             <div key={cat} className="bg-muted/30 rounded-lg p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
@@ -5101,6 +5255,12 @@ export default function CharacterDetailPage() {
                   onSelect={(name) => setModal({ type: "item", name })}
                   onSaveEquipment={(equipment) =>
                     updateCharacter.mutate({ build_patch: { equipment } })
+                  }
+                  onSaveContainers={(equipmentContainers) =>
+                    updateCharacter.mutate({ build_patch: { extras: { equipmentContainers } } })
+                  }
+                  onSaveFormulas={(formula) =>
+                    updateCharacter.mutate({ build_patch: { extras: { formula } } })
                   }
                 />
               ) : (

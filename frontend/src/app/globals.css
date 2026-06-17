@@ -1197,6 +1197,40 @@ a:hover {
   padding-block: 0.35rem;
 }
 
+.pb-gear-inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+  border-bottom: 1px solid rgba(216, 166, 70, 0.24);
+  background: #111820;
+  padding: 0.75rem 1rem;
+}
+
+.pb-gear-inline-form label {
+  display: block;
+  min-width: 0;
+  text-align: left;
+}
+
+.pb-gear-inline-form span {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #b99762;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pb-gear-inline-form input {
+  width: 100%;
+  border: 1px solid #315173;
+  background: #06101c;
+  color: #f3e5c1;
+  padding: 0.5rem 0.65rem;
+}
+
 .pb-gear-main-title {
   display: flex;
   align-items: center;
@@ -1384,6 +1418,10 @@ a:hover {
     max-height: 18rem;
     border-right: 0;
     border-bottom: 1px solid rgba(216, 166, 70, 0.24);
+  }
+
+  .pb-gear-inline-form {
+    grid-template-columns: 1fr;
   }
 }
 
