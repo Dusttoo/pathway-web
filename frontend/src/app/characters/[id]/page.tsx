@@ -1,6 +1,7 @@
 "use client";
 
 import { MainLayout } from "@/components/layout";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { HealthBar } from "@/components/characters/HealthBar";
 import { useCharacterLive, useShareCharacter, useSyncCharacter } from "@/lib/hooks/use-characters";
 import {
@@ -3991,21 +3992,39 @@ export default function CharacterDetailPage() {
   ];
 
   return (
-    <MainLayout>
+    <ProtectedRoute>
       {/* Detail modal — rendered outside main flow so it overlays everything */}
       {modal && <ContentModal type={modal.type} name={modal.name} onClose={() => setModal(null)} />}
 
-      <div className="mb-4">
-        <Link
-          href="/characters"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft size={16} />
-          Back to Characters
-        </Link>
-      </div>
+      <div className="pb-sheet-page">
+        <div className="pb-sheet-topbar">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link href="/characters" className="pb-menu-button" title="Back to Characters">
+              <Menu size={24} />
+              <span>Menu</span>
+            </Link>
+            <div className="hidden h-8 w-px bg-[#8f6424]/50 sm:block" />
+            <div className="flex min-w-0 items-center gap-3">
+              <Sparkles size={20} className="shrink-0 text-[#d8a646]" />
+              <span className="truncate text-xl font-semibold text-[#f3e5c1]">
+                {character.name} - {character.class_name ?? build?.class ?? "Character"} {level}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" className="pb-top-action">
+              Rest
+            </button>
+            <button type="button" className="pb-top-action">
+              Add Condition
+            </button>
+            <button type="button" className="pb-top-action">
+              Add Custom Buff
+            </button>
+          </div>
+        </div>
 
-      <div className="character-sheet-workspace">
+        <div className="character-sheet-workspace">
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="character-sheet-panel character-sheet-identity-panel p-5">
           <div className="flex items-start justify-between gap-4">
@@ -4431,7 +4450,8 @@ export default function CharacterDetailPage() {
             )}
           </div>
         </div>
+        </div>
       </div>
-    </MainLayout>
+    </ProtectedRoute>
   );
 }

@@ -417,91 +417,201 @@ a:hover {
 }
 
 /* Character sheet workspace */
+.pb-sheet-page {
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 68% 64%, rgba(216, 166, 70, 0.08), transparent 18rem),
+    linear-gradient(180deg, #07111c 0%, #02060b 55%, #04070c 100%);
+  color: #f3e5c1;
+  border: 1px solid rgba(216, 166, 70, 0.35);
+}
+
+.pb-sheet-topbar {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 2px solid #a86f24;
+  background: linear-gradient(90deg, #05090e 0%, #071424 55%, #05090e 100%);
+  padding: 0.75rem 1.5rem;
+  box-shadow: inset 0 0 0 1px rgba(216, 166, 70, 0.16);
+}
+
+.pb-menu-button {
+  display: inline-flex;
+  min-width: 10rem;
+  align-items: center;
+  gap: 0.75rem;
+  border-right: 1px solid rgba(216, 166, 70, 0.35);
+  color: #d8a646;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pb-menu-button:hover {
+  color: #f3e5c1;
+}
+
+.pb-top-action {
+  min-width: 10.5rem;
+  border: 1px solid #8f6424;
+  border-radius: 0.35rem;
+  background: linear-gradient(180deg, #07182a 0%, #06101c 100%);
+  color: #f3e5c1;
+  padding: 0.55rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgba(216, 166, 70, 0.08);
+}
+
+.pb-top-action:hover {
+  border-color: #d8a646;
+  color: #ffffff;
+}
+
 .character-sheet-workspace {
   display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(220px, 270px) minmax(0, 1fr);
+  height: calc(100vh - 66px);
+  grid-template-columns: minmax(300px, 390px) minmax(260px, 320px) minmax(620px, 1fr);
   grid-template-areas:
     "identity stats tabs"
     "identity abilities tabs";
-  gap: 1rem;
+  gap: 0;
   align-items: start;
+  overflow: hidden;
 }
 
 .character-sheet-panel {
-  background: #1c242e;
-  border: 1px solid #263545;
-  border-radius: 0.5rem;
-  color: #dce5ee;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(20, 54, 91, 0.35), transparent 18rem),
+    linear-gradient(180deg, #071525 0%, #02070d 100%);
+  border: 1px solid rgba(216, 166, 70, 0.42);
+  border-radius: 0;
+  color: #f3e5c1;
+  box-shadow: inset 0 0 0 1px rgba(216, 166, 70, 0.08);
 }
 
 .character-sheet-identity-panel {
   grid-area: identity;
-  position: sticky;
-  top: 5rem;
+  height: 100%;
+  overflow-y: auto;
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
 }
 
 .character-sheet-stat-panel {
   grid-area: stats;
-  position: sticky;
-  top: 5rem;
+  max-height: 52vh;
+  overflow-y: auto;
+  border-top: 0;
+  border-bottom: 0;
 }
 
 .character-sheet-abilities {
   grid-area: abilities;
-  position: sticky;
-  top: 32rem;
-  border: 1px solid #263545;
-  border-radius: 0.5rem;
-  background: #151a20;
+  align-self: stretch;
+  border: 1px solid rgba(216, 166, 70, 0.42);
+  border-radius: 0;
+  background: linear-gradient(180deg, #071525 0%, #02070d 100%);
   padding: 0.75rem;
 }
 
 .character-sheet-tabs {
   grid-area: tabs;
   min-width: 0;
-  background: #1c242e;
+  height: 100%;
+  overflow: hidden;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: linear-gradient(180deg, #071525 0%, #02070d 100%);
 }
 
 .character-sheet-workspace .card,
 .character-sheet-workspace .bg-muted,
 .character-sheet-workspace .bg-muted\/40,
 .character-sheet-workspace .bg-muted\/60 {
-  background-color: #202831;
+  background-color: rgba(7, 21, 37, 0.92);
 }
 
 .character-sheet-workspace .border-border {
-  border-color: #31445d;
+  border-color: rgba(216, 166, 70, 0.38);
 }
 
 .character-sheet-workspace .text-muted-foreground {
-  color: #9cabbd;
+  color: #b99762;
 }
 
 .character-sheet-workspace .btn-outline {
-  background: #151a20;
-  border-color: #31445d;
-  color: #ffffff;
+  background: #06101c;
+  border-color: #8f6424;
+  color: #f3e5c1;
 }
 
 .character-sheet-workspace .btn-outline:hover {
-  background: #263545;
+  background: #0a1d32;
   color: #ffffff;
 }
 
+.character-sheet-tabs > .flex:first-child {
+  background: #070b10;
+  border-color: #8f6424;
+}
+
+.character-sheet-tabs > .flex:first-child button {
+  min-height: 3rem;
+  color: #d8a646;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+
+.character-sheet-tabs > .flex:first-child button.border-primary {
+  background: linear-gradient(180deg, #0d315a 0%, #0a1c32 100%);
+  border-color: #d8a646;
+  color: #ffffff;
+}
+
+.character-sheet-tabs > .p-5 {
+  height: calc(100% - 3rem);
+  overflow-y: auto;
+}
+
 @media (max-width: 1279px) {
+  .pb-sheet-page {
+    overflow: visible;
+  }
+
+  .pb-sheet-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .character-sheet-workspace {
+    height: auto;
+    min-height: calc(100vh - 66px);
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "identity"
       "stats"
       "abilities"
       "tabs";
+    overflow: visible;
   }
 
   .character-sheet-identity-panel,
   .character-sheet-stat-panel,
   .character-sheet-abilities {
-    position: static;
+    height: auto;
+    max-height: none;
+    overflow: visible;
   }
 }
 
