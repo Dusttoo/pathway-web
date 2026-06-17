@@ -901,6 +901,137 @@ a:hover {
   font-size: 0.76rem;
 }
 
+.pb-defense-surface {
+  min-height: 100%;
+}
+
+.pb-defense-toolbar {
+  border-bottom: 1px solid #8f6424;
+  background: linear-gradient(180deg, #071525 0%, #02070d 100%);
+  padding: 1rem 1.5rem;
+}
+
+.pb-defense-profs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(10rem, 1fr));
+  gap: 1rem;
+  align-items: center;
+}
+
+.pb-defense-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+  padding-top: 0.5rem;
+  color: #d8c49b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pb-defense-stage {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.65rem;
+}
+
+.pb-defense-card {
+  border: 1px solid rgba(216, 166, 70, 0.28);
+  background:
+    radial-gradient(circle at 95% 15%, rgba(216, 166, 70, 0.08), transparent 16rem),
+    rgba(7, 21, 37, 0.88);
+  padding: 0.65rem;
+}
+
+.pb-defense-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.8rem;
+}
+
+.pb-mini-button {
+  display: inline-flex;
+  min-width: 4.3rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #315173;
+  border-radius: 0.25rem;
+  background: #071525;
+  color: #f3e5c1;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.pb-mini-button:hover {
+  border-color: #d8a646;
+  color: #ffffff;
+}
+
+.pb-defense-line {
+  display: flex;
+  min-height: 3.1rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pb-defense-name,
+.pb-defense-math {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.pb-defense-name {
+  color: #f7ecd3;
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.pb-defense-name svg {
+  color: #d8c49b;
+}
+
+.pb-defense-math {
+  justify-content: flex-end;
+  color: #b99762;
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.pb-defense-traits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.pb-defense-traits div {
+  border: 1px solid rgba(216, 166, 70, 0.22);
+  background: rgba(2, 7, 13, 0.48);
+  padding: 0.75rem;
+}
+
+.pb-defense-traits span {
+  display: block;
+  color: #b99762;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pb-defense-traits strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: #f3e5c1;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 1279px) {
   .pb-sheet-page {
     overflow: visible;
@@ -957,7 +1088,9 @@ a:hover {
 }
 
 @media (max-width: 900px) {
-  .pb-weapon-profs {
+  .pb-weapon-profs,
+  .pb-defense-profs,
+  .pb-defense-traits {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -968,6 +1101,11 @@ a:hover {
 
   .pb-outline-button {
     width: 100%;
+  }
+
+  .pb-defense-line {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

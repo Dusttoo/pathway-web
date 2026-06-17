@@ -2796,6 +2796,173 @@ function WeaponsTabPanel({
   );
 }
 
+function getProficiencyRankValue(profs: Record<string, number>, keys: string[]): number {
+  for (const key of keys) {
+    const value = profs[key];
+    if (typeof value === "number") return value;
+  }
+  return 0;
+}
+
+function selectedArmorProfKey(armorName: string): "light_armor" | "medium_armor" | "heavy_armor" | "unarmored" {
+  const normalized = armorName.toLowerCase();
+  if (normalized.includes("heavy")) return "heavy_armor";
+  if (normalized.includes("medium")) return "medium_armor";
+  if (normalized.includes("light")) return "light_armor";
+  return "unarmored";
+}
+
+function DefenseTabPanel({
+  characterId,
+  build,
+  level,
+  usesRawBonus,
+}: {
+  characterId: string;
+  build: PBBuild;
+  level: number;
+  usesRawBonus: boolean;
+}) {
+  const profs = build.proficiencies ?? {};
+  const abilities = build.abilities ?? { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+  const defenses = getDefenseDetails(build, level, usesRawBonus);
+  const armorName = defenses.armor || "Unarmored";
+  const shieldName = defenses.shield || "No Shield";
+  const armorKey = selectedArmorProfKey(armorName);
+  const armorRank = getProficiencyRankValue(profs, [
+    armorKey,
+    armorKey.replace("_armor", ""),
+    armorKey === "unarmored" ? "unarmored_defense" : armorKey,
+  ]);
+  const armorDisplayRank = proficiencyValueToRank(armorRank, usesRawBonus);
+  const armorProfBonus = normalizedProfBonus(armorRank, level, usesRawBonus);
+  const dexBonus = abilityModNum(abilities.dex);
+  const itemBonus =
+    getNestedNumber(build, [
+      ["acTotal", "itemBonus"],
+      ["acTotal", "armorItemBonus"],
+      ["acTotal", "armor_item_bonus"],
+      ["armor_item_bonus"],
+      ["stats", "armor_item_bonus"],
+    ]) ?? 0;
+  const dexCap =
+    getNestedNumber(build, [
+      ["acTotal", "dexCap"],
+      ["acTotal", "dex_cap"],
+      ["armor_dex_cap"],
+      ["stats", "armor_dex_cap"],
+    ]) ?? null;
+  const shieldBonus =
+    getNestedNumber(build, [
+      ["acTotal", "shieldBonus"],
+      ["acTotal", "shield_bonus"],
+      ["shield_bonus"],
+      ["stats", "shield_bonus"],
+    ]) ?? 0;
+  const armorProfs = [
+    { label: "Light Armor", keys: ["light_armor", "light"] },
+    { label: "Medium Armor", keys: ["medium_armor", "medium"] },
+    { label: "Heavy Armor", keys: ["heavy_armor", "heavy"] },
+    { label: "Unarmored", keys: ["unarmored", "unarmored_defense"] },
+  ];
+  const traitDetails = [
+    { label: "Resistances", value: defenses.resistances || "None" },
+    { label: "Immunities", value: defenses.immunities || "None" },
+    { label: "Weaknesses", value: defenses.weaknesses || "None" },
+  ];
+
+  return (
+    <div className="pb-tab-surface pb-defense-surface">
+      <div className="pb-defense-toolbar">
+        <div className="pb-defense-profs">
+          {armorProfs.map((entry) => (
+            <WeaponProfToggle
+              key={entry.label}
+              label={entry.label}
+              rank={getProficiencyRankValue(profs, entry.keys)}
+              usesRawBonus={usesRawBonus}
+            />
+          ))}
+        </div>
+        <div className="pb-defense-breakdown">
+          <span>Base 10</span>
+          <span>Item {signedTotal(itemBonus)}</span>
+          <span>Dex {signedTotal(dexBonus)}</span>
+          <span>Proficiency {signedTotal(armorProfBonus)}</span>
+          {shieldBonus !== 0 && <span>Shield {signedTotal(shieldBonus)}</span>}
+        </div>
+        <div className="pb-weapon-actions">
+          <button type="button" className="pb-outline-button">
+            Stow Additional Armor
+          </button>
+          <button type="button" className="pb-outline-button">
+            Stow Additional Shield
+          </button>
+          <button type="button" onClick={() => window.print()} className="pb-outline-button">
+            Print
+          </button>
+        </div>
+      </div>
+
+      <div className="pb-defense-stage">
+        <section className="pb-defense-card">
+          <div className="pb-defense-card-actions">
+            <Link href={`/characters?edit=${characterId}`} className="pb-mini-button">
+              Change
+            </Link>
+            <button type="button" className="pb-mini-button">
+              Options
+            </button>
+            <button type="button" className="pb-mini-button">
+              Runes
+            </button>
+            <button type="button" className="pb-mini-button">
+              Stow
+            </button>
+          </div>
+          <div className="pb-defense-line">
+            <div className="pb-defense-name">
+              <ProfBadge rank={armorDisplayRank} />
+              <Shield size={18} />
+              <span>{armorName}</span>
+            </div>
+            <div className="pb-defense-math">
+              <span>Item Bonus {signedTotal(itemBonus)}</span>
+              <span>Dex Cap {dexCap === null ? "None" : signedTotal(dexCap)}</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="pb-defense-card">
+          <div className="pb-defense-card-actions">
+            <Link href={`/characters?edit=${characterId}`} className="pb-mini-button">
+              Change
+            </Link>
+          </div>
+          <div className="pb-defense-line">
+            <div className="pb-defense-name">
+              <Shield size={18} />
+              <span>{shieldName}</span>
+            </div>
+            {shieldBonus !== 0 && <div className="pb-defense-math">Shield Bonus {signedTotal(shieldBonus)}</div>}
+          </div>
+        </section>
+
+        <section className="pb-defense-card">
+          <div className="pb-defense-traits">
+            {traitDetails.map((detail) => (
+              <div key={detail.label}>
+                <span>{detail.label}</span>
+                <strong>{detail.value}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function OfficialSheetField({
   label,
   value,
@@ -4457,7 +4624,20 @@ export default function CharacterDetailPage() {
                   No Pathbuilder data available.
                 </p>
               ))}
-            {(tab === "stats" || tab === "defense" || tab === "details" || tab === "actions") &&
+            {tab === "defense" &&
+              (build ? (
+                <DefenseTabPanel
+                  characterId={characterId}
+                  build={build}
+                  level={level}
+                  usesRawBonus={usesRawBonus}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  No Pathbuilder data available.
+                </p>
+              ))}
+            {(tab === "stats" || tab === "details" || tab === "actions") &&
               (build ? (
                 <StatsTabPanel
                   build={build}
