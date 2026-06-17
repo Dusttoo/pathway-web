@@ -1049,26 +1049,34 @@ type SheetAction = {
   description: string;
   traits?: string[];
   source?: string | null;
+  group: "class" | "skills" | "gear" | "basic" | "exploration" | "downtime";
 };
 
-const COMMON_ACTION_NAMES = [
-  "Aid",
-  "Crawl",
-  "Delay",
-  "Drop Prone",
-  "Escape",
-  "Interact",
-  "Leap",
-  "Ready",
-  "Release",
-  "Seek",
-  "Sense Motive",
-  "Stand",
-  "Step",
-  "Stride",
-  "Strike",
-  "Take Cover",
+const ACTION_GROUP_LABELS: Record<SheetAction["group"], string> = {
+  class: "Class",
+  skills: "Skills",
+  gear: "Gear",
+  basic: "Basic",
+  exploration: "Exploration",
+  downtime: "Downtime Activity",
+};
+
+const ACTION_GROUP_ORDER: SheetAction["group"][] = [
+  "class",
+  "skills",
+  "gear",
+  "basic",
+  "exploration",
+  "downtime",
 ];
+
+const ACTION_COST_FILTERS = [
+  { key: "free", label: "◇", test: (cost: string) => cost.includes("free") },
+  { key: "reaction", label: "↺", test: (cost: string) => cost.includes("reaction") },
+  { key: "one", label: "◆", test: (cost: string) => cost.includes("1") || cost.includes("one") },
+  { key: "two", label: "◆◆", test: (cost: string) => cost.includes("2") || cost.includes("two") },
+  { key: "three", label: "◆◆◆", test: (cost: string) => cost.includes("3") || cost.includes("three") },
+] as const;
 
 function stringFromData(data: unknown, keys: string[]): string | null {
   if (!isRecord(data)) return null;
@@ -1108,6 +1116,36 @@ function actionCostSort(cost: string | null): number {
 
 function actionCostDisplay(cost: string | null): string {
   return actionCostLabel(cost) ?? cost ?? "Passive";
+}
+
+function actionIcon(cost: string | null): string {
+  const normalized = (cost ?? "").toLowerCase();
+  if (normalized.includes("free")) return "◇";
+  if (normalized.includes("reaction")) return "↺";
+  if (normalized.includes("3") || normalized.includes("three")) return "◆◆◆";
+  if (normalized.includes("2") || normalized.includes("two")) return "◆◆";
+  if (normalized.includes("1") || normalized.includes("one")) return "◆";
+  return "";
+}
+
+function actionGroupFromData(data: unknown): SheetAction["group"] {
+  const category = (stringFromData(data, ["action_category", "category", "type"]) ?? "").toLowerCase();
+  const traits = stringArrayFromData(data, ["traits"]).join(" ").toLowerCase();
+  const joined = `${category} ${traits}`;
+  if (joined.includes("downtime")) return "downtime";
+  if (joined.includes("exploration")) return "exploration";
+  if (joined.includes("skill")) return "skills";
+  if (joined.includes("item") || joined.includes("gear") || joined.includes("equipment")) return "gear";
+  if (joined.includes("class")) return "class";
+  return "basic";
+}
+
+function actionSkillLabel(name: string, group: SheetAction["group"], data?: unknown): string {
+  const dataCategory = stringFromData(data, ["action_category", "category", "type"]);
+  if (dataCategory?.toLowerCase().includes("skill")) return dataCategory;
+  const match = name.match(/\(([^)]+)\)/);
+  if (match) return `Skill (${match[1]})`;
+  return ACTION_GROUP_LABELS[group];
 }
 
 function ContentModal({
@@ -3942,52 +3980,56 @@ function FeatsTabPanel({
 }
 
 // onSelect receives an item name — parent opens the detail modal
-function ActionCard({ action }: { action: SheetAction }) {
+function ActionListRow({ action }: { action: SheetAction }) {
   return (
-    <article className="pb-action-card">
-      <div className="pb-action-card-header">
-        <div>
-          <h4>{action.name}</h4>
-          <p>{action.category}</p>
-        </div>
-        <span>{actionCostDisplay(action.cost)}</span>
-      </div>
-      {action.traits && action.traits.length > 0 && (
-        <div className="pb-action-traits">
-          {action.traits.slice(0, 6).map((trait) => (
-            <em key={trait}>{trait}</em>
-          ))}
-        </div>
-      )}
-      {action.description && <p className="pb-action-description">{action.description}</p>}
-      {action.source && <p className="pb-action-source">{action.source}</p>}
-    </article>
+    <button type="button" className="pb-action-row" title={action.description || action.name}>
+      <span className="pb-action-row-name">
+        {action.name}
+        {actionIcon(action.cost) && <em>{actionIcon(action.cost)}</em>}
+      </span>
+      <span className="pb-action-row-category">{action.category}</span>
+    </button>
   );
 }
 
 function ActionsTabPanel({ characterId, build }: { characterId: string; build: PBBuild }) {
+  const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<"name" | "category" | "cost">("name");
+  const [enabledGroups, setEnabledGroups] = useState<Record<SheetAction["group"], boolean>>({
+    class: true,
+    skills: true,
+    gear: true,
+    basic: true,
+    exploration: true,
+    downtime: true,
+  });
+  const [enabledCosts, setEnabledCosts] = useState<Record<(typeof ACTION_COST_FILTERS)[number]["key"], boolean>>({
+    free: true,
+    reaction: true,
+    one: true,
+    two: true,
+    three: true,
+  });
   const { data: actionData, isLoading: actionsLoading } = useGamedata({
     category: "actions",
     limit: 200,
   });
   const { data: characterFeatRows, isLoading: featsLoading } = useCharacterFeats(characterId);
   const attacks = getCharacterAttacks(build);
-  const commonNameSet = new Set(COMMON_ACTION_NAMES.map((name) => name.toLowerCase()));
 
-  const basicActions: SheetAction[] = (actionData?.data ?? [])
-    .filter((row) => commonNameSet.has((row.name ?? row.slug).toLowerCase()))
+  const rulesActions: SheetAction[] = (actionData?.data ?? [])
     .map((row) => ({
-      key: `basic-${row.slug}`,
+      key: `rules-${row.slug}`,
       name: row.name ?? customLabel(row.slug),
       cost: stringFromData(row.data, ["action_cost", "actions", "cost"]),
-      category: stringFromData(row.data, ["action_category", "category", "type"]) ?? "Basic Action",
+      category: actionSkillLabel(row.name ?? customLabel(row.slug), actionGroupFromData(row.data), row.data),
       description:
         stringFromData(row.data, ["description", "text", "summary"]) ??
         "Common Pathfinder 2e action available during play.",
       traits: stringArrayFromData(row.data, ["traits"]),
       source: stringFromData(row.data, ["source"]),
-    }))
-    .sort((a, b) => actionCostSort(a.cost) - actionCostSort(b.cost) || a.name.localeCompare(b.name));
+      group: actionGroupFromData(row.data),
+    }));
 
   const attackActions: SheetAction[] = attacks.map((attack, index) => ({
     key: `attack-${index}-${attack.name}`,
@@ -4000,6 +4042,7 @@ function ActionsTabPanel({ characterId, build }: { characterId: string; build: P
       .map((trait) => trait.trim())
       .filter(Boolean),
     source: attack.range || null,
+    group: "basic",
   }));
 
   const featActions: SheetAction[] = (characterFeatRows?.data ?? [])
@@ -4012,6 +4055,7 @@ function ActionsTabPanel({ characterId, build }: { characterId: string; build: P
       description: row.feat.description ?? row.notes ?? "",
       traits: [],
       source: row.feat.source ?? null,
+      group: "class",
     }));
 
   const specialActions: SheetAction[] = (build.specials ?? []).map((special, index) => {
@@ -4024,27 +4068,96 @@ function ActionsTabPanel({ characterId, build }: { characterId: string; build: P
       description: rest.length > 0 ? rest.join(":").trim() : special,
       traits: [],
       source: null,
+      group: "class",
     };
   });
 
-  const sections = [
-    { title: "Character Attacks", actions: attackActions },
-    { title: "Feat Actions & Reactions", actions: featActions },
-    { title: "Basic Actions", actions: basicActions },
-    { title: "Special Abilities", actions: specialActions },
-  ].filter((section) => section.actions.length > 0);
+  const allActions = [...featActions, ...specialActions, ...attackActions, ...rulesActions];
+  const query = search.trim().toLowerCase();
+  const filteredActions = allActions
+    .filter((action) => enabledGroups[action.group])
+    .filter((action) => {
+      const normalizedCost = (action.cost ?? "").toLowerCase();
+      const matchesKnownCost = ACTION_COST_FILTERS.some(
+        (filter) => filter.test(normalizedCost) && enabledCosts[filter.key]
+      );
+      const hasKnownCost = ACTION_COST_FILTERS.some((filter) => filter.test(normalizedCost));
+      return hasKnownCost ? matchesKnownCost : true;
+    })
+    .filter((action) => {
+      if (!query) return true;
+      return [action.name, action.category, action.description, action.source]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    })
+    .sort((a, b) => {
+      if (sortMode === "category") {
+        return a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
+      }
+      if (sortMode === "cost") {
+        return actionCostSort(a.cost) - actionCostSort(b.cost) || a.name.localeCompare(b.name);
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+  function toggleGroup(group: SheetAction["group"]) {
+    setEnabledGroups((current) => ({ ...current, [group]: !current[group] }));
+  }
+
+  function toggleCost(key: (typeof ACTION_COST_FILTERS)[number]["key"]) {
+    setEnabledCosts((current) => ({ ...current, [key]: !current[key] }));
+  }
 
   return (
     <div className="pb-tab-surface pb-actions-surface">
       <div className="pb-actions-toolbar">
-        <div>
-          <h3>Actions</h3>
-          <p>Actions this character can perform from their sheet, feats, attacks, and common PF2e rules.</p>
+        <div className="pb-actions-filter-grid">
+          <div className="pb-action-checks">
+            {ACTION_GROUP_ORDER.map((group) => (
+              <label key={group}>
+                <input
+                  type="checkbox"
+                  checked={enabledGroups[group]}
+                  onChange={() => toggleGroup(group)}
+                />
+                {ACTION_GROUP_LABELS[group]}
+              </label>
+            ))}
+          </div>
+          <div className="pb-action-checks">
+            {ACTION_COST_FILTERS.map((filter) => (
+              <label key={filter.key}>
+                <input
+                  type="checkbox"
+                  checked={enabledCosts[filter.key]}
+                  onChange={() => toggleCost(filter.key)}
+                />
+                {filter.label}
+              </label>
+            ))}
+          </div>
+          <div className="pb-action-search-row">
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="search"
+            />
+            <select value={sortMode} onChange={(event) => setSortMode(event.target.value as typeof sortMode)}>
+              <option value="name">Names</option>
+              <option value="category">Category</option>
+              <option value="cost">Actions</option>
+            </select>
+          </div>
         </div>
-        <div className="pb-actions-counts">
-          <span>{attackActions.length} attacks</span>
-          <span>{featActions.length} feat actions</span>
-          <span>{basicActions.length} basic</span>
+        <div className="pb-actions-side-tools">
+          <button type="button" onClick={() => window.print()} className="pb-mini-button">
+            Print
+          </button>
+          <a href="https://2e.aonprd.com/Actions.aspx" target="_blank" rel="noreferrer" className="pb-mini-button">
+            AoN Actions
+          </a>
         </div>
       </div>
 
@@ -4055,26 +4168,19 @@ function ActionsTabPanel({ characterId, build }: { characterId: string; build: P
         </div>
       )}
 
-      {!actionsLoading && !featsLoading && sections.length === 0 && (
+      {!actionsLoading && !featsLoading && filteredActions.length === 0 && (
         <div className="pb-empty-weapon-state">
           <div className="pb-empty-seal">
             <Zap size={56} />
           </div>
           <p className="text-lg font-semibold text-[#b99762]">No actions found.</p>
-          <p className="text-sm text-[#8f7754]">Add attacks, feats, or special abilities to fill this list.</p>
+          <p className="text-sm text-[#8f7754]">Change filters or search to see more actions.</p>
         </div>
       )}
 
-      <div className="pb-actions-sections">
-        {sections.map((section) => (
-          <section key={section.title} className="pb-actions-section">
-            <h4>{section.title}</h4>
-            <div className="pb-actions-grid">
-              {section.actions.map((action) => (
-                <ActionCard key={action.key} action={action} />
-              ))}
-            </div>
-          </section>
+      <div className="pb-action-list">
+        {filteredActions.map((action) => (
+          <ActionListRow key={action.key} action={action} />
         ))}
       </div>
     </div>
