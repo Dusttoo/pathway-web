@@ -416,6 +416,95 @@ a:hover {
   color: #ffffff;
 }
 
+/* Character sheet workspace */
+.character-sheet-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(220px, 270px) minmax(0, 1fr);
+  grid-template-areas:
+    "identity stats tabs"
+    "identity abilities tabs";
+  gap: 1rem;
+  align-items: start;
+}
+
+.character-sheet-panel {
+  background: #1c242e;
+  border: 1px solid #263545;
+  border-radius: 0.5rem;
+  color: #dce5ee;
+}
+
+.character-sheet-identity-panel {
+  grid-area: identity;
+  position: sticky;
+  top: 5rem;
+}
+
+.character-sheet-stat-panel {
+  grid-area: stats;
+  position: sticky;
+  top: 5rem;
+}
+
+.character-sheet-abilities {
+  grid-area: abilities;
+  position: sticky;
+  top: 32rem;
+  border: 1px solid #263545;
+  border-radius: 0.5rem;
+  background: #151a20;
+  padding: 0.75rem;
+}
+
+.character-sheet-tabs {
+  grid-area: tabs;
+  min-width: 0;
+  background: #1c242e;
+}
+
+.character-sheet-workspace .card,
+.character-sheet-workspace .bg-muted,
+.character-sheet-workspace .bg-muted\/40,
+.character-sheet-workspace .bg-muted\/60 {
+  background-color: #202831;
+}
+
+.character-sheet-workspace .border-border {
+  border-color: #31445d;
+}
+
+.character-sheet-workspace .text-muted-foreground {
+  color: #9cabbd;
+}
+
+.character-sheet-workspace .btn-outline {
+  background: #151a20;
+  border-color: #31445d;
+  color: #ffffff;
+}
+
+.character-sheet-workspace .btn-outline:hover {
+  background: #263545;
+  color: #ffffff;
+}
+
+@media (max-width: 1279px) {
+  .character-sheet-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "identity"
+      "stats"
+      "abilities"
+      "tabs";
+  }
+
+  .character-sheet-identity-panel,
+  .character-sheet-stat-panel,
+  .character-sheet-abilities {
+    position: static;
+  }
+}
+
 /* Link Focus States */
 a:focus-visible {
   @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background rounded;
