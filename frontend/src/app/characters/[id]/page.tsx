@@ -2700,6 +2700,102 @@ function StatsTabPanel({
   );
 }
 
+function WeaponProfToggle({
+  label,
+  rank,
+  usesRawBonus,
+}: {
+  label: string;
+  rank: number;
+  usesRawBonus: boolean;
+}) {
+  const displayRank = proficiencyValueToRank(rank, usesRawBonus);
+  return (
+    <div className="pb-weapon-toggle">
+      <ProfBadge rank={displayRank} />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function WeaponsTabPanel({
+  characterId,
+  build,
+  level,
+  usesRawBonus,
+}: {
+  characterId: string;
+  build: PBBuild;
+  level: number;
+  usesRawBonus: boolean;
+}) {
+  const profs = build.proficiencies ?? {};
+  const attacks = getCharacterAttacks(build);
+  const weaponProfs = [
+    ["simple_weapons", "Simple Weapons"],
+    ["martial_weapons", "Martial Weapons"],
+    ["advanced_weapons", "Advanced Weapons"],
+    ["unarmed", "Unarmed Attacks"],
+  ] as const;
+
+  return (
+    <div className="pb-tab-surface">
+      <div className="pb-weapon-toolbar">
+        <div className="pb-weapon-profs">
+          {weaponProfs.map(([key, label]) => (
+            <WeaponProfToggle
+              key={key}
+              label={label}
+              rank={profs[key] ?? 0}
+              usesRawBonus={usesRawBonus}
+            />
+          ))}
+        </div>
+        <div className="pb-weapon-actions">
+          <Link href={`/characters?edit=${characterId}`} className="pb-outline-button">
+            Add Weapon
+          </Link>
+          <button type="button" onClick={() => window.print()} className="pb-outline-button">
+            Print
+          </button>
+        </div>
+      </div>
+
+      <div className="pb-weapon-stage">
+        {attacks.length > 0 ? (
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            {attacks.map((attack, index) => (
+              <div key={`${attack.name}-${index}`} className="pb-weapon-card">
+                <div>
+                  <h3>{attack.name}</h3>
+                  <p>
+                    {[attack.bonus, attack.damage].filter(Boolean).join(" | ") ||
+                      "No attack details set"}
+                  </p>
+                  {formatAttackTraits(attack.traits) && (
+                    <span>{formatAttackTraits(attack.traits)}</span>
+                  )}
+                </div>
+                <div className="text-right text-xs uppercase tracking-wide text-[#b99762]">
+                  Level {level}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="pb-empty-weapon-state">
+            <div className="pb-empty-seal">
+              <Shield size={56} />
+            </div>
+            <p className="text-lg font-semibold text-[#b99762]">No weapons added.</p>
+            <p className="text-sm text-[#8f7754]">Add a weapon to get started.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function OfficialSheetField({
   label,
   value,
@@ -4348,11 +4444,20 @@ export default function CharacterDetailPage() {
           </div>
 
           <div className="p-5">
-            {(tab === "stats" ||
-              tab === "weapons" ||
-              tab === "defense" ||
-              tab === "details" ||
-              tab === "actions") &&
+            {tab === "weapons" &&
+              (build ? (
+                <WeaponsTabPanel
+                  characterId={characterId}
+                  build={build}
+                  level={level}
+                  usesRawBonus={usesRawBonus}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  No Pathbuilder data available.
+                </p>
+              ))}
+            {(tab === "stats" || tab === "defense" || tab === "details" || tab === "actions") &&
               (build ? (
                 <StatsTabPanel
                   build={build}
