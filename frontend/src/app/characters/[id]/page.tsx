@@ -140,13 +140,17 @@ type CustomSpecificProficiency = {
 
 type TabKey =
   | "stats"
+  | "weapons"
+  | "defense"
+  | "details"
+  | "actions"
   | "feats"
   | "spells"
   | "gear"
   | "notes"
   | "downtime"
   | "official"
-  | "companions";
+  | "pets";
 type ContentType = "feat" | "item";
 
 // Shapes returned by /api/content/feats and /api/content/items
@@ -3891,7 +3895,7 @@ export default function CharacterDetailPage() {
   const shareMutation = useShareCharacter(characterId);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabKey>("stats");
+  const [tab, setTab] = useState<TabKey>("weapons");
 
   // Modal state: null = closed, otherwise { type, name }
   const [modal, setModal] = useState<{ type: ContentType; name: string } | null>(null);
@@ -3969,16 +3973,21 @@ export default function CharacterDetailPage() {
   // Companions come from the dedicated `companions` table via useCompanions()
   const hasCompanions = companions.length > 0;
 
-  type TabDef = { key: TabKey; label: string };
+  type TabDef = { key: TabKey; label: string; icon: React.ReactNode };
   const tabs: TabDef[] = [
-    { key: "stats", label: "Stats" },
-    { key: "feats", label: "Feats" },
-    { key: "spells", label: "Spells" },
-    { key: "gear", label: "Gear" },
-    { key: "notes", label: "Notes" },
-    { key: "downtime", label: "Downtime" },
-    { key: "official", label: "Official Sheet" },
-    ...(hasCompanions ? [{ key: "companions" as TabKey, label: "Companions" }] : []),
+    { key: "weapons", label: "Weapons", icon: <Shield size={14} /> },
+    { key: "defense", label: "Defense", icon: <Shield size={14} /> },
+    { key: "gear", label: "Gear", icon: <Backpack size={14} /> },
+    { key: "spells", label: "Spells", icon: <Wand2 size={14} /> },
+    ...(hasCompanions
+      ? [{ key: "pets" as TabKey, label: "Pets", icon: <Heart size={14} /> }]
+      : []),
+    { key: "details", label: "Details", icon: <Gauge size={14} /> },
+    { key: "feats", label: "Feats", icon: <Sparkles size={14} /> },
+    { key: "actions", label: "Actions", icon: <Zap size={14} /> },
+    { key: "notes", label: "Notes", icon: <BookOpen size={14} /> },
+    { key: "downtime", label: "Downtime", icon: <CalendarDays size={14} /> },
+    { key: "official", label: "Official", icon: <Printer size={14} /> },
   ];
 
   return (
@@ -4292,17 +4301,18 @@ export default function CharacterDetailPage() {
         {/* ── Tabs ───────────────────────────────────────────────────────── */}
         <div className="character-sheet-panel character-sheet-tabs overflow-hidden">
           <div className="flex border-b border-border overflow-x-auto">
-            {tabs.map(({ key, label }) => (
+            {tabs.map(({ key, label, icon }) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setTab(key)}
-                className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                   tab === key
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
+                {icon}
                 {label}
                 {key === "notes" && notesRecord && (
                   <span className="ml-1.5 text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-normal">
@@ -4319,7 +4329,11 @@ export default function CharacterDetailPage() {
           </div>
 
           <div className="p-5">
-            {tab === "stats" &&
+            {(tab === "stats" ||
+              tab === "weapons" ||
+              tab === "defense" ||
+              tab === "details" ||
+              tab === "actions") &&
               (build ? (
                 <StatsTabPanel
                   build={build}
@@ -4402,7 +4416,7 @@ export default function CharacterDetailPage() {
             {tab === "downtime" && (
               <DowntimeTabPanel characterId={characterId} downtime={downtime} />
             )}
-            {tab === "companions" && hasCompanions && (
+            {tab === "pets" && hasCompanions && (
               <div className="space-y-3">
                 {companions.map((comp, i) => (
                   <CompanionCard
