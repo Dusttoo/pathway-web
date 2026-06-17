@@ -36,7 +36,7 @@ function StatusIcon({ status }: { status: ProgressionStatus }) {
   if (status === "done") return <CheckCircle2 size={16} className="text-emerald-400" />;
   if (status === "partial") return <AlertCircle size={16} className="text-amber-400" />;
   if (status === "future") return <Clock size={16} className="text-[#6f7f90]" />;
-  return <Circle size={16} className="text-[#ff6a2a]" />;
+  return <Circle size={16} className="text-[#d8a646]" />;
 }
 
 function statusLabel(status: ProgressionStatus): string {
@@ -80,7 +80,7 @@ export function ProgressionStep({ state, onJump }: StepProps) {
               <p className="text-xs text-muted-foreground">Started</p>
             </div>
             <div className="rounded-md border border-border px-3 py-2">
-              <p className="text-lg font-bold text-[#ff6a2a]">{summary.todo}</p>
+              <p className="text-lg font-bold text-[#d8a646]">{summary.todo}</p>
               <p className="text-xs text-muted-foreground">Needed</p>
             </div>
           </div>

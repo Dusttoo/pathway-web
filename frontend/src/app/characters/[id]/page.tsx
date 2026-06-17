@@ -1009,6 +1009,15 @@ function addEquipmentContainer(
   };
 }
 
+function removeEquipmentContainer(
+  current: Record<string, unknown> | undefined,
+  keyToRemove: string
+): Record<string, unknown> {
+  const next = { ...(current ?? {}) };
+  delete next[keyToRemove];
+  return next;
+}
+
 function getFormulaEntries(build: PBBuild): string[] {
   return (Array.isArray(build.formula) ? build.formula : [])
     .map((entry) => {
@@ -1025,6 +1034,10 @@ function addFormulaEntry(current: unknown[] | undefined, name: string): string[]
   if (!cleanName) return existing;
   if (existing.some((entry) => entry.toLowerCase() === cleanName.toLowerCase())) return existing;
   return [...existing, cleanName];
+}
+
+function removeFormulaEntry(current: unknown[] | undefined, name: string): string[] {
+  return getFormulaEntries({ formula: current } as PBBuild).filter((entry) => entry !== name);
 }
 
 function ContentModal({
@@ -4176,6 +4189,14 @@ function GearTabPanel({
     onSaveEquipment(removeEquipmentEntry(fullEquipment, name));
   }
 
+  function removeContainer(key: string) {
+    onSaveContainers(removeEquipmentContainer(build.equipmentContainers, key));
+  }
+
+  function removeFormula(name: string) {
+    onSaveFormulas(removeFormulaEntry(build.formula, name));
+  }
+
   function submitContainer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanName = containerName.trim();
@@ -4413,9 +4434,19 @@ function GearTabPanel({
                 {containers.map((container) => (
                   <li key={container.key} className="flex items-center justify-between text-sm py-0.5">
                     <span className="flex-1 min-w-0 truncate">{container.name}</span>
-                    <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                      Container
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                        Container
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeContainer(container.key)}
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Remove container"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -4436,9 +4467,19 @@ function GearTabPanel({
                     >
                       {formula}
                     </button>
-                    <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                      Formula
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                        Formula
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFormula(formula)}
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Remove formula"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

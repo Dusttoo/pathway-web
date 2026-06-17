@@ -544,7 +544,7 @@ a:hover {
   letter-spacing: 0.035em;
 }
 
-.pb-builder-main > .border-b button.border-\[\#ff6a2a\] {
+.pb-builder-main > .border-b button.border-\[\#d8a646\] {
   background: linear-gradient(180deg, #0d315a 0%, #0a1c32 100%);
   border-color: #d8a646;
   color: #ffffff;
@@ -955,7 +955,7 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid #c45120;
+  border-bottom: 1px solid #d8a646;
   padding: 0.85rem 1rem;
 }
 
@@ -978,7 +978,7 @@ a:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: 1rem;
-  border-bottom: 1px solid #c45120;
+  border-bottom: 1px solid rgba(216, 166, 70, 0.72);
   padding: 0.45rem 0.6rem;
 }
 
@@ -990,7 +990,7 @@ a:hover {
 }
 
 .pb-defense-filter-row button.active {
-  color: #ff6b2a;
+  color: #d8a646;
 }
 
 .pb-defense-source-row {
@@ -1035,7 +1035,7 @@ a:hover {
 
 .pb-defense-picker-option:hover,
 .pb-defense-picker-option.selected {
-  color: #ff6b2a;
+  color: #d8a646;
 }
 
 .pb-defense-picker-option span {
@@ -1097,7 +1097,7 @@ a:hover {
 }
 
 .pb-gear-resourcebar {
-  border-bottom: 1px solid #c45120;
+  border-bottom: 1px solid #d8a646;
   background: #1c252f;
   padding: 0.55rem 1rem 0.75rem;
   text-align: center;
@@ -1164,7 +1164,7 @@ a:hover {
 }
 
 .pb-gear-picker {
-  border-bottom: 1px solid #c45120;
+  border-bottom: 1px solid #d8a646;
   background: #111820;
 }
 
@@ -1238,7 +1238,7 @@ a:hover {
   border-bottom: 1px solid rgba(216, 166, 70, 0.22);
   background: #1d2631;
   padding: 0.7rem 1rem;
-  color: #ff6b2a;
+  color: #d8a646;
   font-weight: 800;
 }
 

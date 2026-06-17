@@ -109,7 +109,7 @@ function StepBadge({ step, status }: { step: StepDef; status: "done" | "active" 
     <span
       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border ${
         status === "active"
-          ? "border-[#ff6a2a] bg-[#ff6a2a] text-white"
+          ? "border-[#d8a646] bg-[#d8a646] text-white"
           : status === "done"
             ? "border-[#c9a227]/60 bg-[#c9a227]/20 text-[#f2d269]"
             : "border-[#31445d] bg-[#202a35] text-[#9cabbd]"
@@ -138,7 +138,7 @@ function PlanButton({
       onClick={onClick}
       className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors ${
         status === "active"
-          ? "border-[#ff6a2a] bg-[#2c3440] text-white"
+          ? "border-[#d8a646] bg-[#2c3440] text-white"
           : "border-[#31445d] bg-[#202831] text-[#dce5ee] hover:border-[#6f86a3]"
       }`}
     >
@@ -188,7 +188,7 @@ function ProfPip({ rank }: { rank: number }) {
   return (
     <span
       className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
-        rank > 0 ? "bg-[#ff6a2a] text-white" : "bg-[#31445d] text-[#b8c6d6]"
+        rank > 0 ? "bg-[#d8a646] text-white" : "bg-[#31445d] text-[#b8c6d6]"
       }`}
       title={PROF_LABELS[rank] ?? "U"}
     >
@@ -346,7 +346,7 @@ export function BuilderShell() {
 
           <div className="mt-5 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-[#ff6a2a]">Build Plan</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[#d8a646]">Build Plan</h2>
               <span className="text-xs text-[#9cabbd]">
                 {stepIndex + 1}/{steps.length}
               </span>
@@ -472,7 +472,7 @@ export function BuilderShell() {
                     onClick={() => setStepIndex(index)}
                     className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm transition-colors ${
                       status === "active"
-                        ? "border-[#ff6a2a] text-[#ff6a2a]"
+                        ? "border-[#d8a646] text-[#d8a646]"
                         : "border-transparent text-[#9cabbd] hover:text-white"
                     }`}
                   >
@@ -511,7 +511,7 @@ export function BuilderShell() {
                       type="button"
                       onClick={stepProps.onNext}
                       disabled={stepIndex >= steps.length - 1}
-                      className="inline-flex items-center gap-2 rounded-md border border-[#ff6a2a] bg-[#ff6a2a] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+                      className="inline-flex items-center gap-2 rounded-md border border-[#d8a646] bg-[#d8a646] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
                     >
                       Next
                       <ArrowRight size={15} />
@@ -545,7 +545,7 @@ export function BuilderShell() {
                 type="button"
                 onClick={stepProps.onNext}
                 disabled={stepIndex >= steps.length - 1}
-                className="inline-flex items-center gap-2 rounded-md border border-[#ff6a2a] bg-[#ff6a2a] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                className="inline-flex items-center gap-2 rounded-md border border-[#d8a646] bg-[#d8a646] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
               >
                 Next
                 <ArrowRight size={16} />
