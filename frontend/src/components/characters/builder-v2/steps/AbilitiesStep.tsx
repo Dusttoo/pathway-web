@@ -27,6 +27,7 @@ const ABILITY_ALIASES: Record<string, AbilityKey> = {
   cha: "cha",
   charisma: "cha",
 };
+const LEVEL_BOOST_LEVELS = [5, 10, 15, 20];
 
 function abilityKey(value: string | null | undefined): AbilityKey | null {
   if (!value) return null;
@@ -54,8 +55,29 @@ function fmtMod(score: number): string {
   return m >= 0 ? `+${m}` : `${m}`;
 }
 
-function applyBoost(score: number): number {
+function applyCreationBoost(score: number): number {
   return Math.min(18, score + (score >= 18 ? 1 : 2));
+}
+
+function applyLevelBoost(score: number): number {
+  return Math.min(30, score + (score >= 18 ? 1 : 2));
+}
+
+function profRank(value: unknown): number {
+  const numeric = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  if (numeric > 4) return Math.max(0, Math.min(4, Math.round(numeric / 2)));
+  return Math.max(0, Math.min(4, Math.round(numeric)));
+}
+
+function profBonus(rank: number, level: number): number {
+  return rank > 0 ? level + rank * 2 : 0;
+}
+
+function classDcTotal(state: BuilderState, abilities: Record<AbilityKey, number>): number | null {
+  const key = abilityKey(state.keyability);
+  const rank = profRank(state.classInitialProfs.class_dc ?? state.classInitialProfs.classDC);
+  if (!key || rank <= 0) return null;
+  return 10 + modOf(abilities[key]) + profBonus(rank, state.level);
 }
 
 function calculateAbilities(state: BuilderState): Record<AbilityKey, number> {
@@ -77,7 +99,15 @@ function calculateAbilities(state: BuilderState): Record<AbilityKey, number> {
     ...(classBoost ? [classBoost] : []),
     ...state.abilityBoostChoices.free,
   ]) {
-    next[boost] = applyBoost(next[boost]);
+    next[boost] = applyCreationBoost(next[boost]);
+  }
+
+  const levelBoosts = state.abilityBoostChoices.levelBoosts ?? {};
+  for (const boostLevel of LEVEL_BOOST_LEVELS) {
+    if (state.level < boostLevel) continue;
+    for (const boost of levelBoosts[String(boostLevel)] ?? []) {
+      next[boost] = applyLevelBoost(next[boost]);
+    }
   }
 
   return next;
@@ -101,6 +131,10 @@ function toggleChoice(
   }
 
   return [...choices, key];
+}
+
+function boostChoices(state: BuilderState): AbilityBoostChoices {
+  return { ...state.abilityBoostChoices, levelBoosts: state.abilityBoostChoices.levelBoosts ?? {} };
 }
 
 export function AbilitiesStep({ state, update }: StepProps) {
@@ -133,7 +167,13 @@ export function AbilitiesStep({ state, update }: StepProps) {
     state.abilityBoostChoices.background.length === 2 &&
     backgroundHasRequired &&
     state.abilityBoostChoices.free.length === 4 &&
-    !!classBoost;
+    !!classBoost &&
+    LEVEL_BOOST_LEVELS.every(
+      (boostLevel) =>
+        state.level < boostLevel ||
+        (state.abilityBoostChoices.levelBoosts?.[String(boostLevel)] ?? []).length === 4
+    );
+  const classDc = classDcTotal(state, calculated);
 
   useEffect(() => {
     if (!sameAbilities(state.abilities, calculated)) {
@@ -142,7 +182,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
   }, [calculated, state.abilities, update]);
 
   function setChoices(patch: Partial<AbilityBoostChoices>) {
-    const abilityBoostChoices = { ...state.abilityBoostChoices, ...patch };
+    const abilityBoostChoices = { ...boostChoices(state), ...patch };
     const nextState = { ...state, abilityBoostChoices };
     update({ abilityBoostChoices, abilities: calculateAbilities(nextState) });
   }
@@ -154,7 +194,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
   }
 
   function setAncestryMode(ancestryBoostMode: BuilderState["ancestryBoostMode"]) {
-    const abilityBoostChoices = { ...state.abilityBoostChoices, ancestryFree: [] };
+    const abilityBoostChoices = { ...boostChoices(state), ancestryFree: [] };
     const selectedAncestryFlaws: AbilityKey[] = [];
     const nextState = { ...state, ancestryBoostMode, selectedAncestryFlaws, abilityBoostChoices };
     update({
@@ -177,7 +217,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
       selectedAncestryFlaws.length < 2 && state.abilityBoostChoices.ancestryFree.length > 2
         ? state.abilityBoostChoices.ancestryFree.slice(0, 2)
         : state.abilityBoostChoices.ancestryFree;
-    const abilityBoostChoices = { ...state.abilityBoostChoices, ancestryFree };
+    const abilityBoostChoices = { ...boostChoices(state), ancestryFree };
     const nextState = { ...state, selectedAncestryFlaws, abilityBoostChoices };
     update({
       selectedAncestryFlaws,
@@ -194,6 +234,16 @@ export function AbilitiesStep({ state, update }: StepProps) {
 
   function toggleFree(key: AbilityKey) {
     setChoices({ free: toggleChoice(state.abilityBoostChoices.free, key, 4) });
+  }
+
+  function toggleLevelBoost(boostLevel: number, key: AbilityKey) {
+    const levelKey = String(boostLevel);
+    const current = state.abilityBoostChoices.levelBoosts?.[levelKey] ?? [];
+    const levelBoosts = {
+      ...(state.abilityBoostChoices.levelBoosts ?? {}),
+      [levelKey]: toggleChoice(current, key, 4),
+    };
+    setChoices({ levelBoosts });
   }
 
   return (
@@ -353,6 +403,36 @@ export function AbilitiesStep({ state, update }: StepProps) {
         />
       </div>
 
+      {LEVEL_BOOST_LEVELS.some((boostLevel) => state.level >= boostLevel) && (
+        <div className="rounded-lg border border-border p-4 space-y-3">
+          <div>
+            <h3 className="font-semibold">Level-Up Ability Boosts</h3>
+            <p className="text-xs text-muted-foreground">
+              At levels 5, 10, 15, and 20, choose four different ability scores. Boosts below 18 add
+              +2; boosts at 18 or higher add +1.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {LEVEL_BOOST_LEVELS.filter((boostLevel) => state.level >= boostLevel).map(
+              (boostLevel) => {
+                const selected = state.abilityBoostChoices.levelBoosts?.[String(boostLevel)] ?? [];
+                return (
+                  <BoostPanel
+                    key={boostLevel}
+                    title={`Level ${boostLevel}`}
+                    status={`${selected.length}/4 boosts`}
+                    note="Choose four different ability scores."
+                    selected={selected}
+                    limit={4}
+                    onToggle={(key) => toggleLevelBoost(boostLevel, key)}
+                  />
+                );
+              }
+            )}
+          </div>
+        </div>
+      )}
+
       {!complete && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-300">
           Finish every boost budget before creating the character. The builder will keep your
@@ -370,7 +450,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
           <span className="font-mono">{fmtMod(calculated.wis)}</span>
         </Stat>
         <Stat label="Class DC" hint={classBoost ? `10 + ${classBoost}` : "none"}>
-          <span className="font-mono">{classBoost ? 10 + modOf(calculated[classBoost]) : "-"}</span>
+          <span className="font-mono">{classDc ?? "-"}</span>
         </Stat>
         <Stat label="Free skill picks" hint="Class trained + INT mod">
           <span className="font-mono">

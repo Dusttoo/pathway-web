@@ -44,6 +44,8 @@ type Build = {
     bonushp?: number;
     bonushpPerLevel?: number;
     speed?: number;
+    speedBonus?: number;
+    speed_bonus?: number;
   };
   proficiencies?: Record<string, number>;
   feats?: Array<[string, string | null, string | null, string | null] | string[]>;
@@ -200,7 +202,9 @@ function sizeLabel(build: Build) {
 }
 
 function speedLabel(build: Build) {
-  return build.speed ?? build.attributes?.speed ?? null;
+  const base = build.speed ?? build.attributes?.speed ?? null;
+  if (base === null) return null;
+  return base + (build.attributes?.speedBonus ?? build.attributes?.speed_bonus ?? 0);
 }
 
 function buildFeats(build: Build): PublicFeat[] {

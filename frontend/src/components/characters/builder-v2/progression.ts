@@ -84,7 +84,8 @@ function abilityBoostDetail(state: BuilderState, level: number): string {
     return picked > 0 ? `${picked} boost choices recorded` : "Choose ancestry, background, class, and free boosts";
   }
 
-  return "Choose four ability boosts";
+  const picked = state.abilityBoostChoices.levelBoosts?.[String(level)]?.length ?? 0;
+  return picked > 0 ? `${picked}/4 level ${level} boosts recorded` : "Choose four ability boosts";
 }
 
 function levelOneIdentitySlots(state: BuilderState): ProgressionSlot[] {
@@ -168,7 +169,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
           ? state.abilityBoostChoices.ancestryFree.length > 0 ||
             state.abilityBoostChoices.background.length > 0 ||
             state.abilityBoostChoices.free.length > 0
-          : level > currentLevel(state);
+          : (state.abilityBoostChoices.levelBoosts?.[String(level)]?.length ?? 0) === 4;
       slots.push({
         id: `ability-${level}`,
         level,

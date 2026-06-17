@@ -12,6 +12,16 @@ function modOf(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
+function profRank(value: unknown): number {
+  const numeric = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  if (numeric > 4) return Math.max(0, Math.min(4, Math.round(numeric / 2)));
+  return Math.max(0, Math.min(4, Math.round(numeric)));
+}
+
+function profBonus(rank: number, level: number): number {
+  return rank > 0 ? level + rank * 2 : 0;
+}
+
 function featTypeLabel(slot: string): string {
   if (slot === "class") return "Class";
   if (slot === "skill") return "Skill";
@@ -30,6 +40,12 @@ export function ReviewStep({ state, onCreated }: StepProps) {
 
   const conMod = modOf(state.abilities.con);
   const maxHp = state.ancestryHp + (state.classHp + conMod) * state.level;
+  const classDcRank = profRank(state.classInitialProfs.class_dc ?? state.classInitialProfs.classDC);
+  const classAbility = state.keyability as keyof typeof state.abilities;
+  const classDc =
+    state.keyability && classDcRank > 0
+      ? 10 + modOf(state.abilities[classAbility] ?? 10) + profBonus(classDcRank, state.level)
+      : null;
   const variantCount = Object.values(state.variantRules).filter(Boolean).length;
   const classSpecials = classOptionSpecials(state);
   const allCustomSpecials = [
@@ -68,6 +84,7 @@ export function ReviewStep({ state, onCreated }: StepProps) {
       ancestry_boost_mode: state.ancestryBoostMode,
       ancestry_boosts: state.abilityBoostChoices.ancestryFree,
       ancestry_flaws: state.ancestryBoostMode === "remaster" ? state.selectedAncestryFlaws : [],
+      ability_boost_choices: state.abilityBoostChoices,
       heritage: state.heritageName,
       class: state.className,
       class_id: state.classId,
@@ -202,14 +219,7 @@ export function ReviewStep({ state, onCreated }: StepProps) {
           <Stat label="HP" value={String(maxHp)} />
           <Stat
             label="Class DC"
-            value={
-              state.keyability
-                ? String(
-                    10 +
-                      modOf(state.abilities[state.keyability as keyof typeof state.abilities] ?? 10)
-                  )
-                : "—"
-            }
+            value={classDc !== null ? String(classDc) : "—"}
           />
           <Stat label="Speed" value={`${state.ancestrySpeed} ft`} />
           <Stat label="Trained skills" value={String(state.trainedSkills.length)} />

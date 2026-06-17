@@ -225,7 +225,7 @@ export function BuilderShell() {
     const maxHp = state.ancestryHp + level * (state.classHp + conMod);
     const ac = 10 + abilityMod(state.abilities.dex) + profBonus(profRank(state.classInitialProfs.unarmored), level);
     const classAbility = (state.keyability?.toLowerCase() || "str") as AbilityKey;
-    const classDcRank = profRank(state.classInitialProfs.class_dc);
+    const classDcRank = profRank(state.classInitialProfs.class_dc ?? state.classInitialProfs.classDC);
     const classDc = classDcRank
       ? 10 + abilityMod(state.abilities[classAbility] ?? state.abilities.str) + profBonus(classDcRank, level)
       : null;

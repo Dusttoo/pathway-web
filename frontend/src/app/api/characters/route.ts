@@ -405,9 +405,9 @@ function synthesizeBuild(
             input.ancestry_boost_mode === "remaster" ? (input.ancestry_boosts ?? []) : [],
           ancestryBoosts: input.ancestry_boosts ?? [],
           ancestryFlaws: input.ancestry_flaws ?? [],
-          backgroundBoosts: [],
+          backgroundBoosts: input.ability_boost_choices?.background ?? [],
           classBoosts: [],
-          mapLevelledBoosts: {},
+          mapLevelledBoosts: input.ability_boost_choices?.levelBoosts ?? {},
         },
       },
       attributes: {

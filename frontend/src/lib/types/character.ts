@@ -16,6 +16,12 @@ export type NativeBuildInput = {
   ancestry_boost_mode?: "printed" | "remaster";
   ancestry_boosts?: string[];
   ancestry_flaws?: string[];
+  ability_boost_choices?: {
+    ancestryFree?: string[];
+    background?: string[];
+    free?: string[];
+    levelBoosts?: Record<string, string[]>;
+  };
   heritage: string;
   class: string;
   class_id: string;

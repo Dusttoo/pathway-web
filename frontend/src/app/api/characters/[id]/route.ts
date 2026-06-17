@@ -171,6 +171,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         classhp: number;
         bonushp: number;
         bonushpPerLevel: number;
+        speed?: number;
+        speedBonus?: number;
+        speed_bonus?: number;
       };
       extras?: Record<string, unknown>;
       feats?: Array<[string, string | null, string | null, string | null]>;
