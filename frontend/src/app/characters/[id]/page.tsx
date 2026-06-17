@@ -29,6 +29,7 @@ import { useSpells } from "@/lib/hooks/use-spells";
 import { NumberStepper, InlineSelect, InlineTextarea } from "@/components/characters";
 import { useBag, bagKeys, type BagCategories, type BagItem } from "@/lib/hooks/use-bag";
 import { useItems } from "@/lib/hooks/use-items";
+import { useGamedata } from "@/lib/hooks/use-gamedata";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay, BotCompanion } from "@/lib/types/bot-integration";
 import {
@@ -1038,6 +1039,75 @@ function addFormulaEntry(current: unknown[] | undefined, name: string): string[]
 
 function removeFormulaEntry(current: unknown[] | undefined, name: string): string[] {
   return getFormulaEntries({ formula: current } as PBBuild).filter((entry) => entry !== name);
+}
+
+type SheetAction = {
+  key: string;
+  name: string;
+  cost: string | null;
+  category: string;
+  description: string;
+  traits?: string[];
+  source?: string | null;
+};
+
+const COMMON_ACTION_NAMES = [
+  "Aid",
+  "Crawl",
+  "Delay",
+  "Drop Prone",
+  "Escape",
+  "Interact",
+  "Leap",
+  "Ready",
+  "Release",
+  "Seek",
+  "Sense Motive",
+  "Stand",
+  "Step",
+  "Stride",
+  "Strike",
+  "Take Cover",
+];
+
+function stringFromData(data: unknown, keys: string[]): string | null {
+  if (!isRecord(data)) return null;
+  for (const key of keys) {
+    const value = data[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function stringArrayFromData(data: unknown, keys: string[]): string[] {
+  if (!isRecord(data)) return [];
+  for (const key of keys) {
+    const value = data[key];
+    if (Array.isArray(value)) {
+      return value.map((entry) => String(entry).trim()).filter(Boolean);
+    }
+    if (typeof value === "string" && value.trim()) {
+      return value
+        .split(/[,;]+/)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    }
+  }
+  return [];
+}
+
+function actionCostSort(cost: string | null): number {
+  const normalized = (cost ?? "").toLowerCase();
+  if (normalized.includes("free")) return 0;
+  if (normalized.includes("reaction")) return 1;
+  if (normalized.includes("1") || normalized.includes("one")) return 2;
+  if (normalized.includes("2") || normalized.includes("two")) return 3;
+  if (normalized.includes("3") || normalized.includes("three")) return 4;
+  return 5;
+}
+
+function actionCostDisplay(cost: string | null): string {
+  return actionCostLabel(cost) ?? cost ?? "Passive";
 }
 
 function ContentModal({
@@ -3872,6 +3942,145 @@ function FeatsTabPanel({
 }
 
 // onSelect receives an item name — parent opens the detail modal
+function ActionCard({ action }: { action: SheetAction }) {
+  return (
+    <article className="pb-action-card">
+      <div className="pb-action-card-header">
+        <div>
+          <h4>{action.name}</h4>
+          <p>{action.category}</p>
+        </div>
+        <span>{actionCostDisplay(action.cost)}</span>
+      </div>
+      {action.traits && action.traits.length > 0 && (
+        <div className="pb-action-traits">
+          {action.traits.slice(0, 6).map((trait) => (
+            <em key={trait}>{trait}</em>
+          ))}
+        </div>
+      )}
+      {action.description && <p className="pb-action-description">{action.description}</p>}
+      {action.source && <p className="pb-action-source">{action.source}</p>}
+    </article>
+  );
+}
+
+function ActionsTabPanel({ characterId, build }: { characterId: string; build: PBBuild }) {
+  const { data: actionData, isLoading: actionsLoading } = useGamedata({
+    category: "actions",
+    limit: 200,
+  });
+  const { data: characterFeatRows, isLoading: featsLoading } = useCharacterFeats(characterId);
+  const attacks = getCharacterAttacks(build);
+  const commonNameSet = new Set(COMMON_ACTION_NAMES.map((name) => name.toLowerCase()));
+
+  const basicActions: SheetAction[] = (actionData?.data ?? [])
+    .filter((row) => commonNameSet.has((row.name ?? row.slug).toLowerCase()))
+    .map((row) => ({
+      key: `basic-${row.slug}`,
+      name: row.name ?? customLabel(row.slug),
+      cost: stringFromData(row.data, ["action_cost", "actions", "cost"]),
+      category: stringFromData(row.data, ["action_category", "category", "type"]) ?? "Basic Action",
+      description:
+        stringFromData(row.data, ["description", "text", "summary"]) ??
+        "Common Pathfinder 2e action available during play.",
+      traits: stringArrayFromData(row.data, ["traits"]),
+      source: stringFromData(row.data, ["source"]),
+    }))
+    .sort((a, b) => actionCostSort(a.cost) - actionCostSort(b.cost) || a.name.localeCompare(b.name));
+
+  const attackActions: SheetAction[] = attacks.map((attack, index) => ({
+    key: `attack-${index}-${attack.name}`,
+    name: attack.name,
+    cost: attack.action || "1",
+    category: attack.category || "Attack",
+    description: [attack.bonus, attack.damage, attack.notes].filter(Boolean).join(" | "),
+    traits: formatAttackTraits(attack.traits)
+      .split(",")
+      .map((trait) => trait.trim())
+      .filter(Boolean),
+    source: attack.range || null,
+  }));
+
+  const featActions: SheetAction[] = (characterFeatRows?.data ?? [])
+    .filter((row) => row.feat?.action_cost)
+    .map((row) => ({
+      key: `feat-${row.id}`,
+      name: row.feat.name,
+      cost: row.feat.action_cost,
+      category: displayFeatType(row.feat.feat_type, row.feat_slot),
+      description: row.feat.description ?? row.notes ?? "",
+      traits: [],
+      source: row.feat.source ?? null,
+    }));
+
+  const specialActions: SheetAction[] = (build.specials ?? []).map((special, index) => {
+    const [maybeName, ...rest] = special.split(":");
+    return {
+      key: `special-${index}`,
+      name: rest.length > 0 ? maybeName.trim() : `Special Ability ${index + 1}`,
+      cost: null,
+      category: "Special Ability",
+      description: rest.length > 0 ? rest.join(":").trim() : special,
+      traits: [],
+      source: null,
+    };
+  });
+
+  const sections = [
+    { title: "Character Attacks", actions: attackActions },
+    { title: "Feat Actions & Reactions", actions: featActions },
+    { title: "Basic Actions", actions: basicActions },
+    { title: "Special Abilities", actions: specialActions },
+  ].filter((section) => section.actions.length > 0);
+
+  return (
+    <div className="pb-tab-surface pb-actions-surface">
+      <div className="pb-actions-toolbar">
+        <div>
+          <h3>Actions</h3>
+          <p>Actions this character can perform from their sheet, feats, attacks, and common PF2e rules.</p>
+        </div>
+        <div className="pb-actions-counts">
+          <span>{attackActions.length} attacks</span>
+          <span>{featActions.length} feat actions</span>
+          <span>{basicActions.length} basic</span>
+        </div>
+      </div>
+
+      {(actionsLoading || featsLoading) && (
+        <div className="pb-actions-loading">
+          <div className="spinner" />
+          Loading action list...
+        </div>
+      )}
+
+      {!actionsLoading && !featsLoading && sections.length === 0 && (
+        <div className="pb-empty-weapon-state">
+          <div className="pb-empty-seal">
+            <Zap size={56} />
+          </div>
+          <p className="text-lg font-semibold text-[#b99762]">No actions found.</p>
+          <p className="text-sm text-[#8f7754]">Add attacks, feats, or special abilities to fill this list.</p>
+        </div>
+      )}
+
+      <div className="pb-actions-sections">
+        {sections.map((section) => (
+          <section key={section.title} className="pb-actions-section">
+            <h4>{section.title}</h4>
+            <div className="pb-actions-grid">
+              {section.actions.map((action) => (
+                <ActionCard key={action.key} action={action} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SpellsTabPanel({ characterId }: { characterId: string }) {
   const { data: knownSpells, isLoading } = useCharacterKnownSpells(characterId);
   const addKnownSpell = useAddKnownSpell(characterId);
@@ -5220,7 +5429,15 @@ export default function CharacterDetailPage() {
                   No Pathbuilder data available.
                 </p>
               ))}
-            {(tab === "stats" || tab === "details" || tab === "actions") &&
+            {tab === "actions" &&
+              (build ? (
+                <ActionsTabPanel characterId={characterId} build={build} />
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  No Pathbuilder data available.
+                </p>
+              ))}
+            {(tab === "stats" || tab === "details") &&
               (build ? (
                 <StatsTabPanel
                   build={build}
