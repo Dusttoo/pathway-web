@@ -1,10 +1,10 @@
 "use client";
 
-import { MainLayout } from "@/components/layout";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BuilderShell } from "@/components/characters/builder-v2/BuilderShell";
 import { useCreateCharacter } from "@/lib/hooks/use-characters";
 import { useAuth } from "@/lib/providers/auth-provider";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Menu, Sparkles, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -171,65 +171,63 @@ export default function NewCharacterPage() {
 
   if (!user) {
     return (
-      <MainLayout>
+      <ProtectedRoute>
         <div className="card p-8 text-center">
           <p className="text-muted-foreground">Please log in to create a character.</p>
         </div>
-      </MainLayout>
+      </ProtectedRoute>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="mb-6">
-        <Link
-          href="/characters"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
-        >
-          <ArrowLeft size={16} />
-          Back to Characters
-        </Link>
-        <h1 className="font-heading text-3xl font-bold">Create Character</h1>
-        <p className="text-muted-foreground mt-1">
-          Build your Pathfinder 2e character directly, or import from Pathbuilder.
-        </p>
-      </div>
+    <ProtectedRoute>
+      <div className="pb-sheet-page pb-builder-page">
+        <div className="pb-sheet-topbar">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link href="/characters" className="pb-menu-button" title="Back to Characters">
+              <Menu size={24} />
+              <span>Menu</span>
+            </Link>
+            <div className="hidden h-8 w-px bg-[#8f6424]/50 sm:block" />
+            <div className="flex min-w-0 items-center gap-3">
+              <Sparkles size={20} className="shrink-0 text-[#d8a646]" />
+              <span className="truncate text-xl font-semibold text-[#f3e5c1]">
+                New Character - Builder
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setTab("build")}
+              className={`pb-top-action ${tab === "build" ? "pb-top-action-active" : ""}`}
+            >
+              Build Character
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("import")}
+              className={`pb-top-action ${tab === "import" ? "pb-top-action-active" : ""}`}
+            >
+              Import
+            </button>
+          </div>
+        </div>
 
-      {/* Tab toggle */}
-      <div className="flex gap-2 mb-6 max-w-md">
-        <button
-          type="button"
-          onClick={() => setTab("build")}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            tab === "build"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted hover:bg-muted/80 text-foreground"
-          }`}
-        >
-          Build Character
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("import")}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            tab === "import"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted hover:bg-muted/80 text-foreground"
-          }`}
-        >
-          Import from Pathbuilder
-        </button>
-      </div>
-
-      {tab === "build" ? (
-        <div className="max-w-5xl">
+        {tab === "build" ? (
           <BuilderShell />
-        </div>
-      ) : (
-        <div className="max-w-xl">
-          <PathbuilderImportForm />
-        </div>
-      )}
-    </MainLayout>
+        ) : (
+          <div className="pb-import-shell">
+            <Link href="/characters" className="inline-flex items-center gap-2 text-sm text-[#d8a646] hover:text-white">
+              <ArrowLeft size={16} />
+              Back to Characters
+            </Link>
+            <div className="mt-6 max-w-2xl">
+              <PathbuilderImportForm />
+            </div>
+          </div>
+        )}
+      </div>
+    </ProtectedRoute>
   );
 }

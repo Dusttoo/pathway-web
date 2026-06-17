@@ -275,8 +275,8 @@ export function BuilderShell() {
   };
 
   return (
-    <div className="-mx-4 -mb-8 overflow-hidden rounded-lg border border-[#263545] bg-[#161b22] text-[#dce5ee] shadow-2xl md:-mx-8">
-      <div className="flex flex-col gap-3 border-b-2 border-[#ff6a2a] bg-[#11161c] px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="pb-builder-workspace">
+      <div className="pb-builder-subbar">
         <div className="flex min-w-0 items-center gap-3">
           <Menu size={28} className="text-white" />
           <div className="min-w-0">
@@ -324,8 +324,8 @@ export function BuilderShell() {
         </div>
       )}
 
-      <div className="grid min-h-[760px] grid-cols-1 xl:grid-cols-[370px_240px_minmax(0,1fr)]">
-        <aside className="border-b border-[#263545] bg-[#1c242e] p-4 xl:border-b-0 xl:border-r">
+      <div className="pb-builder-grid">
+        <aside className="pb-builder-plan">
           <div className="space-y-2">
             <IdentityCard icon={<Sparkles size={18} />} label="Ancestry" value={state.ancestryName} />
             <IdentityCard icon={<BookOpen size={18} />} label="Background" value={state.backgroundName} />
@@ -353,7 +353,7 @@ export function BuilderShell() {
           </div>
         </aside>
 
-        <aside className="border-b border-[#263545] bg-[#151a20] p-4 xl:border-b-0 xl:border-r">
+        <aside className="pb-builder-stats">
           <div className="space-y-3">
             <div className="rounded-lg border border-[#263545] bg-[#202831] p-3">
               <div className="grid grid-cols-2 gap-2">
@@ -448,7 +448,7 @@ export function BuilderShell() {
           </div>
         </aside>
 
-        <main className="min-w-0 bg-[#11161c]">
+        <main className="pb-builder-main">
           <div className="border-b border-[#263545] bg-[#161b22] px-4 pt-3">
             <div className="flex gap-1 overflow-x-auto">
               {steps.map((step, index) => {
@@ -472,7 +472,7 @@ export function BuilderShell() {
             </div>
           </div>
 
-          <div className="p-4">
+          <div className="pb-builder-content">
             <div className="rounded-lg border border-[#263545] bg-[#1c242e] p-4">
               {current && (
                 <div className="mb-4 flex items-center justify-between gap-3 border-b border-[#31445d] pb-4">
