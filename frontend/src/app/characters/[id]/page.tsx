@@ -29,7 +29,6 @@ import { useSpells } from "@/lib/hooks/use-spells";
 import { NumberStepper, InlineSelect, InlineTextarea } from "@/components/characters";
 import { useBag, bagKeys, type BagCategories, type BagItem } from "@/lib/hooks/use-bag";
 import { useItems } from "@/lib/hooks/use-items";
-import { useGamedata } from "@/lib/hooks/use-gamedata";
 import { useAuth } from "@/lib/providers/auth-provider";
 import type { CharacterOverlay, BotCompanion } from "@/lib/types/bot-integration";
 import {
@@ -1071,12 +1070,108 @@ const ACTION_GROUP_ORDER: SheetAction["group"][] = [
 ];
 
 const ACTION_COST_FILTERS = [
-  { key: "free", label: "◇", test: (cost: string) => cost.includes("free") },
-  { key: "reaction", label: "↺", test: (cost: string) => cost.includes("reaction") },
-  { key: "one", label: "◆", test: (cost: string) => cost.includes("1") || cost.includes("one") },
-  { key: "two", label: "◆◆", test: (cost: string) => cost.includes("2") || cost.includes("two") },
-  { key: "three", label: "◆◆◆", test: (cost: string) => cost.includes("3") || cost.includes("three") },
+  { key: "free", label: "Free", test: (cost: string) => cost.includes("free") },
+  { key: "reaction", label: "Reaction", test: (cost: string) => cost.includes("reaction") },
+  { key: "one", label: "1 Action", test: (cost: string) => cost.includes("1") || cost.includes("one") || cost.includes("single") },
+  { key: "two", label: "2 Actions", test: (cost: string) => cost.includes("2") || cost.includes("two") },
+  { key: "three", label: "3 Actions", test: (cost: string) => cost.includes("3") || cost.includes("three") },
 ] as const;
+
+const PF2E_ACTION_CATALOG: Array<{
+  name: string;
+  cost: string | null;
+  group: SheetAction["group"];
+  category: string;
+  description: string;
+}> = [
+  { name: "Administer First Aid", cost: "Two Actions", group: "skills", category: "Skill (Medicine)", description: "Stabilize a dying creature or stop persistent bleed damage." },
+  { name: "Affix a Talisman", cost: null, group: "exploration", category: "Exploration", description: "Affix a talisman to an item before it is activated." },
+  { name: "Aid", cost: "Reaction", group: "basic", category: "Basic", description: "Help an ally with a prepared task." },
+  { name: "Arrest a Fall", cost: "Reaction", group: "basic", category: "Basic", description: "Use a reaction to slow a fall if you have the right movement." },
+  { name: "Avert Gaze", cost: "Single Action", group: "basic", category: "Basic", description: "Gain a bonus against visual abilities by looking away." },
+  { name: "Avoid Notice", cost: null, group: "exploration", category: "Exploration", description: "Travel stealthily and roll Stealth for initiative when appropriate." },
+  { name: "Balance", cost: "Single Action", group: "skills", category: "Skill (Acrobatics)", description: "Move across a narrow or uneven surface." },
+  { name: "Borrow an Arcane Spell", cost: null, group: "skills", category: "Skill (Arcana)", description: "Prepare a spell from another arcane caster's spellbook." },
+  { name: "Burrow", cost: "Single Action", group: "basic", category: "Basic", description: "Move using a burrow Speed." },
+  { name: "Climb", cost: "Single Action", group: "skills", category: "Skill (Athletics)", description: "Move up, down, or across an incline or vertical surface." },
+  { name: "Coerce", cost: null, group: "skills", category: "Skill (Intimidation)", description: "Threaten a creature into doing what you want." },
+  { name: "Command an Animal", cost: "Single Action", group: "skills", category: "Skill (Nature)", description: "Command an animal to take an action." },
+  { name: "Conceal an Object", cost: "Single Action", group: "skills", category: "Skill (Stealth)", description: "Hide an object on your person or nearby." },
+  { name: "Cover Tracks", cost: null, group: "skills", category: "Skill (Survival)", description: "Hide your trail while traveling." },
+  { name: "Craft", cost: null, group: "skills", category: "Skill (Crafting)", description: "Create an item during downtime." },
+  { name: "Create a Diversion", cost: "Single Action", group: "skills", category: "Skill (Deception)", description: "Distract creatures so you can become hidden." },
+  { name: "Create Forgery", cost: null, group: "skills", category: "Skill (Society)", description: "Forge a document during downtime." },
+  { name: "Decipher Writing", cost: null, group: "skills", category: "Skill", description: "Understand obscure, coded, or archaic writing." },
+  { name: "Defend", cost: null, group: "exploration", category: "Exploration", description: "Move carefully with your shield raised." },
+  { name: "Delay", cost: "Free Action", group: "basic", category: "Basic", description: "Wait to act later in the initiative order." },
+  { name: "Demoralize", cost: "Single Action", group: "skills", category: "Skill (Intimidation)", description: "Frighten a creature with a threat, shout, or display." },
+  { name: "Detect Magic", cost: null, group: "exploration", category: "Exploration", description: "Repeatedly cast detect magic while exploring." },
+  { name: "Disable a Device", cost: "Two Actions", group: "skills", category: "Skill (Thievery)", description: "Disable a trap, lock, or complex mechanism." },
+  { name: "Disarm", cost: "Single Action", group: "skills", category: "Skill (Athletics)", description: "Try to knock an item from a creature's grasp." },
+  { name: "Dismiss", cost: "Single Action", group: "basic", category: "Basic", description: "End one spell or effect you can dismiss." },
+  { name: "Drop Prone", cost: "Single Action", group: "basic", category: "Basic", description: "Drop to the ground and become prone." },
+  { name: "Earn Income", cost: null, group: "downtime", category: "Downtime Activity", description: "Use a skill to earn money during downtime." },
+  { name: "Escape", cost: "Single Action", group: "basic", category: "Basic", description: "Attempt to get free from grabbed, immobilized, or restrained." },
+  { name: "Feint", cost: "Single Action", group: "skills", category: "Skill (Deception)", description: "Mislead a foe to make them off-guard against you." },
+  { name: "Fly", cost: "Single Action", group: "basic", category: "Basic", description: "Move using a fly Speed." },
+  { name: "Follow the Expert", cost: null, group: "exploration", category: "Exploration", description: "Follow an expert ally and gain a bonus to a repeated task." },
+  { name: "Force Open", cost: "Single Action", group: "skills", category: "Skill (Athletics)", description: "Force open a door, window, container, or heavy gate." },
+  { name: "Gather Information", cost: null, group: "skills", category: "Skill (Diplomacy)", description: "Canvass an area to learn local information." },
+  { name: "Grab an Edge", cost: "Reaction", group: "basic", category: "Basic", description: "Catch yourself when falling past an edge." },
+  { name: "Grapple", cost: "Single Action", group: "skills", category: "Skill (Athletics)", description: "Attempt to grab a creature or object." },
+  { name: "Hide", cost: "Single Action", group: "skills", category: "Skill (Stealth)", description: "Use cover or concealment to become hidden." },
+  { name: "High Jump", cost: "Two Actions", group: "skills", category: "Skill (Athletics)", description: "Stride then attempt to leap vertically." },
+  { name: "Hustle", cost: null, group: "exploration", category: "Exploration", description: "Move quickly for a sustained period." },
+  { name: "Identify Alchemy", cost: null, group: "skills", category: "Skill (Crafting)", description: "Identify an alchemical item." },
+  { name: "Identify Magic", cost: null, group: "skills", category: "Skill", description: "Learn the properties of a magic item, effect, or location." },
+  { name: "Impersonate", cost: null, group: "skills", category: "Skill (Deception)", description: "Pass yourself off as someone else." },
+  { name: "Interact", cost: "Single Action", group: "basic", category: "Basic", description: "Manipulate an object or the terrain." },
+  { name: "Investigate", cost: null, group: "exploration", category: "Exploration", description: "Seek information while traveling and exploring." },
+  { name: "Leap", cost: "Single Action", group: "basic", category: "Basic", description: "Jump horizontally or vertically." },
+  { name: "Learn a Spell", cost: null, group: "skills", category: "Skill", description: "Learn a spell from another source." },
+  { name: "Lie", cost: null, group: "skills", category: "Skill (Deception)", description: "Attempt to fool someone with a falsehood." },
+  { name: "Long Jump", cost: "Two Actions", group: "skills", category: "Skill (Athletics)", description: "Stride then attempt a horizontal jump." },
+  { name: "Make an Impression", cost: null, group: "skills", category: "Skill (Diplomacy)", description: "Improve a creature's attitude toward you." },
+  { name: "Maneuver in Flight", cost: "Single Action", group: "skills", category: "Skill (Acrobatics)", description: "Perform a difficult maneuver while flying." },
+  { name: "Perform", cost: null, group: "skills", category: "Skill (Performance)", description: "Use a performance to impress or entertain." },
+  { name: "Point Out", cost: "Single Action", group: "basic", category: "Basic", description: "Indicate a hidden creature's location to your allies." },
+  { name: "Practice a Trade", cost: null, group: "skills", category: "Skill (Lore)", description: "Use Lore to work a trade during downtime." },
+  { name: "Raise a Shield", cost: "Single Action", group: "basic", category: "Basic", description: "Position your shield to gain its AC bonus." },
+  { name: "Ready", cost: "Two Actions", group: "basic", category: "Basic", description: "Prepare a single action to use as a reaction later." },
+  { name: "Recall Knowledge", cost: "Single Action", group: "skills", category: "Skill", description: "Remember useful information about a topic." },
+  { name: "Refocus", cost: null, group: "exploration", category: "Exploration", description: "Spend 10 minutes to regain Focus Points." },
+  { name: "Release", cost: "Free Action", group: "basic", category: "Basic", description: "Let go of something you are holding." },
+  { name: "Repair", cost: null, group: "skills", category: "Skill (Crafting)", description: "Repair a damaged item." },
+  { name: "Repeat a Spell", cost: null, group: "exploration", category: "Exploration", description: "Repeatedly cast the same spell while exploring." },
+  { name: "Reposition", cost: "Single Action", group: "skills", category: "Skill (Athletics)", description: "Move a creature to another space." },
+  { name: "Request", cost: null, group: "skills", category: "Skill (Diplomacy)", description: "Ask a creature for help or a favor." },
+  { name: "Scout", cost: null, group: "exploration", category: "Exploration", description: "Grant your party a bonus to initiative." },
+  { name: "Search", cost: null, group: "exploration", category: "Exploration", description: "Look carefully for hidden things while exploring." },
+  { name: "Seek", cost: "Single Action", group: "basic", category: "Basic", description: "Scan an area for creatures or objects." },
+  { name: "Sense Direction", cost: null, group: "skills", category: "Skill (Survival)", description: "Determine which way is north or where you are headed." },
+  { name: "Sense Motive", cost: "Single Action", group: "basic", category: "Basic", description: "Sense whether a creature is behaving strangely." },
+  { name: "Shield Block", cost: "Reaction", group: "class", category: "Class", description: "Use a shield to reduce incoming damage if you have the reaction." },
+  { name: "Shove", cost: "Single Action", group: "skills", category: "Skill (Athletics)", description: "Push a creature away from you." },
+  { name: "Sneak", cost: "Single Action", group: "skills", category: "Skill (Stealth)", description: "Move while hidden or undetected." },
+  { name: "Squeeze", cost: "Single Action", group: "skills", category: "Skill (Acrobatics)", description: "Move through a tight space." },
+  { name: "Stage a Performance", cost: null, group: "skills", category: "Skill (Performance)", description: "Put on a performance during downtime." },
+  { name: "Stand", cost: "Single Action", group: "basic", category: "Basic", description: "Stand up from prone." },
+  { name: "Steal", cost: "Single Action", group: "skills", category: "Skill (Thievery)", description: "Attempt to take a small object from another creature." },
+  { name: "Step", cost: "Single Action", group: "basic", category: "Basic", description: "Move 5 feet without triggering reactions based on movement." },
+  { name: "Stride", cost: "Single Action", group: "basic", category: "Basic", description: "Move up to your Speed." },
+  { name: "Strike", cost: "Single Action", group: "basic", category: "Basic", description: "Attack with a weapon or unarmed attack." },
+  { name: "Subsist", cost: null, group: "skills", category: "Skill (Society or Survival)", description: "Find food and shelter during downtime or exploration." },
+  { name: "Sustain a Spell", cost: "Single Action", group: "basic", category: "Basic", description: "Extend the duration of a sustained spell." },
+  { name: "Sustain an Effect", cost: null, group: "exploration", category: "Exploration", description: "Sustain an ongoing effect while exploring." },
+  { name: "Swim", cost: "Single Action", group: "skills", category: "Skill (Athletics)", description: "Move through water." },
+  { name: "Take Cover", cost: "Single Action", group: "basic", category: "Basic", description: "Use cover to improve your defenses." },
+  { name: "Track", cost: null, group: "skills", category: "Skill (Survival)", description: "Follow tracks while exploring." },
+  { name: "Treat Disease", cost: null, group: "skills", category: "Skill (Medicine)", description: "Treat a creature suffering from disease." },
+  { name: "Treat Poison", cost: "Single Action", group: "skills", category: "Skill (Medicine)", description: "Treat a creature suffering from poison." },
+  { name: "Treat Wounds", cost: null, group: "skills", category: "Skill (Medicine)", description: "Spend 10 minutes treating injuries." },
+  { name: "Trip", cost: "Single Action", group: "skills", category: "Skill (Athletics)", description: "Knock a creature prone." },
+  { name: "Tumble Through", cost: "Single Action", group: "skills", category: "Skill (Acrobatics)", description: "Move through an enemy's space." },
+];
 
 function stringFromData(data: unknown, keys: string[]): string | null {
   if (!isRecord(data)) return null;
@@ -1108,7 +1203,7 @@ function actionCostSort(cost: string | null): number {
   const normalized = (cost ?? "").toLowerCase();
   if (normalized.includes("free")) return 0;
   if (normalized.includes("reaction")) return 1;
-  if (normalized.includes("1") || normalized.includes("one")) return 2;
+  if (normalized.includes("1") || normalized.includes("one") || normalized.includes("single")) return 2;
   if (normalized.includes("2") || normalized.includes("two")) return 3;
   if (normalized.includes("3") || normalized.includes("three")) return 4;
   return 5;
@@ -1146,6 +1241,16 @@ function actionSkillLabel(name: string, group: SheetAction["group"], data?: unkn
   const match = name.match(/\(([^)]+)\)/);
   if (match) return `Skill (${match[1]})`;
   return ACTION_GROUP_LABELS[group];
+}
+
+function actionCostBadge(cost: string | null): string {
+  const normalized = (cost ?? "").toLowerCase();
+  if (normalized.includes("free")) return "F";
+  if (normalized.includes("reaction")) return "R";
+  if (normalized.includes("3") || normalized.includes("three")) return "3A";
+  if (normalized.includes("2") || normalized.includes("two")) return "2A";
+  if (normalized.includes("1") || normalized.includes("one") || normalized.includes("single")) return "1A";
+  return "";
 }
 
 function ContentModal({
@@ -3981,11 +4086,12 @@ function FeatsTabPanel({
 
 // onSelect receives an item name — parent opens the detail modal
 function ActionListRow({ action }: { action: SheetAction }) {
+  const badge = actionCostBadge(action.cost);
   return (
     <button type="button" className="pb-action-row" title={action.description || action.name}>
       <span className="pb-action-row-name">
         {action.name}
-        {actionIcon(action.cost) && <em>{actionIcon(action.cost)}</em>}
+        {badge && <em title={actionCostDisplay(action.cost)}>{badge}</em>}
       </span>
       <span className="pb-action-row-category">{action.category}</span>
     </button>
@@ -4010,26 +4116,19 @@ function ActionsTabPanel({ characterId, build }: { characterId: string; build: P
     two: true,
     three: true,
   });
-  const { data: actionData, isLoading: actionsLoading } = useGamedata({
-    category: "actions",
-    limit: 200,
-  });
   const { data: characterFeatRows, isLoading: featsLoading } = useCharacterFeats(characterId);
   const attacks = getCharacterAttacks(build);
 
-  const rulesActions: SheetAction[] = (actionData?.data ?? [])
-    .map((row) => ({
-      key: `rules-${row.slug}`,
-      name: row.name ?? customLabel(row.slug),
-      cost: stringFromData(row.data, ["action_cost", "actions", "cost"]),
-      category: actionSkillLabel(row.name ?? customLabel(row.slug), actionGroupFromData(row.data), row.data),
-      description:
-        stringFromData(row.data, ["description", "text", "summary"]) ??
-        "Common Pathfinder 2e action available during play.",
-      traits: stringArrayFromData(row.data, ["traits"]),
-      source: stringFromData(row.data, ["source"]),
-      group: actionGroupFromData(row.data),
-    }));
+  const rulesActions: SheetAction[] = PF2E_ACTION_CATALOG.map((action) => ({
+    key: `rules-${action.name}`,
+    name: action.name,
+    cost: action.cost,
+    category: action.category,
+    description: action.description,
+    traits: [],
+    source: "Archives of Nethys",
+    group: action.group,
+  }));
 
   const attackActions: SheetAction[] = attacks.map((attack, index) => ({
     key: `attack-${index}-${attack.name}`,
@@ -4161,14 +4260,14 @@ function ActionsTabPanel({ characterId, build }: { characterId: string; build: P
         </div>
       </div>
 
-      {(actionsLoading || featsLoading) && (
+      {featsLoading && (
         <div className="pb-actions-loading">
           <div className="spinner" />
           Loading action list...
         </div>
       )}
 
-      {!actionsLoading && !featsLoading && filteredActions.length === 0 && (
+      {!featsLoading && filteredActions.length === 0 && (
         <div className="pb-empty-weapon-state">
           <div className="pb-empty-seal">
             <Zap size={56} />
