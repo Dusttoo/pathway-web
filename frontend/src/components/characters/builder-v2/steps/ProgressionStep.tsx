@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, Circle, Clock, Layers3 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Circle, Clock, Layers3, MoveRight } from "lucide-react";
 import type { StepProps } from "../types";
 import {
   buildProgressionSlots,
@@ -46,7 +46,7 @@ function statusLabel(status: ProgressionStatus): string {
   return "Needed";
 }
 
-export function ProgressionStep({ state }: StepProps) {
+export function ProgressionStep({ state, onJump }: StepProps) {
   const [filter, setFilter] = useState<ProgressionCategory | "all">("all");
   const slots = useMemo(() => buildProgressionSlots(state), [state]);
   const summary = useMemo(() => progressionSummary(slots), [slots]);
@@ -113,11 +113,16 @@ export function ProgressionStep({ state }: StepProps) {
             </div>
             <div className="space-y-2">
               {levelSlots.map((slot) => (
-                <article key={slot.id} className={`pb-progression-slot is-${slot.status}`}>
+                <button
+                  key={slot.id}
+                  type="button"
+                  onClick={() => onJump?.(slot.targetStep)}
+                  className={`pb-progression-slot is-${slot.status}`}
+                >
                   <div className="flex items-start gap-2">
                     <StatusIcon status={slot.status} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 text-left">
                         <h4 className="font-semibold text-foreground">{slot.label}</h4>
                         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                           {CATEGORY_LABELS[slot.category]}
@@ -126,11 +131,12 @@ export function ProgressionStep({ state }: StepProps) {
                           {statusLabel(slot.status)}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{slot.detail}</p>
-                      <p className="mt-1 text-[11px] text-[#8ea3ba]">{slot.requirement}</p>
+                      <p className="mt-1 text-left text-sm text-muted-foreground">{slot.detail}</p>
+                      <p className="mt-1 text-left text-[11px] text-[#8ea3ba]">{slot.requirement}</p>
                     </div>
+                    <MoveRight size={15} className="mt-0.5 shrink-0 text-[#b99762]" />
                   </div>
-                </article>
+                </button>
               ))}
             </div>
           </section>

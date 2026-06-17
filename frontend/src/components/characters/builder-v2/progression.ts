@@ -19,6 +19,7 @@ export type ProgressionSlot = {
   status: ProgressionStatus;
   detail: string;
   requirement: string;
+  targetStep: string;
 };
 
 const LEVELS = Array.from({ length: 20 }, (_, index) => index + 1);
@@ -95,6 +96,7 @@ function levelOneIdentitySlots(state: BuilderState): ProgressionSlot[] {
       status: statusForLevel(state, 1, !!state.ancestryName),
       detail: state.ancestryName || "Choose ancestry",
       requirement: "Required at level 1",
+      targetStep: "ancestry",
     },
     {
       id: "identity-heritage",
@@ -104,6 +106,7 @@ function levelOneIdentitySlots(state: BuilderState): ProgressionSlot[] {
       status: statusForLevel(state, 1, !!state.heritageName),
       detail: state.heritageName || "Choose heritage",
       requirement: "Required at level 1",
+      targetStep: "heritage",
     },
     {
       id: "identity-background",
@@ -113,6 +116,7 @@ function levelOneIdentitySlots(state: BuilderState): ProgressionSlot[] {
       status: statusForLevel(state, 1, !!state.backgroundName),
       detail: state.backgroundName || "Choose background",
       requirement: "Required at level 1",
+      targetStep: "background",
     },
     {
       id: "identity-class",
@@ -122,6 +126,7 @@ function levelOneIdentitySlots(state: BuilderState): ProgressionSlot[] {
       status: statusForLevel(state, 1, !!state.className),
       detail: state.className || "Choose class",
       requirement: "Required at level 1",
+      targetStep: "class",
     },
     {
       id: "skills-trained",
@@ -134,6 +139,7 @@ function levelOneIdentitySlots(state: BuilderState): ProgressionSlot[] {
           ? `${state.trainedSkills.length} skill choices recorded`
           : "Choose class and free trained skills",
       requirement: "Required at level 1",
+      targetStep: "skills",
     },
     {
       id: "equipment-starting",
@@ -146,6 +152,7 @@ function levelOneIdentitySlots(state: BuilderState): ProgressionSlot[] {
           ? `${state.selectedItems.length} starting items selected`
           : "Choose starting gear or starting currency",
       requirement: "Required before play",
+      targetStep: "equipment",
     },
   ];
 }
@@ -169,6 +176,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         status: statusForLevel(state, level, filled),
         detail: abilityBoostDetail(state, level),
         requirement: level === 1 ? "Starting boosts" : "PF2e boost interval",
+        targetStep: "abilities",
       });
     }
 
@@ -182,6 +190,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         status: statusForLevel(state, level, !!selected),
         detail: selected || "Choose an ancestry feat",
         requirement: "Levels 1, 5, 9, 13, and 17",
+        targetStep: "feats",
       });
     }
 
@@ -195,6 +204,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         status: statusForLevel(state, level, !!selected),
         detail: selected || "Choose an extra ancestry feat",
         requirement: "Ancestry Paragon variant",
+        targetStep: "feats",
       });
     }
 
@@ -208,6 +218,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         status: statusForLevel(state, level, !!selected),
         detail: selected || "Choose a class feat",
         requirement: "Level 1 and even levels",
+        targetStep: "feats",
       });
     }
 
@@ -221,6 +232,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         status: statusForLevel(state, level, !!selected),
         detail: selected || "Choose a skill feat",
         requirement: "Even levels",
+        targetStep: "feats",
       });
     }
 
@@ -234,6 +246,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         status: statusForLevel(state, level, !!selected),
         detail: selected || "Choose a general feat",
         requirement: "Levels 3, 7, 11, 15, and 19",
+        targetStep: "feats",
       });
     }
 
@@ -247,6 +260,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         status: statusForLevel(state, level, !!selected),
         detail: selected || "Choose a free archetype feat",
         requirement: "Free Archetype variant",
+        targetStep: "feats",
       });
     }
 
@@ -263,6 +277,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
             ? `${increases} expert-or-better skill entries recorded`
             : "Increase a trained skill",
         requirement: "Odd levels starting at 3",
+        targetStep: "skills",
       });
     }
 
@@ -279,6 +294,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
             ? "Choose cantrips and 1st-rank spells"
             : `Add newly available rank ${rank} spells`,
         requirement: "Spellcaster progression",
+        targetStep: "spells",
       });
     }
   }

@@ -271,6 +271,10 @@ export function BuilderShell() {
     update,
     onNext: () => setStepIndex((i) => Math.min(steps.length - 1, i + 1)),
     onBack: () => setStepIndex((i) => Math.max(0, i - 1)),
+    onJump: (stepKey) => {
+      const nextIndex = steps.findIndex((step) => step.key === stepKey);
+      if (nextIndex >= 0) setStepIndex(nextIndex);
+    },
     onCreated: async () => {
       if (draft) await deleteDraft.mutateAsync();
     },

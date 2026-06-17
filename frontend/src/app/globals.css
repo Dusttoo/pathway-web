@@ -632,9 +632,27 @@ a:hover {
 }
 
 .pb-progression-slot {
+  display: block;
+  width: 100%;
+  text-align: left;
   border: 1px solid rgba(216, 166, 70, 0.22);
   background: rgba(1, 5, 10, 0.48);
   padding: 0.7rem;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    transform 140ms ease;
+}
+
+.pb-progression-slot:hover {
+  border-color: rgba(216, 166, 70, 0.7);
+  background: rgba(10, 29, 50, 0.72);
+  transform: translateY(-1px);
+}
+
+.pb-progression-slot:focus-visible {
+  outline: 2px solid #d8a646;
+  outline-offset: 2px;
 }
 
 .pb-progression-slot.is-done {
