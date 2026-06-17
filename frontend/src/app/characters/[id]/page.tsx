@@ -951,6 +951,36 @@ function getEquipmentEntries(build: PBBuild): { name: string; qty: number }[] {
 
 // ── ContentModal — shared feat / item detail modal ────────────────────────────
 
+function equipmentToTuples(equipment: { name: string; qty: number }[]): [string, number][] {
+  return equipment
+    .map((item): [string, number] => [item.name.trim(), Math.max(1, Math.round(item.qty || 1))])
+    .filter(([name]) => name.length > 0);
+}
+
+function addEquipmentEntry(
+  equipment: { name: string; qty: number }[],
+  name: string,
+  qty = 1
+): [string, number][] {
+  const cleanName = name.trim();
+  if (!cleanName) return equipmentToTuples(equipment);
+  const next = [...equipment];
+  const existing = next.findIndex((item) => item.name.toLowerCase() === cleanName.toLowerCase());
+  if (existing >= 0) {
+    next[existing] = {
+      ...next[existing],
+      qty: next[existing].qty + Math.max(1, Math.round(qty)),
+    };
+  } else {
+    next.push({ name: cleanName, qty: Math.max(1, Math.round(qty)) });
+  }
+  return equipmentToTuples(next);
+}
+
+function removeEquipmentEntry(equipment: { name: string; qty: number }[], name: string): [string, number][] {
+  return equipmentToTuples(equipment.filter((item) => item.name !== name));
+}
+
 function ContentModal({
   type,
   name,
@@ -4012,10 +4042,53 @@ function SpellsTabPanel({ characterId }: { characterId: string }) {
   );
 }
 
-function GearTabPanel({ build, onSelect }: { build: PBBuild; onSelect: (name: string) => void }) {
+type GearPrimaryFilter = "gear" | "consumables" | "magic" | "all" | "custom";
+type GearSecondaryFilter = "adventuring" | "ammunition" | "misc" | "attachments";
+
+function matchesGearPrimary(item: DefenseItem, filter: GearPrimaryFilter): boolean {
+  if (filter === "all") return item.is_official !== false;
+  if (filter === "custom") return item.is_official === false;
+  const text = itemSearchText(item);
+  if (filter === "magic") return item.is_magical === true || text.includes("magical") || text.includes("magic");
+  if (filter === "consumables") {
+    return ["consumable", "alchemical"].includes(item.item_type ?? "") || text.includes("consumable");
+  }
+  return ["adventuring_gear", "held_item", "worn_item"].includes(item.item_type ?? "");
+}
+
+function matchesGearSecondary(item: DefenseItem, filter: GearSecondaryFilter): boolean {
+  const text = itemSearchText(item);
+  if (filter === "ammunition") return text.includes("ammunition") || text.includes("ammo");
+  if (filter === "attachments") return text.includes("attachment");
+  if (filter === "misc") return !matchesGearSecondary(item, "ammunition") && !matchesGearSecondary(item, "attachments");
+  return item.item_type === "adventuring_gear" || text.includes("adventuring gear");
+}
+
+function getMoneyValue(build: PBBuild, key: "pp" | "gp" | "sp" | "cp"): number {
+  return getNestedNumber(build, [["money", key], ["currency", key], ["extras", "money", key]]) ?? 0;
+}
+
+function GearTabPanel({
+  build,
+  onSelect,
+  onSaveEquipment,
+}: {
+  build: PBBuild;
+  onSelect: (name: string) => void;
+  onSaveEquipment: (equipment: [string, number][]) => void;
+}) {
   const { data: bag, isLoading, error } = useBag();
   const removeMutation = useRemoveItem();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [primaryFilter, setPrimaryFilter] = useState<GearPrimaryFilter>("gear");
+  const [secondaryFilter, setSecondaryFilter] = useState<GearSecondaryFilter>("adventuring");
+  const [gearSearch, setGearSearch] = useState("");
+  const [previewItem, setPreviewItem] = useState<DefenseItem | null>(null);
+  const { data: gearData, isLoading: isGearLoading } = useItems({
+    q: gearSearch || undefined,
+    limit: 100,
+  });
 
   const categories = (bag?.categories ?? {}) as BagCategories;
   const categoryNames = Object.keys(categories).sort();
@@ -4028,6 +4101,24 @@ function GearTabPanel({ build, onSelect }: { build: PBBuild; onSelect: (name: st
     (item) => !bagItemNames.has(item.name.trim().toLocaleLowerCase())
   );
   const hasInventory = categoryNames.length > 0 || sheetEquipment.length > 0;
+  const fullEquipment = getEquipmentEntries(build);
+  const gearItems = (gearData?.data ?? []).filter((item) => {
+    if (["weapon", "armor", "shield"].includes(item.item_type ?? "")) return false;
+    if (!matchesGearPrimary(item, primaryFilter)) return false;
+    if (primaryFilter === "gear" && !matchesGearSecondary(item, secondaryFilter)) return false;
+    return true;
+  });
+  const selectedPreview = previewItem ?? gearItems[0] ?? null;
+  const totalBulk = fullEquipment.reduce((sum, item) => sum + item.qty, 0);
+
+  function addGear(item: DefenseItem) {
+    onSaveEquipment(addEquipmentEntry(fullEquipment, item.name, 1));
+    setPreviewItem(item);
+  }
+
+  function removeSheetGear(name: string) {
+    onSaveEquipment(removeEquipmentEntry(fullEquipment, name));
+  }
 
   if (isLoading)
     return (
@@ -4038,27 +4129,144 @@ function GearTabPanel({ build, onSelect }: { build: PBBuild; onSelect: (name: st
   if (error) return <p className="text-sm text-destructive">{error.message}</p>;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {bag?.bag_name ?? (bag ? "Inventory" : "No inventory yet")}
-          {hasInventory
-            ? ` - ${categoryNames.length + (sheetEquipment.length ? 1 : 0)} sections`
-            : ""}
-        </p>
-        <button
-          type="button"
-          onClick={() => setShowAddForm((v) => !v)}
-          className="btn btn-primary btn-sm flex items-center gap-1.5"
-        >
-          <Plus size={14} />
-          Add Item
-        </button>
+    <div className="pb-tab-surface pb-gear-surface">
+      <div className="pb-gear-resourcebar">
+        {(["pp", "gp", "sp", "cp"] as const).map((coin) => (
+          <div key={coin} className={`pb-coin pb-coin-${coin}`}>
+            <span />
+            <div>
+              <p>{coin === "pp" ? "Platinum" : coin === "gp" ? "Gold" : coin === "sp" ? "Silver" : "Copper"}</p>
+              <strong>{getMoneyValue(build, coin)}</strong>
+            </div>
+          </div>
+        ))}
+        <div className="pb-gear-bulk">Total Bulk {totalBulk} | Encumbered (Enc: 8; Max: 13)</div>
+        <div className="pb-weapon-actions pb-gear-actions">
+          <button type="button" onClick={() => setShowPicker((v) => !v)} className="pb-outline-button">
+            Add Gear
+          </button>
+          <button type="button" className="pb-outline-button">
+            Add Container
+          </button>
+          <button type="button" className="pb-outline-button">
+            Add Formula
+          </button>
+          <button type="button" onClick={() => window.print()} className="pb-outline-button">
+            Print
+          </button>
+        </div>
       </div>
+
+      {showPicker && (
+        <section className="pb-gear-picker">
+          <div className="pb-defense-filter-row">
+            {(["gear", "consumables", "magic", "all", "custom"] as const).map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                className={primaryFilter === filter ? "active" : ""}
+                onClick={() => setPrimaryFilter(filter)}
+              >
+                {filter === "magic" ? "Magic Items" : customLabel(filter)}
+              </button>
+            ))}
+            <button type="button" className="pb-filter-icon" title="Filter">
+              <Inbox size={14} />
+            </button>
+          </div>
+          {primaryFilter === "gear" && (
+            <div className="pb-defense-filter-row pb-gear-subfilters">
+              {(["adventuring", "ammunition", "misc", "attachments"] as const).map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  className={secondaryFilter === filter ? "active" : ""}
+                  onClick={() => setSecondaryFilter(filter)}
+                >
+                  {filter === "attachments" ? "Weapon Attachments" : customLabel(filter)}
+                </button>
+              ))}
+              <input
+                value={gearSearch}
+                onChange={(event) => setGearSearch(event.target.value)}
+                placeholder="Search gear..."
+              />
+            </div>
+          )}
+          {primaryFilter !== "gear" && (
+            <div className="pb-defense-filter-row pb-gear-subfilters">
+              <input
+                value={gearSearch}
+                onChange={(event) => setGearSearch(event.target.value)}
+                placeholder="Search gear..."
+              />
+            </div>
+          )}
+
+          <div className="pb-defense-picker-grid">
+            <div className="pb-defense-picker-list">
+              {isGearLoading && <div className="pb-defense-picker-empty">Loading gear...</div>}
+              {!isGearLoading &&
+                gearItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`pb-defense-picker-option ${selectedPreview?.id === item.id ? "selected" : ""}`}
+                    onMouseEnter={() => setPreviewItem(item)}
+                    onFocus={() => setPreviewItem(item)}
+                    onClick={() => addGear(item)}
+                  >
+                    <span>{item.name}</span>
+                    <strong>{item.level ?? 0}</strong>
+                  </button>
+                ))}
+              {!isGearLoading && gearItems.length === 0 && (
+                <div className="pb-defense-picker-empty">No matching gear options.</div>
+              )}
+            </div>
+            <div className="pb-defense-picker-preview">
+              {selectedPreview ? (
+                <>
+                  <h4>{selectedPreview.name}</h4>
+                  <p>{itemSummary(selectedPreview)}</p>
+                  <span>{itemMetaLine(selectedPreview)}</span>
+                </>
+              ) : (
+                <>
+                  <h4>Gear</h4>
+                  <p>Select an item to preview details, or click one to add it to this character.</p>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="pb-gear-picker-footer">
+            <button type="button" className="pb-outline-button" onClick={() => setShowPicker(false)}>
+              Close
+            </button>
+            <button type="button" className="pb-outline-button" onClick={() => setPrimaryFilter("gear")}>
+              PRD
+            </button>
+            <button type="button" className="pb-outline-button" onClick={() => setPrimaryFilter("custom")}>
+              Custom
+            </button>
+          </div>
+        </section>
+      )}
 
       {showAddForm && (
         <AddItemForm existingCategories={categoryNames} onClose={() => setShowAddForm(false)} />
       )}
+
+      <div className="pb-gear-main-title">
+        <span>Main Inventory</span>
+        <button
+          type="button"
+          onClick={() => setShowAddForm((v) => !v)}
+          className="pb-mini-button"
+        >
+          Discord Bag Add
+        </button>
+      </div>
 
       {!bag && !showAddForm && (
         <div className="text-center py-8">
@@ -4081,7 +4289,7 @@ function GearTabPanel({ build, onSelect }: { build: PBBuild; onSelect: (name: st
       )}
 
       {hasInventory && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
           {categoryNames.map((cat) => (
             <div key={cat} className="bg-muted/30 rounded-lg p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
@@ -4131,6 +4339,14 @@ function GearTabPanel({ build, onSelect }: { build: PBBuild; onSelect: (name: st
                       className="flex-1 min-w-0 truncate text-left hover:text-primary transition-colors"
                     >
                       {item.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeSheetGear(item.name)}
+                      className="ml-2 text-muted-foreground hover:text-destructive"
+                      title="Remove from sheet equipment"
+                    >
+                      <Trash2 size={13} />
                     </button>
                     {item.qty > 1 && (
                       <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground shrink-0 ml-2">
@@ -4880,7 +5096,13 @@ export default function CharacterDetailPage() {
             {tab === "spells" && <SpellsTabPanel characterId={characterId} />}
             {tab === "gear" &&
               (build ? (
-                <GearTabPanel build={build} onSelect={(name) => setModal({ type: "item", name })} />
+                <GearTabPanel
+                  build={build}
+                  onSelect={(name) => setModal({ type: "item", name })}
+                  onSaveEquipment={(equipment) =>
+                    updateCharacter.mutate({ build_patch: { equipment } })
+                  }
+                />
               ) : (
                 <p className="text-sm text-muted-foreground italic">
                   No Pathbuilder data available.

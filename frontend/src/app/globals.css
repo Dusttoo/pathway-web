@@ -1092,6 +1092,122 @@ a:hover {
   font-size: 0.85rem;
 }
 
+.pb-gear-surface {
+  min-height: 100%;
+}
+
+.pb-gear-resourcebar {
+  border-bottom: 1px solid #c45120;
+  background: #1c252f;
+  padding: 0.55rem 1rem 0.75rem;
+  text-align: center;
+}
+
+.pb-coin {
+  display: inline-flex;
+  min-width: 6.7rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #315173;
+  border-radius: 0.25rem;
+  background: rgba(7, 21, 37, 0.72);
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+}
+
+.pb-coin span {
+  display: block;
+  height: 1.4rem;
+  width: 1.4rem;
+  border-radius: 999px;
+  box-shadow: inset 0.12rem 0.12rem 0.18rem rgba(255, 255, 255, 0.35), inset -0.12rem -0.12rem 0.2rem rgba(0, 0, 0, 0.45);
+}
+
+.pb-coin p {
+  color: #b9ad9a;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.pb-coin strong {
+  color: #ffffff;
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+.pb-coin-pp span,
+.pb-coin-sp span {
+  background: #c8c7c2;
+}
+
+.pb-coin-gp span {
+  background: #c5ad40;
+}
+
+.pb-coin-cp span {
+  background: #a9794c;
+}
+
+.pb-gear-bulk {
+  margin-top: 0.3rem;
+  color: #d8c49b;
+  font-size: 0.8rem;
+}
+
+.pb-gear-actions {
+  padding-top: 0.4rem;
+}
+
+.pb-gear-actions .pb-outline-button {
+  min-width: 8.5rem;
+  padding-block: 0.32rem;
+}
+
+.pb-gear-picker {
+  border-bottom: 1px solid #c45120;
+  background: #111820;
+}
+
+.pb-filter-icon {
+  margin-left: auto;
+  border: 1px solid #d8c49b !important;
+  border-radius: 0.3rem;
+  padding: 0.25rem;
+  color: #ffffff !important;
+}
+
+.pb-gear-subfilters input {
+  margin-left: auto;
+  min-width: min(24rem, 100%);
+  border: 1px solid #315173;
+  background: #06101c;
+  color: #f3e5c1;
+  padding: 0.45rem 0.65rem;
+}
+
+.pb-gear-picker-footer {
+  display: flex;
+  gap: 0.45rem;
+  border-top: 1px solid rgba(216, 166, 70, 0.24);
+  padding: 0.55rem;
+}
+
+.pb-gear-picker-footer .pb-outline-button {
+  min-width: 5rem;
+  padding-block: 0.35rem;
+}
+
+.pb-gear-main-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(216, 166, 70, 0.22);
+  background: #1d2631;
+  padding: 0.7rem 1rem;
+  color: #ff6b2a;
+  font-weight: 800;
+}
+
 .pb-defense-card-actions {
   display: flex;
   flex-wrap: wrap;
