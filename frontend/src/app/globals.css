@@ -598,6 +598,61 @@ a:hover {
   color: #05090e;
 }
 
+.pb-progression-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1rem;
+}
+
+.pb-progression-level {
+  border: 1px solid rgba(216, 166, 70, 0.38);
+  background: rgba(7, 21, 37, 0.72);
+  padding: 0.75rem;
+}
+
+.pb-progression-level-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(216, 166, 70, 0.28);
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.45rem;
+  color: #d8a646;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pb-progression-level-head span {
+  font-size: 0.72rem;
+}
+
+.pb-progression-level-head strong {
+  color: #f3e5c1;
+  font-size: 1.15rem;
+}
+
+.pb-progression-slot {
+  border: 1px solid rgba(216, 166, 70, 0.22);
+  background: rgba(1, 5, 10, 0.48);
+  padding: 0.7rem;
+}
+
+.pb-progression-slot.is-done {
+  border-color: rgba(52, 211, 153, 0.34);
+}
+
+.pb-progression-slot.is-partial {
+  border-color: rgba(251, 191, 36, 0.42);
+}
+
+.pb-progression-slot.is-todo {
+  border-color: rgba(255, 106, 42, 0.48);
+}
+
+.pb-progression-slot.is-future {
+  opacity: 0.72;
+}
+
 .pb-import-shell {
   height: calc(100vh - 66px);
   overflow-y: auto;

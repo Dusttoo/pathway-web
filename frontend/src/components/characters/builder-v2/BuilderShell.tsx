@@ -36,6 +36,7 @@ import { BackgroundStep } from "./steps/BackgroundStep";
 import { AbilitiesStep } from "./steps/AbilitiesStep";
 import { SkillsStep } from "./steps/SkillsStep";
 import { FeatsStep } from "./steps/FeatsStep";
+import { ProgressionStep } from "./steps/ProgressionStep";
 import { DescriptionStep } from "./steps/DescriptionStep";
 import { EquipmentStep } from "./steps/EquipmentStep";
 import { SpellsStep } from "./steps/SpellsStep";
@@ -54,6 +55,7 @@ const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepPr
   abilities: AbilitiesStep,
   skills: SkillsStep,
   feats: FeatsStep,
+  progression: ProgressionStep,
   description: DescriptionStep,
   equipment: EquipmentStep,
   spells: SpellsStep,
