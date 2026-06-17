@@ -116,7 +116,7 @@ export function ProgressionStep({ state, onJump }: StepProps) {
                 <button
                   key={slot.id}
                   type="button"
-                  onClick={() => onJump?.(slot.targetStep)}
+                  onClick={() => onJump?.(slot.targetStep, slot.targetFocus)}
                   className={`pb-progression-slot is-${slot.status}`}
                 >
                   <div className="flex items-start gap-2">

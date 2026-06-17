@@ -1,4 +1,4 @@
-import type { BuilderState, FeatSlot } from "./types";
+import type { BuilderFocus, BuilderState, FeatSlot } from "./types";
 
 export type ProgressionCategory =
   | "identity"
@@ -20,6 +20,7 @@ export type ProgressionSlot = {
   detail: string;
   requirement: string;
   targetStep: string;
+  targetFocus?: BuilderFocus;
 };
 
 const LEVELS = Array.from({ length: 20 }, (_, index) => index + 1);
@@ -191,6 +192,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         detail: selected || "Choose an ancestry feat",
         requirement: "Levels 1, 5, 9, 13, and 17",
         targetStep: "feats",
+        targetFocus: { featSlotId: `ancestry-${level}` },
       });
     }
 
@@ -205,6 +207,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         detail: selected || "Choose an extra ancestry feat",
         requirement: "Ancestry Paragon variant",
         targetStep: "feats",
+        targetFocus: { featSlotId: `ancestry-paragon-${level}` },
       });
     }
 
@@ -219,6 +222,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         detail: selected || "Choose a class feat",
         requirement: "Level 1 and even levels",
         targetStep: "feats",
+        targetFocus: { featSlotId: `class-${level}` },
       });
     }
 
@@ -233,6 +237,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         detail: selected || "Choose a skill feat",
         requirement: "Even levels",
         targetStep: "feats",
+        targetFocus: { featSlotId: `skill-${level}` },
       });
     }
 
@@ -247,6 +252,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         detail: selected || "Choose a general feat",
         requirement: "Levels 3, 7, 11, 15, and 19",
         targetStep: "feats",
+        targetFocus: { featSlotId: `general-${level}` },
       });
     }
 
@@ -261,6 +267,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
         detail: selected || "Choose a free archetype feat",
         requirement: "Free Archetype variant",
         targetStep: "feats",
+        targetFocus: { featSlotId: `free-archetype-${level}` },
       });
     }
 
@@ -295,6 +302,7 @@ export function buildProgressionSlots(state: BuilderState): ProgressionSlot[] {
             : `Add newly available rank ${rank} spells`,
         requirement: "Spellcaster progression",
         targetStep: "spells",
+        targetFocus: { spellRank: level === 1 ? 0 : rank },
       });
     }
   }

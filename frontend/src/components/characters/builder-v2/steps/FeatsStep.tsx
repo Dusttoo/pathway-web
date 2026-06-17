@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -88,7 +88,7 @@ function levelRange(maxLevel: number): number[] {
 function featSlotsForLevel(state: BuilderState): SlotInstance[] {
   const slots: SlotInstance[] = [];
 
-  for (const level of levelRange(state.level)) {
+  for (const level of levelRange(20)) {
     if ([1, 5, 9, 13, 17].includes(level)) {
       slots.push({
         id: `ancestry-${level}`,
@@ -295,11 +295,19 @@ function selectedForSlot(state: BuilderState, slot: SlotInstance) {
   );
 }
 
-export function FeatsStep({ state, update }: StepProps) {
+export function FeatsStep({ state, update, focus }: StepProps) {
   const slots = useMemo(() => featSlotsForLevel(state), [state]);
   const [activeSlotId, setActiveSlotId] = useState(slots[0]?.id ?? "");
   const [searchQ, setSearchQ] = useState("");
   const activeSlot = slots.find((slot) => slot.id === activeSlotId) ?? slots[0];
+
+  useEffect(() => {
+    if (!focus?.featSlotId) return;
+    if (slots.some((slot) => slot.id === focus.featSlotId)) {
+      setActiveSlotId(focus.featSlotId);
+      setSearchQ("");
+    }
+  }, [focus?.featSlotId, slots]);
 
   const selectedCount = slots.filter((slot) => selectedForSlot(state, slot)).length;
   const requiredCount = slots.length;
@@ -363,7 +371,7 @@ export function FeatsStep({ state, update }: StepProps) {
           <div>
             <h3 className="text-lg font-semibold">Feat Slots</h3>
             <p className="text-sm text-muted-foreground">
-              Choose feats for each slot your level and variant rules grant.
+              Plan feats for every slot from level 1 through 20.
             </p>
           </div>
           <div className="rounded-md border border-border px-3 py-2 text-sm">

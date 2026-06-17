@@ -18,7 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { visibleSteps, type StepDef } from "./steps";
-import { DEFAULT_STATE, type AbilityKey, type BuilderState, type StepProps } from "./types";
+import { DEFAULT_STATE, type AbilityKey, type BuilderFocus, type BuilderState, type StepProps } from "./types";
 import {
   useCharacterBuilderDraft,
   useDeleteCharacterBuilderDraft,
@@ -201,6 +201,7 @@ export function BuilderShell() {
   const [state, setState] = useState<BuilderState>(DEFAULT_STATE);
   const [stepIndex, setStepIndex] = useState(0);
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
+  const [focus, setFocus] = useState<BuilderFocus | null>(null);
 
   const draftQuery = useCharacterBuilderDraft<BuilderState>();
   const saveDraft = useSaveCharacterBuilderDraft<BuilderState>();
@@ -243,6 +244,7 @@ export function BuilderShell() {
   function update(patch: Partial<BuilderState>) {
     setState((prev) => ({ ...prev, ...patch }));
     if (draftMessage) setDraftMessage(null);
+    if (focus) setFocus(null);
   }
 
   async function handleSaveDraft() {
@@ -271,10 +273,14 @@ export function BuilderShell() {
     update,
     onNext: () => setStepIndex((i) => Math.min(steps.length - 1, i + 1)),
     onBack: () => setStepIndex((i) => Math.max(0, i - 1)),
-    onJump: (stepKey) => {
+    onJump: (stepKey, nextFocus) => {
       const nextIndex = steps.findIndex((step) => step.key === stepKey);
-      if (nextIndex >= 0) setStepIndex(nextIndex);
+      if (nextIndex >= 0) {
+        setFocus(nextFocus ?? null);
+        setStepIndex(nextIndex);
+      }
     },
+    focus,
     onCreated: async () => {
       if (draft) await deleteDraft.mutateAsync();
     },

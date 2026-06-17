@@ -74,6 +74,11 @@ export type AbilityBoostChoices = {
   free: AbilityKey[];
 };
 
+export type BuilderFocus = {
+  featSlotId?: string;
+  spellRank?: number;
+};
+
 // PF2e variant rules — toggled per character at creation. Mirrors the
 // shape of the `characters.variant_rules` jsonb column (migration
 // 20260514000000_character_variant_rules.sql).
@@ -281,6 +286,7 @@ export type StepProps = {
   update: (patch: Partial<BuilderState>) => void;
   onNext: () => void;
   onBack: () => void;
-  onJump?: (stepKey: string) => void;
+  onJump?: (stepKey: string, focus?: BuilderFocus) => void;
+  focus?: BuilderFocus | null;
   onCreated?: () => Promise<void> | void;
 };

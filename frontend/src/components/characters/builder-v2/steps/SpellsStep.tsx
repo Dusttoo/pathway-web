@@ -118,7 +118,7 @@ function classMetadataValue(classDetail: unknown, key: string): unknown {
   return (metadata as Record<string, unknown>)[key];
 }
 
-export function SpellsStep({ state, update }: StepProps) {
+export function SpellsStep({ state, update, focus }: StepProps) {
   const { data: classDetail } = useClassDetail(state.classId || null);
 
   const classKey = state.className.toLowerCase();
@@ -144,6 +144,11 @@ export function SpellsStep({ state, update }: StepProps) {
     setTradition(defaultTradition);
     setSpellSource(defaultSource);
   }, [defaultTradition, defaultSource]);
+
+  useEffect(() => {
+    if (typeof focus?.spellRank !== "number") return;
+    setRank(Math.max(0, Math.min(maxRank, focus.spellRank)));
+  }, [focus?.spellRank, maxRank]);
 
   const { data, isLoading } = useSpells({
     q: searchQ || undefined,
