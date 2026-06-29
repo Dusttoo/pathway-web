@@ -4,7 +4,7 @@
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA extensions;
 
-CREATE TABLE public.import_runs (
+CREATE TABLE IF NOT EXISTS public.import_runs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   source TEXT NOT NULL DEFAULT 'nethys'
     CHECK (source IN ('nethys', 'gamedata', 'manual')),
@@ -30,11 +30,17 @@ CREATE INDEX import_runs_status_created_idx
 CREATE INDEX import_runs_source_created_idx
   ON public.import_runs (source, created_at DESC);
 
+DROP TRIGGER IF EXISTS import_runs_updated_at
+  ON public.import_runs;
+
 CREATE TRIGGER import_runs_updated_at
   BEFORE UPDATE ON public.import_runs
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 ALTER TABLE public.import_runs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can read import runs"
+  ON public.import_runs;
 
 CREATE POLICY "Admins can read import runs"
   ON public.import_runs
@@ -47,6 +53,9 @@ CREATE POLICY "Admins can read import runs"
         AND u.is_admin = true
     )
   );
+
+DROP POLICY IF EXISTS "Admins can create import runs"
+  ON public.import_runs;
 
 CREATE POLICY "Admins can create import runs"
   ON public.import_runs
@@ -61,6 +70,9 @@ CREATE POLICY "Admins can create import runs"
     AND (requested_by_user_id IS NULL OR requested_by_user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "Service role manages import runs"
+  ON public.import_runs;
+
 CREATE POLICY "Service role manages import runs"
   ON public.import_runs
   FOR ALL
@@ -68,7 +80,7 @@ CREATE POLICY "Service role manages import runs"
   USING (true)
   WITH CHECK (true);
 
-CREATE TABLE public.import_run_events (
+CREATE TABLE IF NOT EXISTS public.import_run_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   import_run_id UUID NOT NULL REFERENCES public.import_runs(id) ON DELETE CASCADE,
   level TEXT NOT NULL DEFAULT 'info'
@@ -84,6 +96,9 @@ CREATE INDEX import_run_events_run_created_idx
 
 ALTER TABLE public.import_run_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can read import run events"
+  ON public.import_run_events;
+
 CREATE POLICY "Admins can read import run events"
   ON public.import_run_events
   FOR SELECT
@@ -95,6 +110,9 @@ CREATE POLICY "Admins can read import run events"
         AND u.is_admin = true
     )
   );
+
+DROP POLICY IF EXISTS "Service role manages import run events"
+  ON public.import_run_events;
 
 CREATE POLICY "Service role manages import run events"
   ON public.import_run_events
@@ -127,5 +145,5 @@ CREATE INDEX IF NOT EXISTS ancestries_name_trgm_idx
 CREATE INDEX IF NOT EXISTS backgrounds_name_trgm_idx
   ON public.backgrounds USING gin (name extensions.gin_trgm_ops);
 
-CREATE INDEX IF NOT EXISTS classes_name_trgm_idx
-  ON public.classes USING gin (name extensions.gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS character_classes_name_trgm_idx
+  ON public.character_classes USING gin (name extensions.gin_trgm_ops);

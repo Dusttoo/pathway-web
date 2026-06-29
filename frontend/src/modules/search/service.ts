@@ -61,7 +61,7 @@ const DIRECT_SEARCHES = [
     metadata: "background_metadata",
   },
   {
-    table: "classes",
+    table: "character_classes",
     kind: "class",
     category: "Classes",
     href: (row: Row) => `/library/classes/${str(row.id)}`,
