@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { NextResponse } from "next/server";
 
 // Valid category values — acts as an allowlist so callers can't enumerate
@@ -125,13 +126,13 @@ export async function GET(request: Request) {
 
   if (q) query = query.ilike("name", `%${q}%`);
 
-  const { data, error } = await query;
+  const { data, error } = await fetchAllRows<GamedataRow>(query);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const deduped = dedupeGamedata((data ?? []) as GamedataRow[]);
+  const deduped = dedupeGamedata(data as GamedataRow[]);
   const paged = deduped.slice(offset, offset + limit);
 
   return NextResponse.json({ data: paged, total: deduped.length, page, limit, category });

@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { fetchVirtualHomebrew, virtualAncestry } from "@/lib/homebrew/virtual-content";
 import { NextResponse } from "next/server";
 
@@ -81,7 +82,7 @@ export async function GET(request: Request) {
 
   if (q) query = query.ilike("name", `%${q}%`);
 
-  const { data, error } = await query;
+  const { data, error } = await fetchAllRows<AncestryRow>(query);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -92,7 +93,7 @@ export async function GET(request: Request) {
     .map((row) => virtualAncestry(row) as AncestryRow)
     .filter((row) => !q || row.name.toLowerCase().includes(q.toLowerCase()));
 
-  const deduped = dedupeAncestries([...((data ?? []) as AncestryRow[]), ...virtualAncestries]);
+  const deduped = dedupeAncestries([...(data as AncestryRow[]), ...virtualAncestries]);
   const paged = deduped.slice(offset, offset + limit);
 
   return NextResponse.json({ data: paged, total: deduped.length, page, limit });

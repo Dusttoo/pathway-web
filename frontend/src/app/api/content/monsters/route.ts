@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { NextResponse } from "next/server";
 
 type MonsterRow = {
@@ -91,13 +92,13 @@ export async function GET(request: Request) {
   if (isCompanion === "true") query = query.eq("is_companion", true);
   if (isCompanion === "false") query = query.eq("is_companion", false);
 
-  const { data, error } = await query;
+  const { data, error } = await fetchAllRows<MonsterRow>(query);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const deduped = dedupeMonsters((data ?? []) as MonsterRow[]);
+  const deduped = dedupeMonsters(data as MonsterRow[]);
   const paged = deduped.slice(offset, offset + limit);
 
   return NextResponse.json({ data: paged, total: deduped.length, page, limit });

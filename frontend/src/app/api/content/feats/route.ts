@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { NextResponse } from "next/server";
 
 type FeatRow = {
@@ -341,12 +342,14 @@ export async function GET(request: Request) {
   if (traits.length > 0) query = query.contains("traits", traits);
 
   const [{ data, error }, { data: homebrewData, error: homebrewError }] = await Promise.all([
-    query,
-    supabase
-      .from("homebrew_entries")
-      .select("*")
-      .in("type", ["item", "feat"])
-      .order("name", { ascending: true }),
+    fetchAllRows<FeatRow>(query),
+    fetchAllRows<HomebrewRow>(
+      supabase
+        .from("homebrew_entries")
+        .select("*")
+        .in("type", ["item", "feat"])
+        .order("name", { ascending: true })
+    ),
   ]);
 
   if (error) {

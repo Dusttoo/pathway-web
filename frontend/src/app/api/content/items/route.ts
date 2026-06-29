@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { dedupeItems, type DedupeItemRow } from "@/lib/items/dedupe";
 import { NextResponse } from "next/server";
 
@@ -54,10 +55,10 @@ export async function GET(request: Request) {
 
   if (level) query = query.eq("level", parseInt(level));
 
-  const { data, error } = await query;
+  const { data, error } = await fetchAllRows<ItemRow>(query);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const deduped = dedupeItems((data ?? []) as ItemRow[])
+  const deduped = dedupeItems(data as ItemRow[])
     .filter((item) => !itemType || item.item_type === itemType)
     .sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.name.localeCompare(b.name));
   const paged = deduped.slice(offset, offset + limit);

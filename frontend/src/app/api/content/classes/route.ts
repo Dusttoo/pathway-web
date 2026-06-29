@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { fetchVirtualHomebrew, virtualClass } from "@/lib/homebrew/virtual-content";
 import { NextResponse } from "next/server";
 
@@ -107,7 +108,7 @@ export async function GET(request: Request) {
 
   if (q) query = query.ilike("name", `%${q}%`);
 
-  const { data, error } = await query;
+  const { data, error } = await fetchAllRows<ClassRow>(query);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -119,7 +120,7 @@ export async function GET(request: Request) {
     .filter((row) => !q || row.name.toLowerCase().includes(q.toLowerCase()));
 
   const deduped = dedupeClasses(
-    normalizeCasterFlags([...((data ?? []) as ClassRow[]), ...virtualClasses])
+    normalizeCasterFlags([...(data as ClassRow[]), ...virtualClasses])
   );
   const paged = deduped.slice(offset, offset + limit);
 
