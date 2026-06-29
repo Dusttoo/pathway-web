@@ -19,7 +19,7 @@ export type StepGuide = {
 
 export const STEP_GUIDES: Partial<Record<StepKey, StepGuide>> = {
   start: {
-    headline: "Let's give your hero a name and decide how experienced they are.",
+    headline: "Let's give your character a name and decide how experienced they are.",
     points: [
       "Only the name is required — everything else on this screen is optional.",
       "New players almost always start at level 1. If your Game Master hasn't said otherwise, leave it there.",
@@ -52,7 +52,7 @@ export const STEP_GUIDES: Partial<Record<StepKey, StepGuide>> = {
     ],
   },
   class: {
-    headline: "This is the big one: your class decides how your hero adventures.",
+    headline: "This is the big one: your class decides how your character adventures.",
     points: [
       "Fighter (tough melee), Cleric (heal + fight), Rogue (sneaky skills), and Wizard (spells) are the friendliest starting classes.",
       "Each class has a key ability — the score it leans on most. We'll make sure it's your highest later.",
@@ -75,7 +75,7 @@ export const STEP_GUIDES: Partial<Record<StepKey, StepGuide>> = {
     ],
   },
   background: {
-    headline: "What did your hero do before adventuring?",
+    headline: "What did your character do before adventuring?",
     points: [
       "Your background gives you a couple of trained skills and an ability boost — a free head start.",
       "Pick something that fits your story; the mechanical differences are small.",
@@ -88,19 +88,19 @@ export const STEP_GUIDES: Partial<Record<StepKey, StepGuide>> = {
       "Instead of typing numbers, you choose boosts (+2 each). We do the math for you.",
       "Your class's key ability should be one of your picks — it's highlighted for you.",
     ],
-    reassure: "Don't overthink it: boost your key ability, your Constitution for health, and whatever else fits your hero.",
+    reassure: "Don't overthink it: boost your key ability, your Constitution for health, and whatever else fits your character.",
     terms: ["abilityScore", "modifier", "boost", "flaw", "keyAbility"],
   },
   skills: {
     headline: "Choose what your character is trained in.",
     points: [
-      "Trained skills are the things your hero is reliably good at, like Athletics or Diplomacy.",
+      "Trained skills are the things your character is reliably good at, like Athletics or Diplomacy.",
       "Smarter characters get more picks. Spend them on skills that match your class and concept.",
     ],
     terms: ["skill", "proficiency"],
   },
   feats: {
-    headline: "Feats are the special tricks that make your hero unique.",
+    headline: "Feats are the special tricks that make your character unique.",
     points: [
       "At level 1 you'll usually pick one ancestry feat and one class feat.",
       "Each feat shows what it does — skim a few and grab one that sounds exciting.",
@@ -109,14 +109,14 @@ export const STEP_GUIDES: Partial<Record<StepKey, StepGuide>> = {
     terms: ["feat"],
   },
   progression: {
-    headline: "A preview of what your hero gains at every level from 1 to 20.",
+    headline: "A preview of what your character gains at every level from 1 to 20.",
     points: [
       "This is just a roadmap — you don't have to fill it all in now.",
       "It's handy later for planning, but feel free to skip ahead for your first character.",
     ],
   },
   description: {
-    headline: "The fun part — describe who your hero actually is.",
+    headline: "The fun part — describe who your character actually is.",
     points: [
       "Appearance, personality, backstory… all optional, all flavor.",
       "Even a sentence or two helps your character come alive at the table.",
@@ -126,7 +126,7 @@ export const STEP_GUIDES: Partial<Record<StepKey, StepGuide>> = {
     headline: "Gear up! Choose your starting weapons, armor, and supplies.",
     points: [
       "You start with a small budget of gold. Buy armor and a weapon first, then adventuring basics.",
-      "Not sure? A weapon, some armor, and a healing item will get any hero through their first adventure.",
+      "Not sure? A weapon, some armor, and a healing item will get any character through their first adventure.",
     ],
   },
   spells: {
@@ -138,7 +138,7 @@ export const STEP_GUIDES: Partial<Record<StepKey, StepGuide>> = {
     terms: ["spell", "cantrip", "tradition"],
   },
   review: {
-    headline: "Last look! Check everything over, then bring your hero to life.",
+    headline: "Last look! Check everything over, then bring your character to life.",
     points: [
       "Anything missing is flagged here — click to jump back and fix it.",
       "When you're happy, hit create. You can still edit your character afterward.",
