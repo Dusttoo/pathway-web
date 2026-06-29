@@ -146,7 +146,7 @@ export function BeginnerLayout({
           onClick={() => setSummaryOpen((open) => !open)}
           className="flex w-full items-center justify-between px-4 py-3 text-left"
         >
-          <span className="text-sm font-semibold text-white">Your hero so far</span>
+          <span className="text-sm font-semibold text-white">Your character so far</span>
           <span className="flex items-center gap-3 text-xs text-[#b99762]">
             <span className="flex items-center gap-1">
               <Shield size={12} /> AC {summary.ac}
@@ -162,7 +162,7 @@ export function BeginnerLayout({
         </button>
         {summaryOpen && (
           <div className="grid grid-cols-2 gap-2 border-t border-[#263545] px-4 py-3 text-sm sm:grid-cols-3">
-            <SummaryItem label="Name" value={summary.name || "Unnamed hero"} />
+            <SummaryItem label="Name" value={summary.name || "Unnamed character"} />
             <SummaryItem label="Level" value={String(summary.level)} />
             <SummaryItem label="Ancestry" value={summary.ancestry || "—"} />
             <SummaryItem label="Class" value={summary.className || "—"} />
