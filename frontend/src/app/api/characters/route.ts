@@ -493,6 +493,32 @@ async function resolveUser() {
   return dbUser ? { authUser, appUserId: dbUser.id, service } : null;
 }
 
+// char_key is unique per user, so two characters with the same name would
+// otherwise collide and fail the insert with an opaque error. Slugify the
+// name and, if that slug is already taken by this user, append -2, -3, …
+async function uniqueCharKey(
+  service: ReturnType<typeof createServiceClient>,
+  userId: string,
+  name: string
+): Promise<string> {
+  const base =
+    name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "character";
+
+  const { data } = await service.from("characters").select("char_key").eq("user_id", userId);
+  const taken = new Set((data ?? []).map((row) => row.char_key));
+
+  if (!taken.has(base)) return base;
+  for (let i = 2; i < 1000; i++) {
+    const candidate = `${base}-${i}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${base}-${Date.now()}`;
+}
+
 // ── GET — list characters ─────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
@@ -633,12 +659,13 @@ export async function POST(request: Request) {
     // variant_rules + art columns may not be in the generated types yet
     // (migrations 20260512100000 / 20260514000000). Cast at the insert site
     // and retry without them if Postgres reports undefined_column (42703).
+    const charKey = await uniqueCharKey(ctx.service, ctx.appUserId, nb.name);
     const baseRow: TablesInsert<"characters"> = {
       user_id: ctx.appUserId,
       discord_guild_id: discord_guild_id ?? null,
       source: "native",
       name: nb.name,
-      char_key: nb.name.toLowerCase().replace(/\s+/g, "-"),
+      char_key: charKey,
       ancestry_name: nb.ancestry,
       heritage_name: nb.heritage || null,
       class_name: nb.class,
@@ -689,7 +716,7 @@ export async function POST(request: Request) {
       discord_guild_id: discord_guild_id ?? null,
       source: "pathbuilder",
       name: build.name,
-      char_key: build.name.toLowerCase().replace(/\s+/g, "-"),
+      char_key: await uniqueCharKey(ctx.service, ctx.appUserId, build.name),
       ancestry_name: build.ancestry ?? null,
       heritage_name: build.heritage ?? null,
       class_name: build.class ?? null,

@@ -25,7 +25,7 @@ export type ProgressionSlot = {
 
 const LEVELS = Array.from({ length: 20 }, (_, index) => index + 1);
 const ANCESTRY_FEAT_LEVELS = new Set([1, 5, 9, 13, 17]);
-const ANCESTRY_PARAGON_LEVELS = new Set([1, 3, 7, 11, 15]);
+const ANCESTRY_PARAGON_LEVELS = new Set([1, 3, 7, 11, 15, 19]);
 const GENERAL_FEAT_LEVELS = new Set([3, 7, 11, 15, 19]);
 const SKILL_FEAT_LEVELS = new Set([2, 4, 6, 8, 10, 12, 14, 16, 18, 20]);
 const SKILL_INCREASE_LEVELS = new Set([3, 5, 7, 9, 11, 13, 15, 17, 19]);

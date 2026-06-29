@@ -1,10 +1,21 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+// Only allow same-origin, relative redirect targets. A raw `next` value like
+// "//evil.com", "https://evil.com", or "@evil.com" would otherwise let
+// `${origin}${next}` resolve to another site (open redirect). Require a single
+// leading slash and reject protocol-relative ("//") or backslash tricks.
+function safeNext(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) {
+    return "/dashboard";
+  }
+  return raw;
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = safeNext(searchParams.get("next"));
 
   // Supabase redirects here with ?error= params when the OAuth exchange fails
   const supabaseError = searchParams.get("error_description") ?? searchParams.get("error");
