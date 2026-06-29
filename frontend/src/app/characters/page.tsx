@@ -2170,6 +2170,12 @@ function MiniCharacterSheet({
                 >
                   Open
                 </Link>
+                <Link
+                  href={`/characters/${character.id}/table`}
+                  className="btn-outline text-sm"
+                >
+                  Table
+                </Link>
               </div>
             </div>
 
@@ -2563,6 +2569,12 @@ function CharacterCard({
               className="btn-primary flex-1 text-center text-sm text-slate-950"
             >
               View Sheet
+            </Link>
+            <Link
+              href={`/characters/${character.id}/table`}
+              className="btn-outline flex-1 text-center text-sm"
+            >
+              Table
             </Link>
             <button
               type="button"

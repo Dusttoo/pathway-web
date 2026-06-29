@@ -15,7 +15,7 @@ import { useState } from "react";
 
 type DiceType = 4 | 6 | 8 | 10 | 12 | 20 | 100;
 
-interface DiceRoll {
+export interface DiceRoll {
   id: string;
   timestamp: Date;
   dice: string; // e.g., "2d6+3"
