@@ -3,7 +3,12 @@
 import { MainLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { HealthBar } from "@/components/characters/HealthBar";
-import { useCharacterLive, useShareCharacter, useSyncCharacter } from "@/lib/hooks/use-characters";
+import {
+  useCharacterBreakdowns,
+  useCharacterLive,
+  useShareCharacter,
+  useSyncCharacter,
+} from "@/lib/hooks/use-characters";
 import {
   useCharacterDowntime,
   downtimeKeys,
@@ -62,6 +67,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Tables } from "@/lib/types/database.types";
+import type { StatBreakdown } from "@/modules/characters/calc/stat-breakdowns";
 
 // ── Pathbuilder build shape ───────────────────────────────────────────────────
 
@@ -1562,6 +1568,62 @@ function MiniDetail({ label, value }: { label: string; value: string | number })
     <div className="rounded-lg bg-muted/40 px-3 py-2">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-0.5 truncate text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function StatBreakdownPanel({ breakdowns }: { breakdowns: StatBreakdown[] }) {
+  const visible = breakdowns.filter((breakdown) => breakdown.total !== null);
+  if (!visible.length) return null;
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/25 p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Why These Numbers?
+        </h3>
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          Phase 1
+        </span>
+      </div>
+      <div className="grid gap-2 md:grid-cols-2">
+        {visible.map((breakdown) => (
+          <details key={breakdown.key} className="rounded-md bg-background/40 px-3 py-2">
+            <summary className="cursor-pointer list-none">
+              <span className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold">{breakdown.label}</span>
+                <span className="font-mono text-sm font-bold">
+                  {breakdown.total}
+                  {breakdown.override ? "*" : ""}
+                </span>
+              </span>
+              <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                {breakdown.formula}
+              </span>
+            </summary>
+            <div className="mt-2 space-y-1 border-t border-border pt-2">
+              {breakdown.parts.map((part) => (
+                <div
+                  key={`${breakdown.key}-${part.label}`}
+                  className="flex items-start justify-between gap-3 text-xs"
+                >
+                  <span className="text-muted-foreground">
+                    {part.label}
+                    {part.source ? ` (${part.source})` : ""}
+                  </span>
+                  <span className="font-mono font-semibold">{signedTotal(part.value)}</span>
+                </div>
+              ))}
+              {breakdown.override && (
+                <div className="rounded bg-primary/10 px-2 py-1 text-xs text-primary">
+                  Manual override to {breakdown.override.value}
+                  {breakdown.override.reason ? `: ${breakdown.override.reason}` : ""}
+                </div>
+              )}
+            </div>
+          </details>
+        ))}
+      </div>
     </div>
   );
 }
@@ -5152,6 +5214,9 @@ export default function CharacterDetailPage() {
   } = useCharacterLive(characterId, {
     enabled: !!characterId && !!user && !authLoading,
   });
+  const { data: breakdownData } = useCharacterBreakdowns(characterId, {
+    enabled: !!characterId && !!user && !authLoading,
+  });
   const syncMutation = useSyncCharacter();
   const shareMutation = useShareCharacter(characterId);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -5508,6 +5573,10 @@ export default function CharacterDetailPage() {
                 )}
               </div>
             )}
+
+          {breakdownData?.breakdowns && (
+            <StatBreakdownPanel breakdowns={breakdownData.breakdowns} />
+          )}
 
           <div className="space-y-2">
             {/* Hero points — each pip is a button to set the value */}

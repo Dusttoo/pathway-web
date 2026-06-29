@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import type { Tables } from "@/lib/types/database.types";
 import type { CharacterOverlay } from "@/lib/types/bot-integration";
 import { createClient } from "@/lib/supabase/client";
+import type { StatBreakdown } from "@/modules/characters/calc/stat-breakdowns";
 
 type Character = Tables<"characters">;
 
@@ -15,6 +16,8 @@ export const characterKeys = {
   all: ["characters"] as const,
   list: (params: CharacterListParams) => [...characterKeys.all, "list", params] as const,
   detail: (id: string) => [...characterKeys.all, "detail", id] as const,
+  depth: (id: string) => [...characterKeys.all, "depth", id] as const,
+  breakdowns: (id: string) => [...characterKeys.all, "breakdowns", id] as const,
   images: ["characters", "images"] as const,
   publicShare: (id: string) => [...characterKeys.all, "public-share", id] as const,
 };
@@ -44,6 +47,37 @@ export function useCharacter(id: string, options?: { enabled?: boolean }) {
     },
     enabled: options?.enabled !== false && !!id,
     staleTime: Infinity,
+  });
+}
+
+export type CharacterDepth = {
+  levels: unknown[];
+  auditLog: unknown[];
+  overrides: unknown[];
+  versions: unknown[];
+};
+
+export function useCharacterDepth(id: string, options?: { enabled?: boolean }) {
+  return useQuery<CharacterDepth, Error>({
+    queryKey: characterKeys.depth(id),
+    queryFn: async () => {
+      const res = await fetch(`/api/characters/${id}/depth`);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    enabled: options?.enabled !== false && !!id,
+  });
+}
+
+export function useCharacterBreakdowns(id: string, options?: { enabled?: boolean }) {
+  return useQuery<{ breakdowns: StatBreakdown[] }, Error>({
+    queryKey: characterKeys.breakdowns(id),
+    queryFn: async () => {
+      const res = await fetch(`/api/characters/${id}/breakdowns`);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    enabled: options?.enabled !== false && !!id,
   });
 }
 
