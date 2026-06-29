@@ -1,4 +1,5 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { resolveAppUser, unauthorized } from "@/lib/api";
 import {
   fetchVirtualHomebrew,
   fetchVirtualHomebrewById,
@@ -470,34 +471,11 @@ function synthesizeBuild(
   };
 }
 
-// ── Auth helper ───────────────────────────────────────────────────────────────
-
-async function resolveUser() {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return null;
-
-  const service = createServiceClient();
-  const discordId =
-    authUser.identities?.find((i) => i.provider === "discord")?.identity_data?.provider_id ??
-    authUser.id;
-
-  const { data: dbUser } = await service
-    .from("users")
-    .select("id")
-    .eq("discord_id", discordId)
-    .single();
-
-  return dbUser ? { authUser, appUserId: dbUser.id, service } : null;
-}
-
 // ── GET — list characters ─────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
-  const ctx = await resolveUser();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await resolveAppUser();
+  if (!ctx) return unauthorized();
 
   const { searchParams } = new URL(request.url);
   const guildId = searchParams.get("guild_id");
@@ -548,8 +526,8 @@ export async function GET(request: Request) {
 // ── POST — create character ───────────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  const ctx = await resolveUser();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await resolveAppUser();
+  if (!ctx) return unauthorized();
 
   const body = await request.json();
   const { source = "pathbuilder", discord_guild_id } = body;

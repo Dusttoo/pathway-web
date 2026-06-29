@@ -1,59 +1,47 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { apiError, apiOk, extractDiscordId, notFound, unauthorized } from "@/lib/api";
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
-  if (!authUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const discordId =
-    authUser.identities?.find((i) => i.provider === "discord")
-      ?.identity_data?.provider_id ?? authUser.id;
+  if (!authUser) return unauthorized();
 
   const service = createServiceClient();
   const { data, error } = await service
     .from("users")
     .select("*")
-    .eq("discord_id", discordId)
+    .eq("discord_id", extractDiscordId(authUser))
     .single();
 
-  if (error || !data) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+  if (error || !data) return notFound("User not found");
 
-  return NextResponse.json(data);
+  return apiOk(data);
 }
 
 export async function PATCH(request: Request) {
   const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
-  if (!authUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!authUser) return unauthorized();
 
   const body = await request.json();
   const update: { email?: string } = {};
   if (typeof body.email === "string") update.email = body.email;
 
-  const discordId =
-    authUser.identities?.find((i) => i.provider === "discord")
-      ?.identity_data?.provider_id ?? authUser.id;
-
   const service = createServiceClient();
   const { data, error } = await service
     .from("users")
     .update(update)
-    .eq("discord_id", discordId)
+    .eq("discord_id", extractDiscordId(authUser))
     .select()
     .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
+  if (error) return apiError(error.message, 400);
 
-  return NextResponse.json(data);
+  return apiOk(data);
 }
