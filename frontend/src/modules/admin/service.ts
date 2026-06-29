@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database.types";
 import type { UpdateSubmissionInput } from "./schema";
+import type { QueueImportRunInput } from "./imports-schema";
 
 type UntypedResult = {
   data?: unknown;
@@ -10,6 +11,7 @@ type UntypedResult = {
 
 type UntypedQuery = PromiseLike<UntypedResult> & {
   select: (columns?: string, options?: { count?: "exact"; head?: boolean }) => UntypedQuery;
+  insert: (values: Record<string, unknown>) => UntypedQuery;
   update: (values: Record<string, unknown>) => UntypedQuery;
   eq: (column: string, value: unknown) => UntypedQuery;
   order: (column: string, options?: { ascending?: boolean }) => UntypedQuery;
@@ -88,5 +90,53 @@ export async function updateSubmission(
     .update({ status: input.addressed ? "resolved" : "new" })
     .eq("id", input.id)
     .select("id, status")
+    .single();
+}
+
+export async function listImportRuns(service: SupabaseClient<Database>) {
+  const db = service as unknown as UntypedClient;
+
+  return db
+    .from("import_runs")
+    .select(
+      [
+        "id",
+        "source",
+        "status",
+        "categories",
+        "requested_by_user_id",
+        "started_at",
+        "finished_at",
+        "total_fetched",
+        "total_inserted",
+        "total_updated",
+        "total_skipped",
+        "error_message",
+        "metadata",
+        "created_at",
+        "updated_at",
+      ].join(", ")
+    )
+    .order("created_at", { ascending: false })
+    .limit(50);
+}
+
+export async function queueImportRun(
+  service: SupabaseClient<Database>,
+  input: QueueImportRunInput,
+  userId: string
+) {
+  const db = service as unknown as UntypedClient;
+
+  return db
+    .from("import_runs")
+    .insert({
+      source: input.source,
+      status: "queued",
+      categories: input.categories,
+      metadata: input.metadata,
+      requested_by_user_id: userId,
+    })
+    .select("id, source, status, categories, created_at")
     .single();
 }

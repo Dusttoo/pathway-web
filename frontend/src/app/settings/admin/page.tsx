@@ -4,7 +4,16 @@ export const dynamic = "force-dynamic";
 
 import { MainLayout } from "@/components/layout";
 import { useAuth } from "@/lib/providers/auth-provider";
-import { Shield, Users, Swords, BookOpen, Activity, ArrowLeft, MessageSquare } from "lucide-react";
+import {
+  Shield,
+  Users,
+  Swords,
+  BookOpen,
+  Activity,
+  ArrowLeft,
+  MessageSquare,
+  Database,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -209,6 +218,21 @@ export default function AdminSettingsPage() {
             <h3 className="font-semibold">Feedback Inbox</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Review feedback and contact form submissions.
+            </p>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/admin/imports"
+          className="card flex items-start gap-4 p-5 transition-all hover:scale-[1.01] hover:shadow-lg"
+        >
+          <div className="rounded-lg bg-primary/10 p-2">
+            <Database className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold">Importer Operations</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Queue Archives of Nethys runs and review ingestion history.
             </p>
           </div>
         </Link>

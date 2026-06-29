@@ -11,11 +11,12 @@ import { useItems } from "@/lib/hooks/use-items";
 import { useMonsters } from "@/lib/hooks/use-monsters";
 import type { GamedataCategory } from "@/lib/hooks/use-gamedata";
 import type { Tables } from "@/lib/types/database.types";
+import type { GlobalSearchResult } from "@/modules/search/service";
 
 type Row = Record<string, unknown>;
 type LegacyTab = "ancestries" | "classes" | "spells" | "feats" | "backgrounds";
 type DirectTab = LegacyTab | "monsters" | "items";
-type Tab = DirectTab | GamedataCategory;
+type Tab = "all" | DirectTab | GamedataCategory;
 
 type GamedataRow = Tables<"gamedata">;
 type MonsterRow = Tables<"monsters">;
@@ -46,6 +47,12 @@ const DIRECT_TABS: { id: DirectTab; label: string; description: string }[] = [
     description: "Equipment, treasure, weapons, armor, and consumables",
   },
 ];
+
+const GLOBAL_TAB = {
+  id: "all" as const,
+  label: "All",
+  description: "Search every rules, character option, creature, item, and reference category",
+};
 
 const GAMEDATA_TABS: { id: GamedataCategory; label: string; description: string }[] = [
   { id: "actions", label: "Actions", description: "General actions, activities, and reactions" },
@@ -104,7 +111,7 @@ const GAMEDATA_TABS: { id: GamedataCategory; label: string; description: string 
   { id: "vehicles", label: "Vehicles", description: "Vehicles and vehicle rules" },
 ];
 
-const ALL_TABS = [...DIRECT_TABS, ...GAMEDATA_TABS] as const;
+const ALL_TABS = [GLOBAL_TAB, ...DIRECT_TABS, ...GAMEDATA_TABS] as const;
 const DIRECT_TAB_IDS = new Set<string>(DIRECT_TABS.map((tab) => tab.id));
 const LEGACY_TABS = new Set<string>(["ancestries", "classes", "spells", "feats", "backgrounds"]);
 
@@ -259,6 +266,23 @@ function useGamedataContent(category: GamedataCategory, q: string, page: number,
         page: number;
         limit: number;
         category: string;
+      }>;
+    },
+    enabled,
+  });
+}
+
+function useGlobalSearch(q: string, enabled = true) {
+  return useQuery({
+    queryKey: ["library", "global-search", q],
+    queryFn: async () => {
+      const qs = new URLSearchParams({ q, limit: "36" });
+      const res = await fetch(`/api/search?${qs}`);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json() as Promise<{
+        results: GlobalSearchResult[];
+        total: number;
+        query: string;
       }>;
     },
     enabled,
@@ -441,6 +465,100 @@ function GamedataCard({ row, category }: { row: GamedataRow; category: GamedataC
   );
 }
 
+function SearchResultCard({ result }: { result: GlobalSearchResult }) {
+  return (
+    <div className="card border-l-4 border-l-primary/40 p-5 transition-all hover:shadow-md">
+      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <Link href={result.href} className="text-lg font-semibold hover:text-primary">
+            {result.title}
+          </Link>
+          {result.subtitle && (
+            <p className="mt-1 text-xs text-muted-foreground">{result.subtitle}</p>
+          )}
+        </div>
+        <span className="w-fit shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">
+          {result.category}
+        </span>
+      </div>
+      <p className="text-sm leading-6 text-muted-foreground">
+        {result.description || "No summary saved yet."}
+      </p>
+      <AonLink
+        name={result.title}
+        url={result.aonUrl}
+        isOfficial={result.isOfficial}
+        className="mt-3"
+      />
+    </div>
+  );
+}
+
+function CategoryNav({
+  tab,
+  onTab,
+}: {
+  tab: Tab;
+  onTab: (tab: Tab) => void;
+}) {
+  return (
+    <aside className="space-y-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+      <div>
+        <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Search
+        </p>
+        <CategoryButton item={GLOBAL_TAB} active={tab === "all"} onTab={onTab} />
+      </div>
+
+      <div>
+        <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Core Library
+        </p>
+        <div className="space-y-1">
+          {DIRECT_TABS.map((item) => (
+            <CategoryButton key={item.id} item={item} active={tab === item.id} onTab={onTab} />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Reference
+        </p>
+        <div className="space-y-1">
+          {GAMEDATA_TABS.map((item) => (
+            <CategoryButton key={item.id} item={item} active={tab === item.id} onTab={onTab} />
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function CategoryButton({
+  item,
+  active,
+  onTab,
+}: {
+  item: (typeof ALL_TABS)[number];
+  active: boolean;
+  onTab: (tab: Tab) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onTab(item.id)}
+      className={`w-full rounded-md border px-3 py-2 text-left transition ${
+        active
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground"
+      }`}
+    >
+      <span className="block text-sm font-medium">{item.label}</span>
+    </button>
+  );
+}
+
 function LibraryContent() {
   const searchParams = useSearchParams();
   const initialTabParam = searchParams.get("tab") as Tab | null;
@@ -458,7 +576,8 @@ function LibraryContent() {
   const selectedTab = useMemo(() => ALL_TABS.find((item) => item.id === tab), [tab]);
   const isLegacy = LEGACY_TABS.has(tab);
   const isDirect = DIRECT_TAB_IDS.has(tab);
-  const isGamedata = !isDirect;
+  const isGlobal = tab === "all";
+  const isGamedata = !isDirect && !isGlobal;
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -475,6 +594,7 @@ function LibraryContent() {
   }, [tab]);
 
   const legacyResult = useContent(tab as LegacyTab, search, page, isLegacy);
+  const globalResult = useGlobalSearch(search, isGlobal && search.trim().length >= 2);
   const monstersResult = useMonsters(
     { q: search, creature_type: creatureType || undefined, is_companion: false, page, limit: 24 },
     { enabled: tab === "monsters" }
@@ -485,7 +605,9 @@ function LibraryContent() {
   );
   const gamedataResult = useGamedataContent(tab as GamedataCategory, search, page, isGamedata);
 
-  const isLoading = isLegacy
+  const isLoading = isGlobal
+    ? globalResult.isLoading || (q.trim().length >= 2 && search !== q.trim())
+    : isLegacy
     ? legacyResult.isLoading
     : tab === "monsters"
       ? monstersResult.isLoading
@@ -493,7 +615,9 @@ function LibraryContent() {
         ? itemsResult.isLoading
         : gamedataResult.isLoading;
 
-  const total = isLegacy
+  const total = isGlobal
+    ? (globalResult.data?.total ?? 0)
+    : isLegacy
     ? (legacyResult.data?.total ?? 0)
     : tab === "monsters"
       ? (monstersResult.data?.total ?? 0)
@@ -501,180 +625,214 @@ function LibraryContent() {
         ? (itemsResult.data?.total ?? 0)
         : (gamedataResult.data?.total ?? 0);
 
-  const totalPages = Math.max(1, Math.ceil(total / 24));
+  const totalPages = isGlobal ? 1 : Math.max(1, Math.ceil(total / 24));
 
   return (
     <MainLayout>
-      <div className="mb-8 flex items-center gap-4">
-        <div className="rounded-lg bg-primary/10 p-3">
-          <BookOpen className="h-8 w-8 text-primary" />
-        </div>
-        <div>
-          <h1 className="mb-1 font-heading text-4xl font-bold">Content Library</h1>
-          <p className="text-muted-foreground">
-            Pathfinder 2e content for characters, rules, creatures, equipment, and campaign play.
-          </p>
+      <div className="mb-8">
+        <div className="flex items-center gap-4">
+          <div className="rounded-lg bg-primary/10 p-3">
+            <BookOpen className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <h1 className="mb-1 font-heading text-4xl font-bold">Rules Library</h1>
+            <p className="text-muted-foreground">
+              Browse Pathfinder 2e rules, character options, creatures, equipment, and references.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="card mb-4 flex items-center gap-3 p-4">
-        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <input
-          type="text"
-          value={q}
-          onChange={(event) => setQ(event.target.value)}
-          placeholder={`Search ${selectedTab?.label ?? "library"}...`}
-          className="input flex-1 border-0 bg-transparent p-0 focus:ring-0"
-        />
+      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <CategoryNav tab={tab} onTab={setTab} />
+
+        <section className="min-w-0 space-y-5">
+          <div className="rounded-lg border border-border bg-muted/20 p-5">
+            <p className="text-sm font-semibold text-primary">{selectedTab?.label}</p>
+            <h2 className="mt-1 text-2xl font-semibold">{selectedTab?.label} Reference</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+              {selectedTab?.description}
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border bg-background p-4">
+            <div className="flex items-center gap-3">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <input
+                type="text"
+                value={q}
+                onChange={(event) => setQ(event.target.value)}
+                placeholder={
+                  isGlobal
+                    ? "Search all rules, spells, feats, items, monsters..."
+                    : `Search ${selectedTab?.label ?? "library"}...`
+                }
+                className="input flex-1 border-0 bg-transparent p-0 focus:ring-0"
+              />
+            </div>
+          </div>
+
+          {(tab === "monsters" || tab === "items") && (
+            <div className="flex flex-wrap gap-3">
+              {tab === "monsters" && (
+                <select
+                  value={creatureType}
+                  onChange={(event) => {
+                    setCreatureType(event.target.value);
+                    setPage(1);
+                  }}
+                  className="input text-sm"
+                >
+                  <option value="">All creature types</option>
+                  {CREATURE_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {tab === "items" && (
+                <select
+                  value={itemType}
+                  onChange={(event) => {
+                    setItemType(event.target.value);
+                    setPage(1);
+                  }}
+                  className="input text-sm"
+                >
+                  <option value="">All item types</option>
+                  {ITEM_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type.replace(/_/g, " ")}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <p className="text-sm text-muted-foreground">
+              {search ? `Results for "${search}"` : "Browse entries"}
+            </p>
+            {!isLoading && total > 0 && (
+              <p className="text-xs text-muted-foreground">{total} entries</p>
+            )}
+          </div>
+
+          {isLoading ? (
+            <div className="py-12 text-center">
+              <div className="spinner mx-auto" />
+            </div>
+          ) : (
+            <>
+              {isLegacy &&
+                (() => {
+                  const items = legacyResult.data?.data ?? [];
+                  return items.length === 0 ? (
+                    <EmptyState tab={selectedTab?.label ?? String(tab)} search={search} />
+                  ) : (
+                    <div className="space-y-3">
+                      {items.map((item) => (
+                        <LegacyCard key={str(item.id)} item={item} tab={tab as LegacyTab} />
+                      ))}
+                    </div>
+                  );
+                })()}
+
+              {isGlobal &&
+                (() => {
+                  if (search.trim().length < 2) {
+                    return (
+                      <div className="rounded-lg border border-dashed border-border py-12 text-center">
+                        <p className="font-medium">Search the whole library</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Type at least two characters to search every rules category at once.
+                        </p>
+                      </div>
+                    );
+                  }
+                  if (globalResult.error) {
+                    return <ErrorState label="global search" error={globalResult.error} />;
+                  }
+                  const results = globalResult.data?.results ?? [];
+                  return results.length === 0 ? (
+                    <EmptyState tab="library entries" search={search} />
+                  ) : (
+                    <div className="space-y-3">
+                      {results.map((result) => (
+                        <SearchResultCard
+                          key={`${result.kind}-${result.id}-${result.href}`}
+                          result={result}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
+
+              {tab === "monsters" &&
+                (() => {
+                  if (monstersResult.error)
+                    return <ErrorState label="monsters" error={monstersResult.error} />;
+                  const monsters = monstersResult.data?.data ?? [];
+                  return monsters.length === 0 ? (
+                    <EmptyState tab="monsters" search={search} />
+                  ) : (
+                    <div className="space-y-3">
+                      {monsters.map((monster) => (
+                        <MonsterCard key={monster.id} monster={monster} />
+                      ))}
+                    </div>
+                  );
+                })()}
+
+              {tab === "items" &&
+                (() => {
+                  if (itemsResult.error) return <ErrorState label="items" error={itemsResult.error} />;
+                  const items = itemsResult.data?.data ?? [];
+                  return items.length === 0 ? (
+                    <EmptyState tab="items" search={search} />
+                  ) : (
+                    <div className="space-y-3">
+                      {items.map((item) => (
+                        <ItemCard key={item.id} item={item} />
+                      ))}
+                    </div>
+                  );
+                })()}
+
+              {isGamedata &&
+                (() => {
+                  if (gamedataResult.error) {
+                    return (
+                      <ErrorState
+                        label={selectedTab?.label ?? String(tab)}
+                        error={gamedataResult.error}
+                      />
+                    );
+                  }
+                  const rows = gamedataResult.data?.data ?? [];
+                  return rows.length === 0 ? (
+                    <EmptyState tab={selectedTab?.label ?? String(tab)} search={search} />
+                  ) : (
+                    <div className="space-y-3">
+                      {rows.map((row) => (
+                        <GamedataCard
+                          key={`${row.category}-${row.slug}`}
+                          row={row}
+                          category={tab as GamedataCategory}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
+
+              <Pager page={page} totalPages={totalPages} total={total} onPage={setPage} />
+            </>
+          )}
+        </section>
       </div>
-
-      <div className="mb-4 rounded-lg border border-border bg-muted/30 p-4">
-        <p className="text-sm font-medium text-foreground">{selectedTab?.label}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{selectedTab?.description}</p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Official entries include Archives of Nethys links. When a precise AoN URL is not stored,
-          Pathway links to the matching AoN search result.
-        </p>
-      </div>
-
-      {tab === "monsters" && (
-        <div className="mb-4 flex gap-3">
-          <select
-            value={creatureType}
-            onChange={(event) => {
-              setCreatureType(event.target.value);
-              setPage(1);
-            }}
-            className="input text-sm"
-          >
-            <option value="">All creature types</option>
-            {CREATURE_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {tab === "items" && (
-        <div className="mb-4 flex gap-3">
-          <select
-            value={itemType}
-            onChange={(event) => {
-              setItemType(event.target.value);
-              setPage(1);
-            }}
-            className="input text-sm"
-          >
-            <option value="">All item types</option>
-            {ITEM_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type.replace(/_/g, " ")}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <div className="mb-6 border-b border-border">
-        <nav className="flex gap-1 overflow-x-auto">
-          {ALL_TABS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setTab(item.id)}
-              className={`whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
-                tab === item.id
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {isLoading ? (
-        <div className="py-12 text-center">
-          <div className="spinner mx-auto" />
-        </div>
-      ) : (
-        <>
-          {isLegacy &&
-            (() => {
-              const items = legacyResult.data?.data ?? [];
-              return items.length === 0 ? (
-                <EmptyState tab={selectedTab?.label ?? String(tab)} search={search} />
-              ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {items.map((item) => (
-                    <LegacyCard key={str(item.id)} item={item} tab={tab as LegacyTab} />
-                  ))}
-                </div>
-              );
-            })()}
-
-          {tab === "monsters" &&
-            (() => {
-              if (monstersResult.error)
-                return <ErrorState label="monsters" error={monstersResult.error} />;
-              const monsters = monstersResult.data?.data ?? [];
-              return monsters.length === 0 ? (
-                <EmptyState tab="monsters" search={search} />
-              ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {monsters.map((monster) => (
-                    <MonsterCard key={monster.id} monster={monster} />
-                  ))}
-                </div>
-              );
-            })()}
-
-          {tab === "items" &&
-            (() => {
-              if (itemsResult.error) return <ErrorState label="items" error={itemsResult.error} />;
-              const items = itemsResult.data?.data ?? [];
-              return items.length === 0 ? (
-                <EmptyState tab="items" search={search} />
-              ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {items.map((item) => (
-                    <ItemCard key={item.id} item={item} />
-                  ))}
-                </div>
-              );
-            })()}
-
-          {isGamedata &&
-            (() => {
-              if (gamedataResult.error) {
-                return (
-                  <ErrorState
-                    label={selectedTab?.label ?? String(tab)}
-                    error={gamedataResult.error}
-                  />
-                );
-              }
-              const rows = gamedataResult.data?.data ?? [];
-              return rows.length === 0 ? (
-                <EmptyState tab={selectedTab?.label ?? String(tab)} search={search} />
-              ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {rows.map((row) => (
-                    <GamedataCard
-                      key={`${row.category}-${row.slug}`}
-                      row={row}
-                      category={tab as GamedataCategory}
-                    />
-                  ))}
-                </div>
-              );
-            })()}
-
-          <Pager page={page} totalPages={totalPages} total={total} onPage={setPage} />
-        </>
-      )}
     </MainLayout>
   );
 }
