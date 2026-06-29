@@ -77,11 +77,13 @@ export function trackEvent(
   if (typeof window === "undefined") return;
   if (!window.gtag) return;
 
-  // Security fix: FRONTEND-P2-7 - Add guild_id to event parameters for multi-tenant analytics
+  // Security fix: FRONTEND-P2-7 - Add guild_id to event parameters for multi-tenant analytics.
+  // The ambient guild_id from localStorage is a default: it is applied first so that an
+  // explicit guild_id passed by the caller takes precedence and is not overridden.
   const guildId = getCurrentGuildId();
   const enrichedParams = {
-    ...eventParams,
     ...(guildId ? { guild_id: guildId } : {}),
+    ...eventParams,
   };
 
   window.gtag("event", eventName, enrichedParams);

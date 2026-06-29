@@ -5,36 +5,37 @@
  * Tests for automatic guild_id inclusion in analytics events.
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { trackEvent, trackLogin, trackSignUp } from "../analytics";
 
 // Mock gtag
 declare global {
   interface Window {
-    gtag: jest.Mock;
-    dataLayer: any[];
+    gtag: Mock;
+    dataLayer: unknown[];
   }
 }
 
 describe("Analytics Guild ID Enrichment - FRONTEND-P2-1", () => {
   beforeEach(() => {
     // Mock localStorage
-    Storage.prototype.getItem = jest.fn();
-    Storage.prototype.setItem = jest.fn();
-    Storage.prototype.removeItem = jest.fn();
+    Storage.prototype.getItem = vi.fn();
+    Storage.prototype.setItem = vi.fn();
+    Storage.prototype.removeItem = vi.fn();
 
     // Mock gtag
-    window.gtag = jest.fn();
+    window.gtag = vi.fn();
     window.dataLayer = [];
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("trackEvent with guild_id", () => {
     it("should include guild_id from localStorage in event parameters", () => {
       const guildId = "12345678901234567";
-      (localStorage.getItem as jest.Mock).mockReturnValue(guildId);
+      (localStorage.getItem as Mock).mockReturnValue(guildId);
 
       trackEvent("button_click", { button_name: "Sign Up" });
 
@@ -49,17 +50,17 @@ describe("Analytics Guild ID Enrichment - FRONTEND-P2-1", () => {
     });
 
     it("should not include guild_id when localStorage returns null", () => {
-      (localStorage.getItem as jest.Mock).mockReturnValue(null);
+      (localStorage.getItem as Mock).mockReturnValue(null);
 
       trackEvent("button_click", { button_name: "Sign Up" });
 
-      const eventParams = (window.gtag as jest.Mock).mock.calls[0][2];
+      const eventParams = (window.gtag as Mock).mock.calls[0][2];
       expect(eventParams).not.toHaveProperty("guild_id");
       expect(eventParams).toEqual({ button_name: "Sign Up" });
     });
 
     it("should handle localStorage access errors gracefully", () => {
-      (localStorage.getItem as jest.Mock).mockImplementation(() => {
+      (localStorage.getItem as Mock).mockImplementation(() => {
         throw new Error("localStorage access denied");
       });
 
@@ -80,7 +81,7 @@ describe("Analytics Guild ID Enrichment - FRONTEND-P2-1", () => {
 
     it("should preserve other event parameters when adding guild_id", () => {
       const guildId = "12345678901234567";
-      (localStorage.getItem as jest.Mock).mockReturnValue(guildId);
+      (localStorage.getItem as Mock).mockReturnValue(guildId);
 
       const customParams = {
         category: "engagement",
@@ -103,7 +104,7 @@ describe("Analytics Guild ID Enrichment - FRONTEND-P2-1", () => {
     it("should not override existing guild_id in parameters", () => {
       const storedGuildId = "12345678901234567";
       const explicitGuildId = "98765432109876543";
-      (localStorage.getItem as jest.Mock).mockReturnValue(storedGuildId);
+      (localStorage.getItem as Mock).mockReturnValue(storedGuildId);
 
       trackEvent("test_event", { guild_id: explicitGuildId });
 
@@ -121,7 +122,7 @@ describe("Analytics Guild ID Enrichment - FRONTEND-P2-1", () => {
   describe("trackLogin with guild_id", () => {
     it("should include guild_id in login events", () => {
       const guildId = "12345678901234567";
-      (localStorage.getItem as jest.Mock).mockReturnValue(guildId);
+      (localStorage.getItem as Mock).mockReturnValue(guildId);
 
       trackLogin("discord");
 
@@ -136,11 +137,11 @@ describe("Analytics Guild ID Enrichment - FRONTEND-P2-1", () => {
     });
 
     it("should track login without guild_id when not set", () => {
-      (localStorage.getItem as jest.Mock).mockReturnValue(null);
+      (localStorage.getItem as Mock).mockReturnValue(null);
 
       trackLogin("email");
 
-      const eventParams = (window.gtag as jest.Mock).mock.calls[0][2];
+      const eventParams = (window.gtag as Mock).mock.calls[0][2];
       expect(eventParams).toEqual({ method: "email" });
       expect(eventParams).not.toHaveProperty("guild_id");
     });
@@ -149,7 +150,7 @@ describe("Analytics Guild ID Enrichment - FRONTEND-P2-1", () => {
   describe("trackSignUp with guild_id", () => {
     it("should include guild_id in sign up conversion events", () => {
       const guildId = "12345678901234567";
-      (localStorage.getItem as jest.Mock).mockReturnValue(guildId);
+      (localStorage.getItem as Mock).mockReturnValue(guildId);
 
       trackSignUp("discord");
 
@@ -164,11 +165,11 @@ describe("Analytics Guild ID Enrichment - FRONTEND-P2-1", () => {
     });
 
     it("should track sign up without guild_id when not set", () => {
-      (localStorage.getItem as jest.Mock).mockReturnValue(null);
+      (localStorage.getItem as Mock).mockReturnValue(null);
 
       trackSignUp("email");
 
-      const eventParams = (window.gtag as jest.Mock).mock.calls[0][2];
+      const eventParams = (window.gtag as Mock).mock.calls[0][2];
       expect(eventParams).toEqual({ method: "email" });
       expect(eventParams).not.toHaveProperty("guild_id");
     });

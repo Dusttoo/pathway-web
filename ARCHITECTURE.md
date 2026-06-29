@@ -673,8 +673,14 @@ Shared Supabase is the bus (as today); we formalize the contract.
 
 ## 25. Deployment plan (Vercel · Railway · Supabase · www.pathwaypf2e.com)
 
-- **Frontend + internal API:** Vercel, auto-deploy on push to `main` (already configured;
-  `vercel.json` present). Preview deploys per PR.
+> **Current state (2026-06-29):** the only live services are **Supabase** (database/auth/storage)
+> and **GitHub** (source + CI). The web app is **not yet hosted** anywhere — it runs locally during
+> development. Hosting (Vercel or an alternative) is a deliberate *later* decision; nothing below is
+> required to keep building. CI on GitHub is the first deployment-adjacent piece and is now in place.
+> A `vercel.json` exists in the repo as a leftover but Vercel is not connected today.
+
+- **Frontend + internal API:** target Vercel (or equivalent Node host), auto-deploy on push to
+  `main`, preview deploys per PR — **to be connected when you're ready to put the site online.**
 - **Bot (+ future worker):** Railway. Worker shares the Railway project; cron/queue for ingestion,
   PDF, image, public-API host if promoted off Vercel.
 - **Database/Auth/Storage:** Supabase project `cmmwirlrvqmjqbydlqks`. Migrations via
