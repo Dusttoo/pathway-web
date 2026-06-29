@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { visibleSteps, type StepDef } from "./steps";
 import { DEFAULT_STATE, type AbilityKey, type BuilderFocus, type BuilderState, type StepProps } from "./types";
+import { abilityMod, buildSheetPreview, signed } from "@/modules/characters/calc/builder-preview";
 import {
   useCharacterBuilderDraft,
   useDeleteCharacterBuilderDraft,
@@ -62,12 +63,6 @@ const STEP_COMPONENTS: Partial<Record<StepDef["key"], React.ComponentType<StepPr
   review: ReviewStep,
 };
 
-const SAVE_ABILITY: Record<string, AbilityKey> = {
-  fortitude: "con",
-  reflex: "dex",
-  will: "wis",
-};
-
 const ABILITY_LABELS: Array<[AbilityKey, string]> = [
   ["str", "STR"],
   ["dex", "DEX"],
@@ -78,24 +73,6 @@ const ABILITY_LABELS: Array<[AbilityKey, string]> = [
 ];
 
 const PROF_LABELS = ["U", "T", "E", "M", "L"];
-
-function abilityMod(score: number): number {
-  return Math.floor((score - 10) / 2);
-}
-
-function signed(value: number): string {
-  return value >= 0 ? `+${value}` : String(value);
-}
-
-function profBonus(rank: number, level: number): number {
-  return rank > 0 ? level + rank * 2 : 0;
-}
-
-function profRank(value: unknown): number {
-  const numeric = typeof value === "number" && Number.isFinite(value) ? value : 0;
-  if (numeric > 4) return Math.max(0, Math.min(4, Math.round(numeric / 2)));
-  return Math.max(0, Math.min(4, Math.round(numeric)));
-}
 
 function stepStatus(index: number, currentIndex: number) {
   if (index < currentIndex) return "done";
@@ -219,27 +196,7 @@ export function BuilderShell() {
   const current = steps[stepIndex];
   const StepComponent = current ? STEP_COMPONENTS[current.key] : null;
 
-  const sheetPreview = useMemo(() => {
-    const level = Math.max(1, Number(state.level) || 1);
-    const conMod = abilityMod(state.abilities.con);
-    const maxHp = state.ancestryHp + level * (state.classHp + conMod);
-    const ac = 10 + abilityMod(state.abilities.dex) + profBonus(profRank(state.classInitialProfs.unarmored), level);
-    const classAbility = (state.keyability?.toLowerCase() || "str") as AbilityKey;
-    const classDcRank = profRank(state.classInitialProfs.class_dc ?? state.classInitialProfs.classDC);
-    const classDc = classDcRank
-      ? 10 + abilityMod(state.abilities[classAbility] ?? state.abilities.str) + profBonus(classDcRank, level)
-      : null;
-    const saves = Object.entries(SAVE_ABILITY).map(([key, ability]) => {
-      const rank = profRank(state.classInitialProfs[key]);
-      return {
-        key,
-        label: key === "fortitude" ? "Fortitude" : key === "reflex" ? "Reflex" : "Will",
-        rank,
-        total: abilityMod(state.abilities[ability]) + profBonus(rank, level),
-      };
-    });
-    return { level, maxHp, ac, classDc, saves };
-  }, [state]);
+  const sheetPreview = useMemo(() => buildSheetPreview(state), [state]);
 
   function update(patch: Partial<BuilderState>) {
     setState((prev) => ({ ...prev, ...patch }));

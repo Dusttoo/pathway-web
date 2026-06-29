@@ -8,7 +8,7 @@ import {
   progressionSummary,
   type ProgressionCategory,
   type ProgressionStatus,
-} from "../progression";
+} from "@/modules/characters/progression";
 
 const CATEGORY_LABELS: Record<ProgressionCategory | "all", string> = {
   all: "All",

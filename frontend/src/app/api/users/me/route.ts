@@ -1,59 +1,27 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/api/auth";
+import { apiError, apiOk } from "@/lib/api/responses";
+import { withValidation } from "@/lib/api/validation";
+import { getCurrentUser, updateCurrentUser } from "@/modules/users/service";
+import { updateCurrentUserSchema } from "@/modules/users/schema";
 
 export async function GET() {
-  const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-
-  if (!authUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const discordId =
-    authUser.identities?.find((i) => i.provider === "discord")
-      ?.identity_data?.provider_id ?? authUser.id;
-
-  const service = createServiceClient();
-  const { data, error } = await service
-    .from("users")
-    .select("*")
-    .eq("discord_id", discordId)
-    .single();
-
-  if (error || !data) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  return NextResponse.json(data);
+  return withAuth(async ({ dbUser }) => apiOk(await getCurrentUser(dbUser)));
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const validation = await withValidation(request, updateCurrentUserSchema);
 
-  if (!authUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!validation.ok) {
+    return validation.response;
   }
 
-  const body = await request.json();
-  const update: { email?: string } = {};
-  if (typeof body.email === "string") update.email = body.email;
+  return withAuth(async ({ service, discordId }) => {
+    const { data, error } = await updateCurrentUser(service, discordId, validation.data);
 
-  const discordId =
-    authUser.identities?.find((i) => i.provider === "discord")
-      ?.identity_data?.provider_id ?? authUser.id;
+    if (error) {
+      return apiError(error.message, 400);
+    }
 
-  const service = createServiceClient();
-  const { data, error } = await service
-    .from("users")
-    .update(update)
-    .eq("discord_id", discordId)
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
-  return NextResponse.json(data);
+    return apiOk(data);
+  });
 }

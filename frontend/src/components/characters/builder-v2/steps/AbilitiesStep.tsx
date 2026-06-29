@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { CheckCircle2, Heart, Info } from "lucide-react";
 import type { AbilityBoostChoices, AbilityKey, BuilderState, StepProps } from "../types";
+import { abilityMod, profBonus, profRank, signed } from "@/modules/characters/calc/builder-preview";
 
 const ABILITIES: { key: AbilityKey; short: string; label: string }[] = [
   { key: "str", short: "STR", label: "Strength" },
@@ -46,13 +47,8 @@ function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
 }
 
-function modOf(score: number): number {
-  return Math.floor((score - 10) / 2);
-}
-
 function fmtMod(score: number): string {
-  const m = modOf(score);
-  return m >= 0 ? `+${m}` : `${m}`;
+  return signed(abilityMod(score));
 }
 
 function applyCreationBoost(score: number): number {
@@ -63,21 +59,11 @@ function applyLevelBoost(score: number): number {
   return Math.min(30, score + (score >= 18 ? 1 : 2));
 }
 
-function profRank(value: unknown): number {
-  const numeric = typeof value === "number" && Number.isFinite(value) ? value : 0;
-  if (numeric > 4) return Math.max(0, Math.min(4, Math.round(numeric / 2)));
-  return Math.max(0, Math.min(4, Math.round(numeric)));
-}
-
-function profBonus(rank: number, level: number): number {
-  return rank > 0 ? level + rank * 2 : 0;
-}
-
 function classDcTotal(state: BuilderState, abilities: Record<AbilityKey, number>): number | null {
   const key = abilityKey(state.keyability);
   const rank = profRank(state.classInitialProfs.class_dc ?? state.classInitialProfs.classDC);
   if (!key || rank <= 0) return null;
-  return 10 + modOf(abilities[key]) + profBonus(rank, state.level);
+  return 10 + abilityMod(abilities[key]) + profBonus(rank, state.level);
 }
 
 function calculateAbilities(state: BuilderState): Record<AbilityKey, number> {
@@ -140,7 +126,7 @@ function boostChoices(state: BuilderState): AbilityBoostChoices {
 export function AbilitiesStep({ state, update }: StepProps) {
   const calculated = calculateAbilities(state);
   const { ancestryHp, classHp, level } = state;
-  const conMod = modOf(calculated.con);
+  const conMod = abilityMod(calculated.con);
   const maxHp = ancestryHp + (classHp + conMod) * level;
   const usePrintedAncestry = state.ancestryBoostMode === "printed";
   const fixedAncestryBoosts = abilityKeys(
@@ -259,7 +245,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {ABILITIES.map(({ key, short, label }) => {
           const score = calculated[key];
-          const mod = modOf(score);
+          const mod = abilityMod(score);
           const isKey = classBoost === key;
           return (
             <div
@@ -454,7 +440,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
         </Stat>
         <Stat label="Free skill picks" hint="Class trained + INT mod">
           <span className="font-mono">
-            {Math.max(0, state.classTrainedCount + modOf(calculated.int))}
+            {Math.max(0, state.classTrainedCount + abilityMod(calculated.int))}
           </span>
         </Stat>
       </div>

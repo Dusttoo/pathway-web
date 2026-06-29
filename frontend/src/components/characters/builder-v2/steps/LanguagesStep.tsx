@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, Languages, Plus, RotateCcw, X } from "lucide-react";
 import type { StepProps } from "../types";
+import { abilityMod } from "@/modules/characters/calc/builder-preview";
 
 const COMMON_LANGUAGES = [
   "Common",
@@ -41,10 +42,6 @@ function uniqueSorted(values: string[]): string[] {
     if (!byKey.has(key)) byKey.set(key, trimmed);
   }
   return [...byKey.values()].sort((a, b) => a.localeCompare(b));
-}
-
-function abilityMod(score: number): number {
-  return Math.floor((score - 10) / 2);
 }
 
 export function LanguagesStep({ state, update }: StepProps) {

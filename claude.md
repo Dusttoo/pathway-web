@@ -4,7 +4,7 @@ Web companion for the Pathway PF2e Discord bot. Analogous to avrae.io — charac
 
 ## Stack
 
-- **Frontend**: Next.js 15 App Router + TypeScript, deployed to Vercel
+- **Frontend**: Next.js 16 App Router + TypeScript
 - **Database**: Supabase (PostgreSQL 16), project ID `cmmwirlrvqmjqbydlqks`
 - **Auth**: Supabase Discord OAuth (PKCE flow)
 - **Styling**: Tailwind CSS + shadcn/ui components
@@ -60,6 +60,11 @@ NEXT_PUBLIC_DISCORD_CLIENT_ID
 All data mutations and cross-table reads go through Next.js Route Handlers in `src/app/api/`. There is no direct Supabase access in page components or hooks — those call `/api/...` routes.
 
 Route Handler file: `src/app/api/[resource]/route.ts` (list) and `src/app/api/[resource]/[id]/route.ts` (detail).
+
+Route Handlers should stay thin: parse/validate the request, authorize it, call a
+`src/modules/*` service, and return a typed JSON response. Put reusable domain logic,
+database operations, zod schemas, and builder calculations in modules rather than in page
+components or route files.
 
 ### Auth Flow
 
@@ -254,7 +259,11 @@ Until that's done, the new route handlers in `src/app/api/characters/[id]/feats/
 
 **TypeScript**: strict mode. All Route Handler params and return types should be typed. Import DB row types via `Tables<"table_name">` from `@/lib/types/database.types`.
 
-**Route Handlers**: Always check auth first (`getUser()`), then resolve `discord_id → users.id`, then operate. Return `NextResponse.json({ data: ... })` for success and `NextResponse.json({ error: '...' }, { status: N })` for errors. Wrap Supabase calls in error checks — don't let Supabase errors become 200 responses.
+**Route Handlers**: Prefer `withAuth`, `withAdmin`, `withValidation`, `withRateLimit`, `apiOk`, and `apiError` from `src/lib/api/`. If a handler cannot use those helpers yet, it must still check auth first (`getUser()`), resolve `discord_id → users.id`, authorize access, then operate. Wrap Supabase calls in error checks — don't let Supabase errors become 200 responses.
+
+**Modules**: Put reusable domain logic under `src/modules/<domain>/`. Route files should read like controllers; modules should own service functions, zod schemas, and reusable calculations. Character builder math lives under `src/modules/characters/` so future stat breakdowns can explain how values were computed.
+
+**RLS review rule**: Every PR that adds or changes user-data access must answer: "Does RLS cover this, and is any service-role bypass justified?" New user-data tables need owner/member policies plus a service-role policy in the same migration. New service-role reads or writes must either use an admin/bot/import path or perform an explicit owner/member check before touching user-controlled row ids.
 
 **React Query**: Group mutations with their corresponding query in the same hook file. Invalidate the broad `keys.all` key after mutations so list views refresh. Don't put fetch logic in page components.
 
@@ -264,6 +273,6 @@ Until that's done, the new route handlers in `src/app/api/characters/[id]/feats/
 
 ## Deployment
 
-Vercel auto-deploys on push to `main`. No CI/CD config — Vercel GitHub integration handles it.
+GitHub Actions runs type-check, lint, and tests on pushes to `main`, `claude/**`, and `codex/**`, and on pull requests to `main`. Hosting is not connected yet; Vercel or an equivalent Node host can be connected later.
 
 Schema changes: apply migrations with `npx supabase db push` from `supabase/`, then redeploy. The bot needs to be restarted if the migration adds tables it reads at startup.

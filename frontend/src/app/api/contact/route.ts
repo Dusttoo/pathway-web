@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { withRateLimit } from "@/lib/api/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /**
@@ -33,28 +34,8 @@ const contactSchema = z.object({
 
 type ContactFormData = z.infer<typeof contactSchema>;
 
-// Simple in-memory rate limiting (TODO: Use Redis for production)
-const submissionTracker = new Map<string, number[]>();
 const RATE_LIMIT = 3; // Max submissions per hour
 const RATE_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const submissions = submissionTracker.get(ip) || [];
-
-  // Filter out old submissions outside the time window
-  const recentSubmissions = submissions.filter((timestamp) => now - timestamp < RATE_WINDOW);
-
-  if (recentSubmissions.length >= RATE_LIMIT) {
-    return false;
-  }
-
-  // Add current submission
-  recentSubmissions.push(now);
-  submissionTracker.set(ip, recentSubmissions);
-
-  return true;
-}
 
 function getSubjectLabel(subject: string): string {
   const labels: Record<string, string> = {
@@ -76,7 +57,7 @@ export async function POST(request: NextRequest) {
       request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
 
     // Check rate limit
-    if (!checkRateLimit(ip)) {
+    if (withRateLimit(request, { limit: RATE_LIMIT, windowMs: RATE_WINDOW, keyPrefix: "contact" })) {
       return NextResponse.json(
         {
           error: "Rate limit exceeded. Please try again later.",

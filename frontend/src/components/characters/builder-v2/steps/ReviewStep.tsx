@@ -7,20 +7,7 @@ import { useCreateCharacter } from "@/lib/hooks/use-characters";
 import type { NativeBuildInput } from "@/lib/types/character";
 import type { StepProps } from "../types";
 import { classOptionSpecials } from "../class-options";
-
-function modOf(score: number): number {
-  return Math.floor((score - 10) / 2);
-}
-
-function profRank(value: unknown): number {
-  const numeric = typeof value === "number" && Number.isFinite(value) ? value : 0;
-  if (numeric > 4) return Math.max(0, Math.min(4, Math.round(numeric / 2)));
-  return Math.max(0, Math.min(4, Math.round(numeric)));
-}
-
-function profBonus(rank: number, level: number): number {
-  return rank > 0 ? level + rank * 2 : 0;
-}
+import { abilityMod, profBonus, profRank } from "@/modules/characters/calc/builder-preview";
 
 function featTypeLabel(slot: string): string {
   if (slot === "class") return "Class";
@@ -38,13 +25,13 @@ export function ReviewStep({ state, onCreated }: StepProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
 
-  const conMod = modOf(state.abilities.con);
+  const conMod = abilityMod(state.abilities.con);
   const maxHp = state.ancestryHp + (state.classHp + conMod) * state.level;
   const classDcRank = profRank(state.classInitialProfs.class_dc ?? state.classInitialProfs.classDC);
   const classAbility = state.keyability as keyof typeof state.abilities;
   const classDc =
     state.keyability && classDcRank > 0
-      ? 10 + modOf(state.abilities[classAbility] ?? 10) + profBonus(classDcRank, state.level)
+      ? 10 + abilityMod(state.abilities[classAbility] ?? 10) + profBonus(classDcRank, state.level)
       : null;
   const variantCount = Object.values(state.variantRules).filter(Boolean).length;
   const classSpecials = classOptionSpecials(state);
@@ -243,7 +230,7 @@ export function ReviewStep({ state, onCreated }: StepProps) {
           <div className="flex gap-3 flex-wrap">
             {(["str", "dex", "con", "int", "wis", "cha"] as const).map((ab) => {
               const score = state.abilities[ab];
-              const mod = modOf(score);
+              const mod = abilityMod(score);
               return (
                 <div key={ab} className="text-center">
                   <p className="text-[10px] text-muted-foreground uppercase">{ab}</p>

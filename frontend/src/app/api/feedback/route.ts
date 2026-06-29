@@ -1,5 +1,9 @@
+import { getDiscordId } from "@/lib/api/auth";
+import { apiError, apiOk } from "@/lib/api/responses";
+import { withValidation } from "@/lib/api/validation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { createFeedbackSubmission } from "@/modules/feedback/service";
+import { feedbackSubmissionSchema } from "@/modules/feedback/schema";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -7,31 +11,29 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const body = await request.json().catch(() => ({}));
-  const { type = "feedback", title, description, metadata = {} } = body;
-
-  if (!title || !description) {
-    return NextResponse.json({ error: "title and description are required" }, { status: 400 });
-  }
-
-  if (!["bug", "feature", "feedback"].includes(type)) {
-    return NextResponse.json({ error: "invalid feedback type" }, { status: 400 });
+  const validation = await withValidation(request, feedbackSubmissionSchema);
+  if (!validation.ok) {
+    return validation.response;
   }
 
   const service = createServiceClient();
-  const db = service as unknown as { from: (table: string) => any };
-  const { error } = await db.from("feedback_submissions").insert({
-    user_id: user?.id ?? null,
-    type,
-    title: String(title).slice(0, 500),
-    description: String(description).slice(0, 10_000),
-    metadata: metadata && typeof metadata === "object" ? metadata : {},
-  });
+  let userId: string | null = null;
+
+  if (user) {
+    const { data } = await service
+      .from("users")
+      .select("id")
+      .eq("discord_id", getDiscordId(user))
+      .maybeSingle();
+    userId = data?.id ?? null;
+  }
+
+  const { error } = await createFeedbackSubmission(service, validation.data, userId);
 
   if (error) {
     console.error("[feedback] failed to save submission", error);
-    return NextResponse.json({ error: "failed to save feedback" }, { status: 500 });
+    return apiError("failed to save feedback", 500);
   }
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  return apiOk({ success: true }, { status: 201 });
 }
