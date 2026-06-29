@@ -1,4 +1,5 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/types/database.types";
 import { NextResponse } from "next/server";
 
 type UntypedClient = ReturnType<typeof createServiceClient> & {
@@ -21,6 +22,8 @@ type PackRow = {
   created_at: string;
   updated_at: string;
 };
+
+type PackUpdate = Database["public"]["Tables"]["homebrew_packs"]["Update"];
 
 async function resolvePack(id: string) {
   const supabase = await createClient();
@@ -97,7 +100,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const updates: Record<string, unknown> = {};
+  const updates: PackUpdate = {};
   if (typeof body.title === "string") {
     const title = body.title.trim();
     if (!title) return NextResponse.json({ error: "Pack title is required" }, { status: 400 });

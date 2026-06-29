@@ -12,11 +12,98 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      actions: {
+        Row: {
+          action_category: string | null
+          action_cost: string | null
+          action_metadata: Json
+          aon_id: string | null
+          aon_url: string | null
+          created_at: string
+          description: string
+          frequency: string | null
+          id: string
+          is_official: boolean
+          name: string
+          rarity: string
+          requirements: string | null
+          source: string | null
+          traits: Json
+          trigger: string | null
+          updated_at: string
+        }
+        Insert: {
+          action_category?: string | null
+          action_cost?: string | null
+          action_metadata?: Json
+          aon_id?: string | null
+          aon_url?: string | null
+          created_at?: string
+          description?: string
+          frequency?: string | null
+          id?: string
+          is_official?: boolean
+          name: string
+          rarity?: string
+          requirements?: string | null
+          source?: string | null
+          traits?: Json
+          trigger?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action_category?: string | null
+          action_cost?: string | null
+          action_metadata?: Json
+          aon_id?: string | null
+          aon_url?: string | null
+          created_at?: string
+          description?: string
+          frequency?: string | null
+          id?: string
+          is_official?: boolean
+          name?: string
+          rarity?: string
+          requirements?: string | null
+          source?: string | null
+          traits?: Json
+          trigger?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ancestries: {
         Row: {
           ancestry_hp: number
+          aon_id: string | null
+          aon_url: string | null
           attribute_boosts: Json
           attribute_flaws: Json
           bonus_languages: number
@@ -39,6 +126,8 @@ export type Database = {
         }
         Insert: {
           ancestry_hp?: number
+          aon_id?: string | null
+          aon_url?: string | null
           attribute_boosts?: Json
           attribute_flaws?: Json
           bonus_languages?: number
@@ -61,6 +150,8 @@ export type Database = {
         }
         Update: {
           ancestry_hp?: number
+          aon_id?: string | null
+          aon_url?: string | null
           attribute_boosts?: Json
           attribute_flaws?: Json
           bonus_languages?: number
@@ -93,6 +184,8 @@ export type Database = {
       }
       archetypes: {
         Row: {
+          aon_id: string | null
+          aon_url: string | null
           archetype_type: string
           created_at: string
           created_by_user_id: string | null
@@ -107,6 +200,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aon_id?: string | null
+          aon_url?: string | null
           archetype_type?: string
           created_at?: string
           created_by_user_id?: string | null
@@ -121,6 +216,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aon_id?: string | null
+          aon_url?: string | null
           archetype_type?: string
           created_at?: string
           created_by_user_id?: string | null
@@ -146,6 +243,8 @@ export type Database = {
       }
       backgrounds: {
         Row: {
+          aon_id: string | null
+          aon_url: string | null
           attribute_boosts: Json
           background_metadata: Json
           created_at: string
@@ -162,6 +261,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aon_id?: string | null
+          aon_url?: string | null
           attribute_boosts?: Json
           background_metadata?: Json
           created_at?: string
@@ -178,6 +279,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aon_id?: string | null
+          aon_url?: string | null
           attribute_boosts?: Json
           background_metadata?: Json
           created_at?: string
@@ -302,14 +405,153 @@ export type Database = {
           {
             foreignKeyName: "bags_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      character_audit_log: {
+        Row: {
+          action: string
+          actor_kind: string
+          actor_user_id: string | null
+          after_value: Json | null
+          before_value: Json | null
+          character_id: string
+          created_at: string
+          field: string | null
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          action: string
+          actor_kind?: string
+          actor_user_id?: string | null
+          after_value?: Json | null
+          before_value?: Json | null
+          character_id: string
+          created_at?: string
+          field?: string | null
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          action?: string
+          actor_kind?: string
+          actor_user_id?: string | null
+          after_value?: Json | null
+          before_value?: Json | null
+          character_id?: string
+          created_at?: string
+          field?: string | null
+          id?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_audit_log_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_audit_log_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      character_builder_drafts: {
+        Row: {
+          builder_state: Json
+          created_at: string
+          current_step: number
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          builder_state?: Json
+          created_at?: string
+          current_step?: number
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          builder_state?: Json
+          created_at?: string
+          current_step?: number
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_builder_drafts_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
       }
+      character_class_features: {
+        Row: {
+          character_id: string
+          class_feature_id: string
+          created_at: string
+          id: string
+          level_acquired: number
+          selection: Json
+          updated_at: string
+        }
+        Insert: {
+          character_id: string
+          class_feature_id: string
+          created_at?: string
+          id?: string
+          level_acquired: number
+          selection?: Json
+          updated_at?: string
+        }
+        Update: {
+          character_id?: string
+          class_feature_id?: string
+          created_at?: string
+          id?: string
+          level_acquired?: number
+          selection?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_class_features_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_class_features_class_feature_id_fkey"
+            columns: ["class_feature_id"]
+            isOneToOne: false
+            referencedRelation: "class_features"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       character_classes: {
         Row: {
+          aon_id: string | null
+          aon_url: string | null
           class_features: Json
           class_hp: number
           class_metadata: Json
@@ -328,6 +570,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aon_id?: string | null
+          aon_url?: string | null
           class_features?: Json
           class_hp?: number
           class_metadata?: Json
@@ -346,6 +590,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aon_id?: string | null
+          aon_url?: string | null
           class_features?: Json
           class_hp?: number
           class_metadata?: Json
@@ -369,6 +615,152 @@ export type Database = {
             columns: ["created_by_user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      character_feats: {
+        Row: {
+          character_id: string
+          created_at: string
+          feat_id: string
+          feat_slot: string
+          id: string
+          level_acquired: number
+          notes: string | null
+          selection: Json
+          updated_at: string
+        }
+        Insert: {
+          character_id: string
+          created_at?: string
+          feat_id: string
+          feat_slot: string
+          id?: string
+          level_acquired?: number
+          notes?: string | null
+          selection?: Json
+          updated_at?: string
+        }
+        Update: {
+          character_id?: string
+          created_at?: string
+          feat_id?: string
+          feat_slot?: string
+          id?: string
+          level_acquired?: number
+          notes?: string | null
+          selection?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_feats_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_feats_feat_id_fkey"
+            columns: ["feat_id"]
+            isOneToOne: false
+            referencedRelation: "feats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      character_known_spells: {
+        Row: {
+          character_id: string
+          created_at: string
+          id: string
+          is_signature: boolean
+          notes: string | null
+          rank: number
+          spell_id: string
+          spell_source: string
+          tradition: string
+          updated_at: string
+        }
+        Insert: {
+          character_id: string
+          created_at?: string
+          id?: string
+          is_signature?: boolean
+          notes?: string | null
+          rank?: number
+          spell_id: string
+          spell_source?: string
+          tradition: string
+          updated_at?: string
+        }
+        Update: {
+          character_id?: string
+          created_at?: string
+          id?: string
+          is_signature?: boolean
+          notes?: string | null
+          rank?: number
+          spell_id?: string
+          spell_source?: string
+          tradition?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_known_spells_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_known_spells_spell_id_fkey"
+            columns: ["spell_id"]
+            isOneToOne: false
+            referencedRelation: "spells"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      character_levels: {
+        Row: {
+          character_id: string
+          choices: Json
+          created_at: string
+          id: string
+          level: number
+          notes: string | null
+          snapshot: Json
+          updated_at: string
+        }
+        Insert: {
+          character_id: string
+          choices?: Json
+          created_at?: string
+          id?: string
+          level: number
+          notes?: string | null
+          snapshot?: Json
+          updated_at?: string
+        }
+        Update: {
+          character_id?: string
+          choices?: Json
+          created_at?: string
+          id?: string
+          level?: number
+          notes?: string | null
+          snapshot?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_levels_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
             referencedColumns: ["id"]
           },
         ]
@@ -408,9 +800,198 @@ export type Database = {
           },
         ]
       }
+      character_overrides: {
+        Row: {
+          character_id: string
+          created_at: string
+          created_by_user_id: string | null
+          enabled: boolean
+          id: string
+          reason: string | null
+          stat_key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          character_id: string
+          created_at?: string
+          created_by_user_id?: string | null
+          enabled?: boolean
+          id?: string
+          reason?: string | null
+          stat_key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          character_id?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          enabled?: boolean
+          id?: string
+          reason?: string | null
+          stat_key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_overrides_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_overrides_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      character_prepared_spells: {
+        Row: {
+          character_id: string
+          id: string
+          is_expended: boolean
+          prepared_at: string
+          rank: number
+          slot_index: number
+          spell_id: string
+        }
+        Insert: {
+          character_id: string
+          id?: string
+          is_expended?: boolean
+          prepared_at?: string
+          rank: number
+          slot_index: number
+          spell_id: string
+        }
+        Update: {
+          character_id?: string
+          id?: string
+          is_expended?: boolean
+          prepared_at?: string
+          rank?: number
+          slot_index?: number
+          spell_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_prepared_spells_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_prepared_spells_spell_id_fkey"
+            columns: ["spell_id"]
+            isOneToOne: false
+            referencedRelation: "spells"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      character_versions: {
+        Row: {
+          character_id: string
+          created_at: string
+          created_by_user_id: string | null
+          id: string
+          label: string | null
+          snapshot: Json
+          version_number: number
+        }
+        Insert: {
+          character_id: string
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          label?: string | null
+          snapshot: Json
+          version_number: number
+        }
+        Update: {
+          character_id?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          label?: string | null
+          snapshot?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_versions_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_versions_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      character_xp_log: {
+        Row: {
+          amount: number
+          awarded_by_discord_id: string | null
+          char_key: string
+          created_at: string
+          entry_type: string
+          id: string
+          new_xp: number
+          old_xp: number
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          awarded_by_discord_id?: string | null
+          char_key: string
+          created_at?: string
+          entry_type?: string
+          id?: string
+          new_xp?: number
+          old_xp?: number
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          awarded_by_discord_id?: string | null
+          char_key?: string
+          created_at?: string
+          entry_type?: string
+          id?: string
+          new_xp?: number
+          old_xp?: number
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_xp_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       characters: {
         Row: {
           ancestry_name: string | null
+          art: string | null
           background_name: string | null
           char_key: string | null
           class_name: string | null
@@ -435,10 +1016,12 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          variant_rules: Json
           wounded: number
         }
         Insert: {
           ancestry_name?: string | null
+          art?: string | null
           background_name?: string | null
           char_key?: string | null
           class_name?: string | null
@@ -463,10 +1046,12 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          variant_rules?: Json
           wounded?: number
         }
         Update: {
           ancestry_name?: string | null
+          art?: string | null
           background_name?: string | null
           char_key?: string | null
           class_name?: string | null
@@ -491,6 +1076,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          variant_rules?: Json
           wounded?: number
         }
         Relationships: [
@@ -499,6 +1085,78 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_features: {
+        Row: {
+          aon_id: string | null
+          aon_url: string | null
+          archetype_id: string | null
+          character_class_id: string | null
+          class_feature_metadata: Json
+          created_at: string
+          description: string
+          id: string
+          is_choice: boolean
+          is_official: boolean
+          level: number
+          name: string
+          rarity: string
+          source: string | null
+          traits: Json
+          updated_at: string
+        }
+        Insert: {
+          aon_id?: string | null
+          aon_url?: string | null
+          archetype_id?: string | null
+          character_class_id?: string | null
+          class_feature_metadata?: Json
+          created_at?: string
+          description?: string
+          id?: string
+          is_choice?: boolean
+          is_official?: boolean
+          level?: number
+          name: string
+          rarity?: string
+          source?: string | null
+          traits?: Json
+          updated_at?: string
+        }
+        Update: {
+          aon_id?: string | null
+          aon_url?: string | null
+          archetype_id?: string | null
+          character_class_id?: string | null
+          class_feature_metadata?: Json
+          created_at?: string
+          description?: string
+          id?: string
+          is_choice?: boolean
+          is_official?: boolean
+          level?: number
+          name?: string
+          rarity?: string
+          source?: string | null
+          traits?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_features_archetype_id_fkey"
+            columns: ["archetype_id"]
+            isOneToOne: false
+            referencedRelation: "archetypes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_features_character_class_id_fkey"
+            columns: ["character_class_id"]
+            isOneToOne: false
+            referencedRelation: "character_classes"
             referencedColumns: ["id"]
           },
         ]
@@ -558,6 +1216,87 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      conditions: {
+        Row: {
+          aon_id: string | null
+          aon_url: string | null
+          condition_metadata: Json
+          created_at: string
+          description: string
+          has_value: boolean
+          id: string
+          is_official: boolean
+          name: string
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          aon_id?: string | null
+          aon_url?: string | null
+          condition_metadata?: Json
+          created_at?: string
+          description?: string
+          has_value?: boolean
+          id?: string
+          is_official?: boolean
+          name: string
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aon_id?: string | null
+          aon_url?: string | null
+          condition_metadata?: Json
+          created_at?: string
+          description?: string
+          has_value?: boolean
+          id?: string
+          is_official?: boolean
+          name?: string
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contact_submissions: {
+        Row: {
+          created_at: string
+          discord_username: string | null
+          email: string
+          id: string
+          ip_address: string | null
+          message: string
+          name: string
+          status: string
+          subject: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          discord_username?: string | null
+          email: string
+          id?: string
+          ip_address?: string | null
+          message: string
+          name: string
+          status?: string
+          subject: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          discord_username?: string | null
+          email?: string
+          id?: string
+          ip_address?: string | null
+          message?: string
+          name?: string
+          status?: string
+          subject?: string
+          user_agent?: string | null
+        }
+        Relationships: []
       }
       downtime: {
         Row: {
@@ -683,6 +1422,8 @@ export type Database = {
       feats: {
         Row: {
           action_cost: string | null
+          aon_id: string | null
+          aon_url: string | null
           created_at: string
           created_by_user_id: string | null
           description: string
@@ -702,6 +1443,8 @@ export type Database = {
         }
         Insert: {
           action_cost?: string | null
+          aon_id?: string | null
+          aon_url?: string | null
           created_at?: string
           created_by_user_id?: string | null
           description?: string
@@ -721,6 +1464,8 @@ export type Database = {
         }
         Update: {
           action_cost?: string | null
+          aon_id?: string | null
+          aon_url?: string | null
           created_at?: string
           created_by_user_id?: string | null
           description?: string
@@ -742,6 +1487,47 @@ export type Database = {
           {
             foreignKeyName: "feats_created_by_user_id_fkey"
             columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_submissions: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          metadata: Json
+          status: string
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          metadata?: Json
+          status?: string
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json
+          status?: string
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_submissions_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -870,40 +1656,55 @@ export type Database = {
       }
       heritages: {
         Row: {
-          ancestry_id: string
+          ancestry_id: string | null
+          aon_id: string | null
+          aon_url: string | null
           benefits: Json
           created_at: string
+          created_by_user_id: string | null
           description: string | null
+          discord_guild_id: string | null
           id: string
           is_official: boolean
           is_versatile: boolean
           name: string
           source: string | null
           traits: Json
+          updated_at: string
         }
         Insert: {
-          ancestry_id: string
+          ancestry_id?: string | null
+          aon_id?: string | null
+          aon_url?: string | null
           benefits?: Json
           created_at?: string
+          created_by_user_id?: string | null
           description?: string | null
+          discord_guild_id?: string | null
           id?: string
           is_official?: boolean
           is_versatile?: boolean
           name: string
           source?: string | null
           traits?: Json
+          updated_at?: string
         }
         Update: {
-          ancestry_id?: string
+          ancestry_id?: string | null
+          aon_id?: string | null
+          aon_url?: string | null
           benefits?: Json
           created_at?: string
+          created_by_user_id?: string | null
           description?: string | null
+          discord_guild_id?: string | null
           id?: string
           is_official?: boolean
           is_versatile?: boolean
           name?: string
           source?: string | null
           traits?: Json
+          updated_at?: string
         }
         Relationships: [
           {
@@ -911,6 +1712,13 @@ export type Database = {
             columns: ["ancestry_id"]
             isOneToOne: false
             referencedRelation: "ancestries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "heritages_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -948,8 +1756,99 @@ export type Database = {
         }
         Relationships: []
       }
+      homebrew_pack_entries: {
+        Row: {
+          created_at: string
+          homebrew_entry_id: string
+          id: string
+          notes: string | null
+          pack_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          homebrew_entry_id: string
+          id?: string
+          notes?: string | null
+          pack_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          homebrew_entry_id?: string
+          id?: string
+          notes?: string | null
+          pack_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homebrew_pack_entries_homebrew_entry_id_fkey"
+            columns: ["homebrew_entry_id"]
+            isOneToOne: false
+            referencedRelation: "homebrew_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homebrew_pack_entries_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "homebrew_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homebrew_packs: {
+        Row: {
+          content_types: string[]
+          cover_image_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          owner_id: string
+          status: string
+          title: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          content_types?: string[]
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          owner_id: string
+          status?: string
+          title: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          content_types?: string[]
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          owner_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homebrew_packs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
+          aon_id: string | null
+          aon_url: string | null
           bulk: string | null
           created_at: string
           created_by_user_id: string | null
@@ -971,6 +1870,8 @@ export type Database = {
           usage: string | null
         }
         Insert: {
+          aon_id?: string | null
+          aon_url?: string | null
           bulk?: string | null
           created_at?: string
           created_by_user_id?: string | null
@@ -992,6 +1893,8 @@ export type Database = {
           usage?: string | null
         }
         Update: {
+          aon_id?: string | null
+          aon_url?: string | null
           bulk?: string | null
           created_at?: string
           created_by_user_id?: string | null
@@ -1285,6 +2188,8 @@ export type Database = {
       }
       spells: {
         Row: {
+          aon_id: string | null
+          aon_url: string | null
           area: string | null
           cast_actions: string | null
           classes: Json
@@ -1310,6 +2215,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aon_id?: string | null
+          aon_url?: string | null
           area?: string | null
           cast_actions?: string | null
           classes?: Json
@@ -1335,6 +2242,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aon_id?: string | null
+          aon_url?: string | null
           area?: string | null
           cast_actions?: string | null
           classes?: Json
@@ -1363,6 +2272,38 @@ export type Database = {
           {
             foreignKeyName: "spells_created_by_user_id_fkey"
             columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_guild_active_characters: {
+        Row: {
+          active_char_key: string
+          created_at: string
+          discord_guild_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_char_key: string
+          created_at?: string
+          discord_guild_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_char_key?: string
+          created_at?: string
+          discord_guild_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_guild_active_characters_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1571,6 +2512,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
