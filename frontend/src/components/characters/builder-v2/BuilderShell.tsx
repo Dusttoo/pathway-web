@@ -9,6 +9,7 @@ import {
   Check,
   Circle,
   Gauge,
+  GraduationCap,
   HeartPulse,
   Loader2,
   Menu,
@@ -18,6 +19,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { visibleSteps, type StepDef } from "./steps";
+import { BeginnerLayout } from "./BeginnerLayout";
+import { STEP_GUIDES } from "./step-guides";
 import { DEFAULT_STATE, type AbilityKey, type BuilderFocus, type BuilderState, type StepProps } from "./types";
 import {
   useCharacterBuilderDraft,
@@ -202,6 +205,28 @@ export function BuilderShell() {
   const [stepIndex, setStepIndex] = useState(0);
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const [focus, setFocus] = useState<BuilderFocus | null>(null);
+  // Beginner Mode: focused one-step-at-a-time flow + extra guidance, hiding
+  // advanced rules. Defaults on for first-time players; the choice is
+  // remembered in localStorage so returning users keep their preference.
+  const [beginnerMode, setBeginnerMode] = useState(true);
+
+  useEffect(() => {
+    const saved =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("pf2e-builder-beginner")
+        : null;
+    if (saved !== null) setBeginnerMode(saved === "1");
+  }, []);
+
+  function toggleBeginnerMode() {
+    setBeginnerMode((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("pf2e-builder-beginner", next ? "1" : "0");
+      }
+      return next;
+    });
+  }
 
   const draftQuery = useCharacterBuilderDraft<BuilderState>();
   const saveDraft = useSaveCharacterBuilderDraft<BuilderState>();
@@ -281,10 +306,17 @@ export function BuilderShell() {
       }
     },
     focus,
+    beginnerMode,
     onCreated: async () => {
       if (draft) await deleteDraft.mutateAsync();
     },
   };
+
+  const stepNode = StepComponent ? (
+    <StepComponent {...stepProps} />
+  ) : (
+    <StubStep {...stepProps} label={current?.label ?? "Step"} />
+  );
 
   return (
     <div className="pb-builder-workspace">
@@ -301,6 +333,35 @@ export function BuilderShell() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleBeginnerMode}
+            aria-pressed={beginnerMode}
+            title={
+              beginnerMode
+                ? "Beginner Mode is on: guided, one step at a time. Click to switch to the full builder."
+                : "Full builder view. Click to turn Beginner Mode back on."
+            }
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
+              beginnerMode
+                ? "border-[#4dbfb0] bg-[#4dbfb0]/15 text-[#9fd5c9]"
+                : "border-[#31445d] bg-[#202831] text-[#b8c6d6] hover:border-[#6f86a3]"
+            }`}
+          >
+            <GraduationCap size={15} />
+            New to Pathfinder?
+            <span
+              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                beginnerMode ? "bg-[#4dbfb0]" : "bg-[#31445d]"
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                  beginnerMode ? "translate-x-3.5" : "translate-x-0.5"
+                }`}
+              />
+            </span>
+          </button>
           {draft && (
             <button type="button" onClick={handleLoadDraft} className="rounded-md border border-[#31445d] px-3 py-1.5 text-sm text-white hover:bg-[#202831]">
               Load Draft
@@ -336,6 +397,27 @@ export function BuilderShell() {
         </div>
       )}
 
+      {beginnerMode ? (
+        <BeginnerLayout
+          steps={steps}
+          stepIndex={stepIndex}
+          current={current}
+          guide={current ? STEP_GUIDES[current.key] : undefined}
+          summary={{
+            name: state.name,
+            ancestry: state.ancestryName,
+            className: state.className,
+            level: sheetPreview.level,
+            ac: sheetPreview.ac,
+            hp: sheetPreview.maxHp,
+          }}
+          onJump={(index) => setStepIndex(index)}
+          onBack={stepProps.onBack}
+          onNext={stepProps.onNext}
+        >
+          {stepNode}
+        </BeginnerLayout>
+      ) : (
       <div className="pb-builder-grid">
         <aside className="pb-builder-plan">
           <div className="space-y-2">
@@ -520,13 +602,7 @@ export function BuilderShell() {
                 </div>
               )}
 
-              <div className="builder-workspace-surface">
-                {StepComponent ? (
-                  <StepComponent {...stepProps} />
-                ) : (
-                  <StubStep {...stepProps} label={current?.label ?? "Step"} />
-                )}
-              </div>
+              <div className="builder-workspace-surface">{stepNode}</div>
             </div>
           </div>
 
@@ -554,6 +630,7 @@ export function BuilderShell() {
           </div>
         </main>
       </div>
+      )}
     </div>
   );
 }

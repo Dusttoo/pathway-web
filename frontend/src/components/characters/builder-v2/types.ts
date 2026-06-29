@@ -290,4 +290,8 @@ export type StepProps = {
   onJump?: (stepKey: string, focus?: BuilderFocus) => void;
   focus?: BuilderFocus | null;
   onCreated?: () => Promise<void> | void;
+  // Beginner Mode hides advanced rules and shows extra plain-language
+  // guidance. Defaults to on for first-time players; steps read it to
+  // decide how much hand-holding to render. Undefined is treated as on.
+  beginnerMode?: boolean;
 };

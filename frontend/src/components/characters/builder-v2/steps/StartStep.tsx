@@ -1,8 +1,10 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, Settings2 } from "lucide-react";
 import type { StepProps } from "../types";
 import { OptionsStep } from "./OptionsStep";
+import { Term } from "../glossary";
 import { NumberStepper } from "@/components/characters/NumberStepper";
 
 const ALIGNMENTS = [
@@ -18,7 +20,10 @@ const ALIGNMENTS = [
 ];
 
 export function StartStep(props: StepProps) {
-  const { state, update } = props;
+  const { state, update, beginnerMode } = props;
+  // In Beginner Mode the variant rules are tucked away and closed by default
+  // so a new player isn't confronted with GM-level toggles on screen one.
+  const [advancedOpen, setAdvancedOpen] = useState(beginnerMode === false);
 
   return (
     <div className="space-y-8">
@@ -119,14 +124,39 @@ export function StartStep(props: StepProps) {
         )}
       </section>
 
-      <section className="space-y-4 border-t border-border pt-6">
-        <div>
-          <h3 className="text-lg font-semibold">Options</h3>
-          <p className="text-sm text-muted-foreground">
-            Choose optional rules now so later character choices reflect the right table setup.
-          </p>
-        </div>
-        <OptionsStep {...props} />
+      <section className="border-t border-border pt-6">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((open) => !open)}
+          className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3 text-left"
+        >
+          <span className="flex items-center gap-2">
+            <Settings2 size={16} className="text-muted-foreground" />
+            <span>
+              <span className="block text-sm font-semibold">Advanced: optional table rules</span>
+              <span className="block text-xs text-muted-foreground">
+                {beginnerMode
+                  ? "Leave these closed unless your Game Master told you to turn one on."
+                  : "Free Archetype, Automatic Bonus Progression, Mythic, and more."}
+              </span>
+            </span>
+          </span>
+          <ChevronDown
+            size={18}
+            className={`shrink-0 text-muted-foreground transition-transform ${advancedOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {advancedOpen && (
+          <div className="mt-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              These are <Term k="variantRules">variant rules</Term> — optional tweaks a GM can
+              switch on. Most tables use none of them. Setting them now makes sure later steps
+              show the right choices.
+            </p>
+            <OptionsStep {...props} />
+          </div>
+        )}
       </section>
     </div>
   );
