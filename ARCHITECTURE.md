@@ -1,9 +1,16 @@
 # Pathway — Platform Architecture & Implementation Plan
 
-> Status: **Proposal for approval.** No application code changes are included in this document.
-> It is the architecture/implementation plan requested before building.
+> Status: **Approved direction (core decisions locked).** No application code changes are included
+> in this document yet. It is the architecture/implementation plan requested before building.
 > Author context: written against the *actual* repository state (Next.js 16 App Router on
 > Vercel + Supabase + Railway bot), not a greenfield blank slate.
+>
+> **Locked decisions (2026-06-29):**
+> 1. **Keep Next.js Route Handlers** as the primary API; add only a thin Railway worker for
+>    ingestion/PDF/public-API. **No separate Express service.**
+> 2. **Evolve the existing app** (Phase 0 hardening first) — no rebuild.
+> 3. After Phase 0–1, the first platform layer is **Rules Library completion + Global Search +
+>    AoN ingestion ops** (was Phase 3; now sequenced first among the platform layers).
 
 ---
 
@@ -694,11 +701,12 @@ Sequenced to harden what exists, then expand. Each phase ends shippable.
 - **Phase 1 — Character depth.** `character_levels`, `character_audit_log`, `character_overrides`,
   `character_versions`; stat breakdowns ("why is this 23?"); finish Remaster/Legacy + variant-rule
   coverage in builder-v2.
-- **Phase 2 — Table Mode + Dice + Offline (read).** Field-journal Table Mode, quick-rolls, Realtime
+- **Phase 2 — Rules library completion + Global Search + AoN ops.** ⭐ *Chosen first platform
+  layer.* New reference types (rituals/hazards/deities/shields/languages/glossary/sources),
+  metadata backfill (`ruleset`/`rarity`/`traits`/`source_book_id`/`errata`), unified global search
+  (Postgres FTS/trigram), `import_runs` + admin importer UI + scheduling.
+- **Phase 3 — Table Mode + Dice + Offline (read).** Field-journal Table Mode, quick-rolls, Realtime
   display of bot encounters, PWA offline viewing.
-- **Phase 3 — Rules library completion + Global Search + AoN ops.** New reference types
-  (rituals/hazards/deities/shields/languages/glossary/sources), metadata backfill, unified global
-  search, `import_runs` + admin importer UI + scheduling.
 - **Phase 4 — Homebrew 2.0 + Companions depth.** Versioning/changelog, votes/favorites/comments/
   reports/moderation/forking, visibility tiers; companion builder kinds + sync.
 - **Phase 5 — Campaign Manager + GM Toolkit.** Campaigns, roster/permissions, NPC/monster/encounter/
@@ -765,19 +773,20 @@ Sequenced to harden what exists, then expand. Each phase ends shippable.
 
 ## 30. Questions that still need your approval
 
-1. **Backend stack (blocking).** Confirm we **keep Next.js Route Handlers** as the primary API and
-   add only a thin Railway worker for ingestion/PDF/public-API — i.e., **do not** build the separate
-   Express service the brief named. *(My strong recommendation: yes, keep Route Handlers.)*
-2. **Rebuild vs evolve.** Confirm we **evolve the existing app** (Phase 0 hardening first) rather
-   than restart. *(Recommendation: evolve.)*
+1. **Backend stack (blocking).** ✅ **RESOLVED (2026-06-29): keep Next.js Route Handlers** as the
+   primary API; add only a thin Railway worker for ingestion/PDF/public-API. No Express service.
+2. **Rebuild vs evolve.** ✅ **RESOLVED (2026-06-29): evolve the existing app** (Phase 0 hardening
+   first). No rebuild.
 3. **MVP boundary.** Is the §27 MVP (hardened app + character depth + Table Mode + library/search +
-   exports, *before* campaigns/orgs/marketplace/billing) the right v1 line?
+   exports, *before* campaigns/orgs/marketplace/billing) the right v1 line? *(Still open — default:
+   yes.)*
 4. **Builder consolidation.** There are two builders (`builder/` and `builder-v2/`). Confirm
    **builder-v2 is canonical** and `builder/` is slated for removal.
 5. **Schema ownership.** Confirm this web repo is the **source of truth for Supabase schema/
    migrations** and the bot consumes it (so I coordinate, not duplicate, schema changes).
-6. **Roadmap priority.** After Phase 0–1, which comes first: **Campaign Manager** (GM value) or
-   **Homebrew 2.0 + Marketplace** (community value)? The brief wants both; sequence is yours.
+6. **Roadmap priority.** ✅ **RESOLVED (2026-06-29): Rules Library completion + Global Search +
+   AoN ops** is the first platform layer after Phase 0–1 (now Phase 2). Campaign Manager and
+   Homebrew 2.0/Marketplace follow.
 7. **Public API host.** When we get there: public API as **Vercel `/api/v1`** (simplest) or on the
    **Railway worker** under `api.pathwaypf2e.com`?
 8. **Bot repo access.** The bot lives at `../Pathway/` (not in this repo/scope). For sync contracts
@@ -787,7 +796,17 @@ Sequenced to harden what exists, then expand. Each phase ends shippable.
 
 ## 31. Next step
 
-On approval of §30 (especially #1–#3), I'll begin **Phase 0** in small, reviewable PRs:
+Core direction is approved (§30 #1, #2, #6 resolved). On your go-ahead I'll begin **Phase 0** in
+small, reviewable, behavior-preserving PRs:
 1. introduce `src/modules/*` + `withAuth/withValidation/withRateLimit` and migrate 2–3 Route
-   Handlers as the pattern, 2. consolidate the calculator with golden tests, 3. add CI (type-check/
-   lint/test). Each step ships independently and changes no user-facing behavior.
+   Handlers as the pattern,
+2. consolidate the calculator out of `builder-v2/progression.ts` with golden tests,
+3. add CI (type-check / lint / test).
+
+Then **Phase 1** (character_levels / audit_log / overrides / versions + stat breakdowns) and
+**Phase 2** (Rules Library completion + Global Search + AoN ops) per the reordered roadmap.
+
+Remaining minor open items (defaults assumed unless you say otherwise): §30 #3 MVP boundary
+(default yes), #4 builder-v2 canonical / remove `builder/` (default yes), #5 web repo owns schema
+(default yes), #7 public API host (default Vercel `/api/v1`), #8 no direct bot-repo edits
+(default yes).
