@@ -70,11 +70,7 @@ export function BackgroundStep({ state, update }: StepProps) {
 
       {!isLoading && backgrounds.length === 0 && (
         <div className="p-4 text-sm text-muted-foreground border border-dashed border-border rounded-md">
-          No backgrounds found. Apply migrations and run{" "}
-          <code className="text-xs bg-muted px-1 rounded">
-            npx tsx scripts/seed_nethys.ts --only=backgrounds
-          </code>
-          .
+          No backgrounds are available yet. Check back soon!
         </div>
       )}
 

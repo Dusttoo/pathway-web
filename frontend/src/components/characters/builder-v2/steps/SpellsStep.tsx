@@ -354,11 +354,7 @@ export function SpellsStep({ state, update, focus }: StepProps) {
         )}
         {!isLoading && spells.length === 0 && (
           <div className="p-4 text-sm text-muted-foreground">
-            No spells found. Run{" "}
-            <code className="text-xs bg-muted px-1 rounded">
-              npx tsx scripts/seed_nethys.ts --only=spells
-            </code>{" "}
-            to populate.
+            No spells match your search. Try a different name or filter.
           </div>
         )}
         {spells.map((spell) => {

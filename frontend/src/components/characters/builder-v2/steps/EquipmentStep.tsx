@@ -121,11 +121,7 @@ export function EquipmentStep({ state, update }: StepProps) {
         )}
         {!isLoading && items.length === 0 && (
           <div className="p-4 text-sm text-muted-foreground">
-            No items found. Run{" "}
-            <code className="text-xs bg-muted px-1 rounded">
-              npx tsx scripts/seed_nethys.ts --only=equipment,weapons,armor,shields
-            </code>
-            .
+            No items match your search. Try a different name.
           </div>
         )}
         {items.map((item) => {
