@@ -1,6 +1,22 @@
 "use client";
 
+import { createContext, useContext } from "react";
 import { HelpCircle } from "lucide-react";
+
+// When Beginner Mode is off, <Term> renders as plain text (no underline or
+// tooltip) so veterans aren't peppered with hover affordances. BuilderShell
+// provides the current mode; default on so a stray <Term> is still helpful.
+const TermModeContext = createContext(true);
+
+export function TermModeProvider({
+  active,
+  children,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return <TermModeContext.Provider value={active}>{children}</TermModeContext.Provider>;
+}
 
 // Plain-language definitions for the Pathfinder 2e jargon a first-time player
 // runs into while building a character. Keep each definition to one or two
@@ -141,6 +157,11 @@ export function Term({
   className?: string;
 }) {
   const entry = GLOSSARY[k];
+  const active = useContext(TermModeContext);
+
+  // Plain text when guidance is off — no affordance, no behavior change.
+  if (!active) return <>{children ?? entry.label}</>;
+
   return (
     <span className={`group/term relative inline-flex items-center ${className}`}>
       <button

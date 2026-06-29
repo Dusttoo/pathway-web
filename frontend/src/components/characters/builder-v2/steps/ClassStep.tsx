@@ -5,6 +5,7 @@ import { Search, Loader2, Heart, Sparkles, Key, Star, ChevronDown } from "lucide
 import { useClasses, useClassDetail } from "@/lib/hooks/use-builder-data";
 import type { StepProps } from "../types";
 import { AonLink } from "../AonLink";
+import { Term } from "../glossary";
 import { BEGINNER_CLASSES, beginnerReason } from "../beginner-picks";
 
 function asAttrList(raw: unknown): string[] {
@@ -104,8 +105,8 @@ export function ClassStep({ state, update, beginnerMode }: StepProps) {
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Your class determines hit points, key attribute, starting proficiencies, and the feats you
-        can pick later.
+        Your class determines hit points, <Term k="keyAbility">key attribute</Term>, starting
+        proficiencies, and the feats you can pick later.
       </p>
 
       <div className="relative">
@@ -185,7 +186,8 @@ export function ClassStep({ state, update, beginnerMode }: StepProps) {
       {state.classId && selectedKeyAttrs.length > 1 && (
         <div className="card p-3 space-y-2 bg-muted/30">
           <label className="block text-sm font-medium">
-            Pick your key attribute <span className="text-destructive">*</span>
+            Pick your <Term k="keyAbility">key attribute</Term>{" "}
+            <span className="text-destructive">*</span>
           </label>
           <div className="flex flex-wrap gap-2">
             {selectedKeyAttrs.map((attr) => {

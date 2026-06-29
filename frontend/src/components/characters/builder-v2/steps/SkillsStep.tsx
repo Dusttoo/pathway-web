@@ -3,6 +3,7 @@
 import { Lock, CheckCircle2, Circle, Plus, X } from "lucide-react";
 import { useState } from "react";
 import type { StepProps } from "../types";
+import { Term } from "../glossary";
 
 const SKILL_LIST: { key: string; label: string; ability: string }[] = [
   { key: "acrobatics", label: "Acrobatics", ability: "Dex" },
@@ -148,8 +149,9 @@ export function SkillsStep({ state, update }: StepProps) {
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Pick {freePicks} trained skill{freePicks === 1 ? "" : "s"}. Additional Lore/custom skills
-        count as picks when set to Trained or higher. Skills locked-on come from your class
+        Pick {freePicks} <Term k="proficiency">trained</Term> <Term k="skill">skill</Term>
+        {freePicks === 1 ? "" : "s"}. Additional Lore/custom skills count as picks when set to
+        Trained or higher. Skills locked-on come from your class
         {state.className ? ` (${state.className})` : ""}
         {bgSkill ? ` and background (${bgSkill})` : ""}.
       </p>

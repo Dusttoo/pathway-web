@@ -7,6 +7,7 @@ import {
   Check,
   ChevronDown,
   Heart,
+  Info,
   Lightbulb,
   Shield,
   Sparkles,
@@ -34,6 +35,7 @@ export function BeginnerLayout({
   stepIndex,
   current,
   guide,
+  hint,
   summary,
   onJump,
   onBack,
@@ -44,6 +46,7 @@ export function BeginnerLayout({
   stepIndex: number;
   current: StepDef | undefined;
   guide?: StepGuide;
+  hint?: string | null;
   summary: BeginnerSummary;
   onJump: (index: number) => void;
   onBack: () => void;
@@ -171,6 +174,14 @@ export function BeginnerLayout({
           </div>
         )}
       </div>
+
+      {/* Gentle, non-blocking nudge about what's still expected here */}
+      {hint && !isLast && (
+        <p className="mt-4 flex items-center gap-2 text-sm text-[#e7c66b]">
+          <Info size={15} className="shrink-0" />
+          {hint} <span className="text-[#b99762]">(you can still continue)</span>
+        </p>
+      )}
 
       {/* Big, obvious navigation */}
       <div className="mt-5 flex items-center justify-between gap-3 pb-2">

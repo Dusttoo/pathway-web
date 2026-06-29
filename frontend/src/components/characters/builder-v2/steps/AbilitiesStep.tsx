@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { CheckCircle2, Heart, Info } from "lucide-react";
+import { CheckCircle2, Heart, Info, Sparkles } from "lucide-react";
 import type { AbilityBoostChoices, AbilityKey, BuilderState, StepProps } from "../types";
+import { Term } from "../glossary";
 
 const ABILITIES: { key: AbilityKey; short: string; label: string }[] = [
   { key: "str", short: "STR", label: "Strength" },
@@ -137,7 +138,7 @@ function boostChoices(state: BuilderState): AbilityBoostChoices {
   return { ...state.abilityBoostChoices, levelBoosts: state.abilityBoostChoices.levelBoosts ?? {} };
 }
 
-export function AbilitiesStep({ state, update }: StepProps) {
+export function AbilitiesStep({ state, update, beginnerMode }: StepProps) {
   const calculated = calculateAbilities(state);
   const { ancestryHp, classHp, level } = state;
   const conMod = modOf(calculated.con);
@@ -236,6 +237,25 @@ export function AbilitiesStep({ state, update }: StepProps) {
     setChoices({ free: toggleChoice(state.abilityBoostChoices.free, key, 4) });
   }
 
+  // Beginner smart-default: the four free boosts must go to four different
+  // abilities, which is the most paralyzing part for a new player. Suggest a
+  // sensible, always-legal spread led by the class's key ability, then the
+  // broadly useful Con/Dex/Wis. The player can still change any of them.
+  const freeBoostSuggestion: AbilityKey[] = (() => {
+    const order: AbilityKey[] = [];
+    for (const candidate of [classBoost, "con", "dex", "wis", "str", "int", "cha"] as (
+      | AbilityKey
+      | null
+    )[]) {
+      if (candidate && !order.includes(candidate)) order.push(candidate);
+    }
+    return order.slice(0, 4);
+  })();
+
+  function fillRecommendedBoosts() {
+    setChoices({ free: freeBoostSuggestion });
+  }
+
   function toggleLevelBoost(boostLevel: number, key: AbilityKey) {
     const levelKey = String(boostLevel);
     const current = state.abilityBoostChoices.levelBoosts?.[levelKey] ?? [];
@@ -251,10 +271,28 @@ export function AbilitiesStep({ state, update }: StepProps) {
       <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2 text-sm text-muted-foreground">
         <Info size={16} className="shrink-0 mt-0.5 text-primary" />
         <p>
-          Pick boosts instead of typing final numbers. Scores start at 10, ancestry flaws apply
-          first, each boost raises a score by 2, and creation scores are capped at 18.
+          Pick <Term k="boost">boosts</Term> instead of typing final numbers. Scores start at 10,
+          ancestry <Term k="flaw">flaws</Term> apply first, each boost raises a score by 2, and
+          creation scores are capped at 18.
         </p>
       </div>
+
+      {beginnerMode && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#d8a646]/40 bg-[#0b1726] p-3">
+          <p className="text-sm text-[#f3e5c1]">
+            Not sure where to put your <Term k="boost">free boosts</Term>? We can pick a solid
+            spread for your class — you can still change any of them.
+          </p>
+          <button
+            type="button"
+            onClick={fillRecommendedBoosts}
+            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-[#d8a646] bg-[#d8a646] px-3 py-1.5 text-sm font-semibold text-[#05090e] hover:bg-[#e6b754]"
+          >
+            <Sparkles size={15} />
+            Fill recommended boosts
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {ABILITIES.map(({ key, short, label }) => {
@@ -291,7 +329,7 @@ export function AbilitiesStep({ state, update }: StepProps) {
                       : "text-muted-foreground"
                 }`}
               >
-                Mod {fmtMod(score)}
+                <Term k="modifier">Mod</Term> {fmtMod(score)}
               </p>
             </div>
           );
@@ -446,10 +484,10 @@ export function AbilitiesStep({ state, update }: StepProps) {
             <Heart size={14} /> {maxHp}
           </span>
         </Stat>
-        <Stat label="Initiative (Perception)" hint="Wis-based">
+        <Stat label={<>Initiative (<Term k="perception">Perception</Term>)</>} hint="Wis-based">
           <span className="font-mono">{fmtMod(calculated.wis)}</span>
         </Stat>
-        <Stat label="Class DC" hint={classBoost ? `10 + ${classBoost}` : "none"}>
+        <Stat label={<Term k="classDc">Class DC</Term>} hint={classBoost ? `10 + ${classBoost}` : "none"}>
           <span className="font-mono">{classDc ?? "-"}</span>
         </Stat>
         <Stat label="Free skill picks" hint="Class trained + INT mod">
@@ -527,7 +565,7 @@ function Stat({
   hint,
   children,
 }: {
-  label: string;
+  label: React.ReactNode;
   hint: string;
   children: React.ReactNode;
 }) {

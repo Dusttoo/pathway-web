@@ -20,7 +20,9 @@ import {
 } from "lucide-react";
 import { visibleSteps, type StepDef } from "./steps";
 import { BeginnerLayout } from "./BeginnerLayout";
+import { TermModeProvider } from "./glossary";
 import { STEP_GUIDES } from "./step-guides";
+import { stepHint } from "./step-hints";
 import { DEFAULT_STATE, type AbilityKey, type BuilderFocus, type BuilderState, type StepProps } from "./types";
 import {
   useCharacterBuilderDraft,
@@ -319,6 +321,7 @@ export function BuilderShell() {
   );
 
   return (
+    <TermModeProvider active={beginnerMode}>
     <div className="pb-builder-workspace">
       <div className="pb-builder-subbar">
         <div className="flex min-w-0 items-center gap-3">
@@ -403,6 +406,7 @@ export function BuilderShell() {
           stepIndex={stepIndex}
           current={current}
           guide={current ? STEP_GUIDES[current.key] : undefined}
+          hint={current ? stepHint(current.key, state) : null}
           summary={{
             name: state.name,
             ancestry: state.ancestryName,
@@ -632,5 +636,6 @@ export function BuilderShell() {
       </div>
       )}
     </div>
+    </TermModeProvider>
   );
 }
