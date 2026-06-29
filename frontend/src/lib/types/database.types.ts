@@ -1845,6 +1845,106 @@ export type Database = {
           },
         ]
       }
+      import_run_events: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          import_run_id: string
+          level: string
+          message: string
+          metadata: Json
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          import_run_id: string
+          level?: string
+          message: string
+          metadata?: Json
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          import_run_id?: string
+          level?: string
+          message?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_run_events_import_run_id_fkey"
+            columns: ["import_run_id"]
+            isOneToOne: false
+            referencedRelation: "import_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_runs: {
+        Row: {
+          categories: string[]
+          created_at: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          metadata: Json
+          requested_by_user_id: string | null
+          source: string
+          started_at: string | null
+          status: string
+          total_fetched: number
+          total_inserted: number
+          total_skipped: number
+          total_updated: number
+          updated_at: string
+        }
+        Insert: {
+          categories?: string[]
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          requested_by_user_id?: string | null
+          source?: string
+          started_at?: string | null
+          status?: string
+          total_fetched?: number
+          total_inserted?: number
+          total_skipped?: number
+          total_updated?: number
+          updated_at?: string
+        }
+        Update: {
+          categories?: string[]
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          requested_by_user_id?: string | null
+          source?: string
+          started_at?: string | null
+          status?: string
+          total_fetched?: number
+          total_inserted?: number
+          total_skipped?: number
+          total_updated?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_runs_requested_by_user_id_fkey"
+            columns: ["requested_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           aon_id: string | null

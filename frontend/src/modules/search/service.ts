@@ -24,6 +24,11 @@ export type GlobalSearchResult = {
   rank: number;
 };
 
+export type GlobalSearchWarning = {
+  source: string;
+  message: string;
+};
+
 type QueryResult = {
   data?: unknown[] | null;
   error?: { message: string } | null;
@@ -154,9 +159,10 @@ export async function searchRulesLibrary(
 
     if (error) throw new Error(error.message);
 
-    return ((data ?? []) as Row[]).map((row) =>
-      buildDirectResult(row, config, q)
-    );
+    return {
+      source: config.table,
+      results: ((data ?? []) as Row[]).map((row) => buildDirectResult(row, config, q)),
+    };
   });
 
   const gamedataPromise = db
@@ -167,16 +173,31 @@ export async function searchRulesLibrary(
     .limit(perSourceLimit * 2)
     .then(({ data, error }) => {
       if (error) throw new Error(error.message);
-      return ((data ?? []) as Row[]).map((row) => buildGamedataResult(row, q));
+      return {
+        source: "gamedata",
+        results: ((data ?? []) as Row[]).map((row) => buildGamedataResult(row, q)),
+      };
     });
 
-  const resultGroups = await Promise.all([...directPromises, gamedataPromise]);
+  const settled = await Promise.allSettled([...directPromises, gamedataPromise]);
+  const warnings: GlobalSearchWarning[] = [];
+  const resultGroups = settled.flatMap((result, index) => {
+    if (result.status === "fulfilled") return [result.value];
+
+    const source = index < DIRECT_SEARCHES.length ? DIRECT_SEARCHES[index].table : "gamedata";
+    warnings.push({
+      source,
+      message: result.reason instanceof Error ? result.reason.message : "Search source failed",
+    });
+    return [];
+  });
+
   const results = resultGroups
-    .flat()
+    .flatMap((group) => group.results)
     .sort((a, b) => b.rank - a.rank || a.title.localeCompare(b.title))
     .slice(0, limit);
 
-  return { results, total: results.length, query: q };
+  return { results, total: results.length, query: q, warnings };
 }
 
 function buildDirectResult(

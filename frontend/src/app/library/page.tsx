@@ -11,7 +11,7 @@ import { useItems } from "@/lib/hooks/use-items";
 import { useMonsters } from "@/lib/hooks/use-monsters";
 import type { GamedataCategory } from "@/lib/hooks/use-gamedata";
 import type { Tables } from "@/lib/types/database.types";
-import type { GlobalSearchResult } from "@/modules/search/service";
+import type { GlobalSearchResult, GlobalSearchWarning } from "@/modules/search/service";
 
 type Row = Record<string, unknown>;
 type LegacyTab = "ancestries" | "classes" | "spells" | "feats" | "backgrounds";
@@ -283,6 +283,7 @@ function useGlobalSearch(q: string, enabled = true) {
         results: GlobalSearchResult[];
         total: number;
         query: string;
+        warnings?: GlobalSearchWarning[];
       }>;
     },
     enabled,
@@ -753,21 +754,27 @@ function LibraryContent() {
                       </div>
                     );
                   }
-                  if (globalResult.error) {
-                    return <ErrorState label="global search" error={globalResult.error} />;
-                  }
+                  if (globalResult.error) return <ErrorState label="global search" error={globalResult.error} />;
                   const results = globalResult.data?.results ?? [];
+                  const warnings = globalResult.data?.warnings ?? [];
                   return results.length === 0 ? (
                     <EmptyState tab="library entries" search={search} />
                   ) : (
-                    <div className="space-y-3">
-                      {results.map((result) => (
-                        <SearchResultCard
-                          key={`${result.kind}-${result.id}-${result.href}`}
-                          result={result}
-                        />
-                      ))}
-                    </div>
+                    <>
+                      {warnings.length > 0 && (
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+                          Showing partial results. Some library sections could not be searched yet.
+                        </div>
+                      )}
+                      <div className="space-y-3">
+                        {results.map((result) => (
+                          <SearchResultCard
+                            key={`${result.kind}-${result.id}-${result.href}`}
+                            result={result}
+                          />
+                        ))}
+                      </div>
+                    </>
                   );
                 })()}
 
